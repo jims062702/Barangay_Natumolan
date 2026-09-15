@@ -1,0 +1,451 @@
+@import "tailwindcss";
+
+/* Hide Edge/IE's built-in password reveal — we render our own toggle. */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Barangay Natumolan design tokens
+--------------------------------------------------------------------------- */
+@theme {
+  --font-sans: "Poppins", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    sans-serif;
+
+  --color-primary: #723ec3;
+  --color-primary-dark: #5b2fa0;
+  --color-primary-light: #9a6fe0;
+  --color-secondary: #fbf6f6;
+  --color-dark: #1f2937;
+  --color-gray: #e5e7eb;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+}
+
+/* ---------------------------------------------------------------------------
+   Inline form validation — replaces the browser's native "Please fill out this
+   field" bubble with a modern red message + red field outline. Applied
+   globally by <FormValidationStyler /> (see components/FormValidationStyler).
+--------------------------------------------------------------------------- */
+.bn-invalid {
+  border-color: var(--color-danger) !important;
+}
+.bn-invalid:focus {
+  border-color: var(--color-danger) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
+}
+.bn-field-error {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  color: var(--color-danger);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1rem;
+  animation: bn-field-error-in 0.15s ease-out;
+}
+.bn-field-error svg {
+  flex: none;
+}
+@keyframes bn-field-error-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Pulse ring for the floating chat button
+
+   Tailwind's `animate-ping` ends at scale(2), which on a 56px button reaches
+   28px past every edge. The button sits 16px from the right, so the ring
+   pushed the DOCUMENT 12px wider than the viewport — a transformed element
+   still counts toward scroll width. That gave the whole landing page a
+   sideways scroll, which in turn parked the hamburger and the chat button
+   itself outside the visible area and stretched the fixed header beyond it.
+
+   scale(1.5) reaches 14px, so the ring now stays inside the 16px inset and
+   the page has nothing to scroll sideways to.
+--------------------------------------------------------------------------- */
+@keyframes ping-contained {
+  75%,
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+.animate-ping-contained {
+  animation: ping-contained 2.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+html {
+  scroll-behavior: smooth;
+
+  /*
+   * No sideways scrolling, ever.
+   *
+   * The landing sections slide in from the left and right (<Reveal>), so until
+   * `whileInView` fires each one sits parked 44px outside the page. A
+   * transform does not affect layout, but it DOES count toward scrollWidth —
+   * and on a phone Chrome sizes the layout viewport from scrollWidth. So a
+   * 375px screen got a 404px layout viewport, which is why `fixed inset-x-0`
+   * stretched the header to 404px and parked the navbar's hamburger and the
+   * chat button ~13px outside the visible area, reachable only by panning.
+   *
+   * A slide-in from the edge has to start off the edge, so the overflow is
+   * clipped rather than removed. It must sit on the ROOT element: overflow on
+   * <html> is what propagates to the viewport, and clipping <body> alone left
+   * scrollWidth — and therefore the layout viewport — still inflated.
+   *
+   * `clip` and not `hidden`: `hidden` turns the root into a scroll container,
+   * which breaks `position: sticky` on the dashboard topbar.
+   */
+  overflow-x: clip;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+body {
+  @apply bg-secondary font-sans text-dark antialiased;
+}
+
+/* Sections must land below the fixed navbar when anchor-scrolled */
+section[id] {
+  scroll-margin-top: 4.5rem;
+}
+
+::selection {
+  background-color: var(--color-primary);
+  color: #ffffff;
+}
+
+/* ---------------------------------------------------------------------------
+   Thumb-sized controls on phones
+
+   Row and list controls are written for a mouse: `py-1.5 text-xs` renders at
+   26px tall, and a few bare text buttons at 16px. That is fine for a cursor
+   and a coin-flip for a thumb, so on phones every button and pill-styled link
+   inside the page body gets a 36px floor.
+
+   `min-height` only ever raises the floor, so icon buttons already sized
+   h-9/h-10 are untouched. Inline links inside prose are deliberately excluded
+   — stretching them would break the line height of the paragraph holding them.
+--------------------------------------------------------------------------- */
+@media (max-width: 639px) {
+  main button,
+  main a[class*="rounded-full"],
+  main a[class*="rounded-lg"],
+  main a[class*="rounded-xl"] {
+    min-height: 36px;
+  }
+
+  /* A raised floor only helps if the label sits in the middle of it. */
+  main button:not([class*="items-"]),
+  main a[class*="rounded-"]:not([class*="items-"]) {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Full-width submit buttons must keep their centred label. */
+  main button[class*="w-full"]:not([class*="justify-"]) {
+    justify-content: center;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Swiper theming
+--------------------------------------------------------------------------- */
+.hero-swiper .swiper-pagination-bullet {
+  width: 10px;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.55);
+  opacity: 1;
+  transition: all 0.3s ease;
+}
+
+.hero-swiper .swiper-pagination-bullet-active {
+  width: 28px;
+  border-radius: 9999px;
+  background: #ffffff;
+}
+
+.hero-swiper .swiper-pagination {
+  bottom: 6.5rem !important;
+}
+
+.news-swiper {
+  padding-bottom: 3.25rem !important;
+}
+
+.news-swiper .swiper-pagination-bullet {
+  width: 10px;
+  height: 10px;
+  background: #d4c3f1;
+  opacity: 1;
+  transition: all 0.3s ease;
+}
+
+.news-swiper .swiper-pagination-bullet-active {
+  width: 26px;
+  border-radius: 9999px;
+  background: var(--color-primary);
+}
+
+/*
+  The scroll-reveal every dashboard wears.
+
+  Same movement as the public site — a fade and a 24px rise, easing out over
+  half a second — but driven by an IntersectionObserver and these two classes
+  instead of an animation library, so a dashboard does not download 127kB to
+  fade a card in. See hooks/useReveal.ts.
+
+  `will-change` is deliberately absent: it would promote every card on the
+  page to its own compositor layer, and a dashboard has thirty of them.
+*/
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 0.5s ease-out,
+    transform 0.5s ease-out;
+}
+
+.reveal-in {
+  opacity: 1;
+  transform: none;
+}
+
+/*
+  Somebody who has asked their system for less motion gets the content and
+  none of the movement. Written as a plain override rather than as a check in
+  the code, so a card is never left at opacity 0 by a race.
+*/
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal-in {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/*
+  The bubble that introduces the chat button.
+
+  It rises the last few pixels as it fades in, so it reads as arriving rather
+  than as having been there all along and only just noticed — which is the
+  whole point of it.
+*/
+@keyframes chat-hint-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.chat-hint {
+  animation: chat-hint-in 0.4s ease-out both;
+}
+
+/*
+  The three dots a chat shows before it speaks.
+
+  Staggered by an inline delay per dot, so the wave runs left to right. The
+  dip is small: this sits over page content, and a bouncing badge in the
+  corner of the eye is harder to ignore than it is to read.
+*/
+@keyframes chat-dot {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+.chat-dot {
+  animation: chat-dot 1.2s ease-in-out infinite;
+}
+
+/* The caret, which only exists while a line is still being written. */
+@keyframes chat-caret {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.chat-caret {
+  animation: chat-caret 0.9s step-end infinite;
+}
+
+/*
+  Somebody who has asked their system for less motion gets the words and none
+  of the movement. The typing itself is skipped in the component; these are
+  the loops that would otherwise keep running.
+*/
+@media (prefers-reduced-motion: reduce) {
+  .chat-hint,
+  .chat-dot,
+  .chat-caret {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Section backdrops — the shadcn background patterns, one per section
+
+   Six sections in a row, and a landing page that repeats one texture down all
+   of them reads as a single long page rather than as six places. Each gets a
+   different pattern; none is used twice.
+
+   Drawn on a ::before layer rather than on the section itself, because the
+   faded ones carry a mask and a mask on the section would fade the writing
+   with the lines. The parent isolates, so `z-index: -1` paints above the
+   section's background colour and below its content.
+
+   One line colour throughout, at the weight the reference uses: present when
+   you look for it, gone when you read. #e9e9ef on white is 1.06:1 — texture,
+   never something competing with a word.
+--------------------------------------------------------------------------- */
+.pattern {
+  position: relative;
+  isolation: isolate;
+}
+
+.pattern::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Nothing at all for a reader who has asked for less movement and noise. */
+@media (prefers-reduced-motion: reduce) {
+  .pattern::before {
+    opacity: 0.5;
+  }
+}
+
+/* 1 — News: a field of dots, fading out at the foot. */
+.pattern-dots::before {
+  background-image: radial-gradient(#d9d9e3 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
+}
+
+/* 2 — About: the square grid, lit from the middle. The reference pattern. */
+.pattern-grid-spotlight::before {
+  background-image:
+    linear-gradient(to right, #e9e9ef 1px, transparent 1px),
+    linear-gradient(to bottom, #e9e9ef 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 40%, transparent 100%);
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 40%, transparent 100%);
+}
+
+/* 3 — Services: cross-hatch, both diagonals. */
+.pattern-crosshatch::before {
+  background-image:
+    repeating-linear-gradient(45deg, #e9e9ef 0 1px, transparent 1px 26px),
+    repeating-linear-gradient(-45deg, #e9e9ef 0 1px, transparent 1px 26px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 30%, #000 70%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 30%, #000 70%, transparent 100%);
+}
+
+/*
+   4 — Offices: a dashed grid.
+   The dashes come from a second pass that erases the line at intervals, which
+   is the only way to dash a gradient rule.
+*/
+.pattern-dashed-grid::before {
+  background-image:
+    linear-gradient(to right, #dcdce6 1px, transparent 1px),
+    linear-gradient(to bottom, #dcdce6 1px, transparent 1px);
+  background-size: 64px 64px;
+
+  /*
+    The dashes are cut by the mask, not painted.
+    Erasing them with a second white pass was the first attempt and it did
+    nothing: a 1px rule cannot be dashed along its own length by a gradient
+    that runs across it. Two repeating masks in UNION punch the gaps instead —
+    where neither is opaque the line is simply not there.
+  */
+  -webkit-mask-image:
+    repeating-linear-gradient(to right, #000 0 9px, transparent 9px 18px),
+    repeating-linear-gradient(to bottom, #000 0 9px, transparent 9px 18px),
+    linear-gradient(to bottom, #000 0%, #000 60%, transparent 100%);
+  -webkit-mask-composite: source-over, source-in;
+  mask-image:
+    repeating-linear-gradient(to right, #000 0 9px, transparent 9px 18px),
+    repeating-linear-gradient(to bottom, #000 0 9px, transparent 9px 18px),
+    linear-gradient(to bottom, #000 0%, #000 60%, transparent 100%);
+  mask-composite: add, intersect;
+}
+
+/*
+   5 — Officials: plus marks, where a grid's lines would have crossed.
+   Two short rules per cell, centred — the ticks a plan is drawn on.
+*/
+.pattern-plus::before {
+  background-image:
+    linear-gradient(to right, #e2e2ea 1px, transparent 1px),
+    linear-gradient(to bottom, #e2e2ea 1px, transparent 1px);
+  background-size: 44px 44px;
+
+  /*
+    INTERSECT, not add.
+    The union of a row band and a column band is most of the grid, which is
+    what the first attempt drew — a plain grid, indistinguishable from the
+    section above it. Intersecting them keeps only a small square at each
+    crossing, and the two rules inside that square are the plus.
+  */
+  -webkit-mask-image:
+    repeating-linear-gradient(to right, #000 0 13px, transparent 13px 44px),
+    repeating-linear-gradient(to bottom, #000 0 13px, transparent 13px 44px);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    repeating-linear-gradient(to right, #000 0 13px, transparent 13px 44px),
+    repeating-linear-gradient(to bottom, #000 0 13px, transparent 13px 44px);
+  mask-composite: intersect;
+  /* Both offset by half a segment so the plus is centred on the crossing. */
+  -webkit-mask-position: -6px -6px;
+  mask-position: -6px -6px;
+}
+
+/* 6 — Contact: wide ruled lines and one soft glow behind the form. */
+.pattern-ruled::before {
+  background-image:
+    linear-gradient(to bottom, #ececf2 1px, transparent 1px),
+    radial-gradient(ellipse 50% 45% at 70% 40%, rgba(114, 62, 195, 0.07), transparent 70%);
+  background-size: 34px 34px, 100% 100%;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 25%, #000 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 25%, #000 100%);
+}
