@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api\Service;
 use App\Http\Controllers\Api\BaseController;
 use App\Models\Service\Certificate;
 use App\Models\Service\Guide;
-use App\Support\CertificateCatalogue;
+use App\Services\Service\CertificateCatalogue;
 use Illuminate\Http\Request;
 
 /** What the counter screen needs before it files anything: forms, fees, requirements, numbers. */
@@ -83,7 +83,7 @@ class CertificateCatalogueController extends BaseController
         return $this->success([
             'office' => $office,
             'prefix' => $prefix,
-            'width' => 6,
+            'width' => Certificate::NUMBER_WIDTH,
             /* The next free one, so the device does not have to add a
                number to a number and get the arithmetic wrong. */
             'next' => ((int) $highest) + 1,

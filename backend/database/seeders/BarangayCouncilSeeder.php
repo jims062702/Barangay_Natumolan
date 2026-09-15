@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Council\Official;
-use App\Support\LandingCache;
+use App\Services\Content\LandingCache;
 use Illuminate\Database\Seeder;
 
 /**

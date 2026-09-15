@@ -4,13 +4,11 @@ use App\Http\Controllers\Api\Service\AppointmentController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| Appointments at the office.
+| Appointments — booked at the front desk, so the same office
+| that runs intake (plus the PB, who is scheduled into them).
 |
 | Loaded inside the staff group, where the Clerk is already turned away.
 */
-
-// Appointments — booked at the front desk, so the same office
-// that runs intake (plus the PB, who is scheduled into them).
 Route::middleware('office:Main Office,PB')->group(function () {
     Route::apiResource('appointments', AppointmentController::class);
     Route::post('appointments/{appointment}/confirm', [AppointmentController::class, 'confirm']);

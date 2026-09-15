@@ -7,7 +7,7 @@ use App\Http\Requests\Content\ReorderAnnouncementsRequest;
 use App\Http\Requests\Content\StoreAnnouncementRequest;
 use App\Http\Requests\Content\UpdateAnnouncementRequest;
 use App\Models\Content\Announcement;
-use App\Support\LandingCache;
+use App\Services\Content\LandingCache;
 use App\Support\PublicUpload;
 use Illuminate\Http\Request;
 

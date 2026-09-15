@@ -57,7 +57,7 @@ curl -X POST http://localhost:5005/webhooks/rest/webhook `
 
 After editing, run `start-rasa.ps1` again — it retrains automatically.
 Keep the fee amounts in `utter_certificates`/`utter_fees` in sync with
-`backend/app/Http/Controllers/Api/CertificateController.php` (`FEES`).
+`backend/app/Services/Service/CertificateCatalogue.php` (the fee schedule).
 
 ## Pointing the widget elsewhere
 

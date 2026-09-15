@@ -5,13 +5,9 @@ use App\Http\Controllers\Api\Admin\NonResidentController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| System Administration.
+| System Administration — staff account management (Admin only)
 |
 | Loaded inside the signed-in staff group of routes/api.php.
-*/
-
-/*
-| System Administration — staff account management (Admin only)
 */
 Route::prefix('admin')->middleware('office:AdminRole')->group(function () {
     Route::get('users', [AccountController::class, 'index']);

@@ -2,27 +2,14 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Support\ManilaTime;
 use Illuminate\Routing\Controller;
 
+/**
+ * What every API controller answers with: one JSON envelope for success and
+ * for refusal, and the status counts the list screens put on their chips.
+ */
 class BaseController extends Controller
 {
-    /** The Philippine clock for date rules — see App\Support\ManilaTime. */
-    protected const MANILA = ManilaTime::ZONE;
-
-    protected static function manilaNow(): string
-    {
-        return ManilaTime::now();
-    }
-
-    protected static function manilaToday(): string
-    {
-        return ManilaTime::today();
-    }
-
-    /**
-     * Send success response
-     */
     /**
      * How many rows sit under each status, for the chips above a list.
      *

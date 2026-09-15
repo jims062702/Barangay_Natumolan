@@ -8,12 +8,6 @@ use App\Http\Controllers\Api\Service\CertificateWorkflowController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| Certificates & clearances.
-|
-| Loaded inside the signed-in staff group of routes/api.php.
-*/
-
-/*
 | Certificates & clearances. Three presses, all the clerk's: accept,
 | print, release. The Punong Barangay signs the paper on its way to
 | the counter, which is a thing that happens at a desk rather than a
@@ -22,6 +16,8 @@ use Illuminate\Support\Facades\Route;
 | Denied to the Secretary at the route, not merely hidden from the
 | menu: two people working one counter list is how the same
 | certificate gets started twice.
+|
+| Loaded inside the signed-in staff group of routes/api.php.
 */
 Route::middleware(['office:Main Office,PB', 'deny_role:Secretary'])->group(function () {
     // Declared before the apiResource, or "report" is swallowed as an id.

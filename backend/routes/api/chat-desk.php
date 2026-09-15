@@ -4,15 +4,11 @@ use App\Http\Controllers\Api\Chat\DeskController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| The live chat desk.
-|
-| Loaded inside the signed-in staff group of routes/api.php.
-*/
-
-/*
 | Live-agent chat desk. The SECRETARY is responsible for it, with the
 | Punong Barangay and Admin able to step in; the Clerk is excluded,
 | since their remit is the service counter.
+|
+| Loaded inside the signed-in staff group of routes/api.php.
 */
 Route::prefix('chat')->middleware(['office:Main Office,PB', 'deny_role:Clerk'])->group(function () {
     // The canned answers the composer offers behind @certificate/… and

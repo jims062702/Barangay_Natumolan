@@ -2,7 +2,7 @@
 
 namespace App\Models\Service;
 
-use App\Support\CertificateCatalogue;
+use App\Services\Service\CertificateCatalogue;
 use App\Support\SequenceNumber;
 
 use Illuminate\Database\Eloquent\Model;
@@ -149,14 +149,34 @@ class Certificate extends Model
         return 'CERT-' . date('Y') . '-' . $code . '-';
     }
 
+    /** Digits after the series prefix: CERT-2026-01-000123. */
+    public const NUMBER_WIDTH = 6;
+
     public static function nextCertificateNumber(?string $office = null): string
     {
         return SequenceNumber::next(
             'certificates_clearances',
             'certificate_number',
             self::seriesPrefix($office),
-            6
+            self::NUMBER_WIDTH
         );
+    }
+
+    /**
+     * Whether a number is one this office's series could have issued.
+     *
+     * The prefix alone is not enough. CERT-2026-01-9999999999 starts right,
+     * and taken as the highest number on file it would leave the series with
+     * nowhere to go — every certificate after it refused as "exhausted". So
+     * the number must be the prefix and exactly the series' width of digits,
+     * and not the all-nines placeholder the series never issues.
+     */
+    public static function isSeriesNumber(string $number, ?string $office): bool
+    {
+        $digits = '\\d{' . self::NUMBER_WIDTH . '}';
+
+        return preg_match('/^' . preg_quote(self::seriesPrefix($office), '/') . $digits . '$/', $number) === 1
+            && $number !== self::seriesPrefix($office) . str_repeat('9', self::NUMBER_WIDTH);
     }
 
     /**

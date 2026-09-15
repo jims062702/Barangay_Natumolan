@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Account;
 
-use App\Support\OfficePassword;
+use App\Rules\OfficePassword;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ChangePasswordRequest extends FormRequest

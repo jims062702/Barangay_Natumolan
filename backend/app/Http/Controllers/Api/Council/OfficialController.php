@@ -7,7 +7,7 @@ use App\Http\Requests\Council\StoreOfficialRequest;
 use App\Http\Requests\Council\UpdateOfficialRequest;
 use App\Models\Council\Official;
 use App\Services\Council\OfficialPositions;
-use App\Support\LandingCache;
+use App\Services\Content\LandingCache;
 use App\Support\PublicUpload;
 use Illuminate\Http\Request;
 

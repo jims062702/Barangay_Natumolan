@@ -6,7 +6,7 @@ use App\Models\Account\Notification;
 use App\Models\Resident\Resident;
 use App\Models\Service\Certificate;
 use App\Models\Service\ServiceRequest;
-use App\Support\CertificateCatalogue;
+use App\Services\Service\CertificateCatalogue;
 
 /**
  * A certificate filed at the counter — or by a counter device that had no line.
@@ -134,15 +134,16 @@ final class CertificateFiling
          * Minting a different one here would leave the office holding a
          * document whose number the register does not know.
          *
-         * It is accepted only from the caller's OWN office series, and only
-         * if it is still free — the unique index has the final say, so a
-         * clash is refused rather than silently overwritten.
+         * It is accepted only as a well-formed number of the caller's OWN
+         * office series — the prefix and six digits — and only if it is
+         * still free. Anything else is not a number this series issued, so
+         * the server mints the next one instead. A clash is refused rather
+         * than silently overwritten.
          */
         $office = auth()->user()?->office;
         $supplied = trim((string) ($validated['certificate_number'] ?? ''));
-        $prefix = Certificate::seriesPrefix($office);
 
-        if ($supplied !== '' && str_starts_with($supplied, $prefix)) {
+        if ($supplied !== '' && Certificate::isSeriesNumber($supplied, $office)) {
             if (Certificate::where('certificate_number', $supplied)->exists()) {
                 throw new CertificateFilingRefused(
                     'Certificate number ' . $supplied . ' is already in use. This happens '
@@ -181,7 +182,7 @@ final class CertificateFiling
          * A certificate filed HERE is filed by a clerk who has the applicant
          * in front of them, so it starts on their desk rather than in the
          * pending queue. Only the resident's own online request produces a
-         * Pending certificate (see PortalController::createRequest).
+         * Pending certificate (see App\Services\Portal\OnlineCertificate).
          */
         $validated['status'] = 'Processing';
         $validated['processed_by'] = auth()->id();

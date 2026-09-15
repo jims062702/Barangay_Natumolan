@@ -6,7 +6,7 @@ use App\Http\Controllers\Api\BaseController;
 use App\Mail\PortalActivationCode;
 use App\Models\Account\User;
 use App\Models\Resident\Resident;
-use App\Support\PortalAccount;
+use App\Services\Account\PortalAccount;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;

@@ -8,7 +8,7 @@ use App\Models\Content\HeroSlide;
 use App\Models\Council\Official;
 use App\Models\Household\Household;
 use App\Models\Resident\Resident;
-use App\Support\LandingCache;
+use App\Services\Content\LandingCache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
@@ -49,7 +49,7 @@ class LandingController extends BaseController
     /**
      * Public "barangay at a glance" counts, sourced from the Population
      * Office registry. Aggregate numbers only — no personal data. Cached and
-     * refreshed whenever the registry changes (see ResidentController).
+     * refreshed whenever the registry changes (see LandingCache::clearStats).
      */
     public function stats()
     {

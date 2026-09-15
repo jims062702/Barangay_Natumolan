@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api\Service;
 use App\Http\Controllers\Api\BaseController;
 use App\Models\Service\Certificate;
 use App\Services\Service\CertificatePhoto;
-use App\Support\CertificateCatalogue;
+use App\Services\Service\CertificateCatalogue;
 use Illuminate\Http\Request;
 
 /** The counter photograph for a Barangay Clearance with Picture. */

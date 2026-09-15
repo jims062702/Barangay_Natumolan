@@ -4,7 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Service\Certificate;
 use App\Models\Service\ServiceRequest;
-use App\Support\CertificateCatalogue;
+use App\Services\Service\CertificateCatalogue;
 use Illuminate\Console\Command;
 
 /**

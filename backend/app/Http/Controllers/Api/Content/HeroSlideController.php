@@ -7,7 +7,7 @@ use App\Http\Requests\Content\ReorderHeroSlidesRequest;
 use App\Http\Requests\Content\StoreHeroSlideRequest;
 use App\Http\Requests\Content\UpdateHeroSlideRequest;
 use App\Models\Content\HeroSlide;
-use App\Support\LandingCache;
+use App\Services\Content\LandingCache;
 use App\Support\PublicUpload;
 
 /**

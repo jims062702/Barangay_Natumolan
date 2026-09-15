@@ -1,0 +1,285 @@
+import { useEffect, useState, type FormEvent } from "react";
+import { FiPlus } from "react-icons/fi";
+import { errorMessage } from "../../../shared/lib/api";
+import { toast } from "../../../shared/lib/toast";
+import { confirmAction } from "../../../shared/lib/confirm";
+import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
+import { usePulse } from "../../../shared/hooks/usePulse";
+import { useUpload } from "../../../shared/hooks/useUpload";
+import FileField from "../../../shared/ui/FileField";
+import Card from "../../../shared/ui/Card";
+import Modal from "../../../shared/ui/Modal";
+import PageHeader from "../../../shared/ui/PageHeader";
+import FormField, { inputClasses } from "../../../shared/ui/FormField";
+import { CardGridSkeleton } from "../../../shared/ui/Skeleton";
+import { contentApi } from "../api";
+import type { HeroSlide } from "../types";
+
+export default function HeroSlides() {
+  const [slides, setSlides] = useState<HeroSlide[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null); // null = add mode
+  const [title, setTitle] = useState("");
+  const [subtitle, setSubtitle] = useState("");
+  const [currentImage, setCurrentImage] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  /*
+   * `silent` is for the background timer.
+   *
+   * A refresh nobody asked for must not blank the page somebody is
+   * reading; a first load or a filter change should still say it is
+   * working. Same fetch, and only the announcement differs.
+   */
+  const load = (silent = false) => {
+    if (!silent) setLoading(true);
+    contentApi.heroSlides().then((r) => setSlides(r.data.data ?? [])).finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  // Live updates without a manual refresh.
+  useAutoRefresh(() => load(true), REFRESH.staff);
+
+  /*
+   * Somebody else's change, about a second after they make it.
+   *
+   * The timer above stays as a backstop: if the pulse cannot be
+   * reached the page is a few seconds stale rather than frozen.
+   */
+  usePulse("hero_slides", () => load(true));
+
+  /* Progress for the photo, so a slow upload is not mistaken for a dead one. */
+  const upload = useUpload();
+
+  const openAdd = () => {
+    setEditId(null);
+    setTitle("");
+    setSubtitle("");
+    setCurrentImage(null);
+    setFile(null);
+    setOpen(true);
+  };
+
+  const openEdit = (slide: HeroSlide) => {
+    setEditId(slide.id);
+    setTitle(slide.title ?? "");
+    setSubtitle(slide.subtitle ?? "");
+    setCurrentImage(slide.image_url ?? null);
+    setFile(null);
+    setOpen(true);
+  };
+
+  const save = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editId && !file) return; // a new slide needs an image
+    if (!(await confirmAction({ title: "Save this home picture?", confirmText: "Yes, save" }))) return;
+    setSaving(true);
+    try {
+      const form = new FormData();
+      form.append("title", title);
+      form.append("subtitle", subtitle);
+      if (file) form.append("image", file);
+
+      if (editId) {
+        form.append("_method", "PUT");
+        await contentApi.updateHeroSlide(editId, form, {
+          headers: { "Content-Type": "multipart/form-data" },
+          ...upload.tracker,
+        });
+        upload.finish();
+        toast("Home picture updated.");
+      } else {
+        form.append("sort_order", String(slides.length));
+        await contentApi.createHeroSlide(form, {
+          headers: { "Content-Type": "multipart/form-data" },
+          ...upload.tracker,
+        });
+        upload.finish();
+        toast("Home picture added — it now shows on the public site.");
+      }
+      setOpen(false);
+      load();
+    } catch (err) {
+      /* Clear the bar. Left up, a failed upload sits at whatever percentage
+         it died on and reads as still working. */
+      upload.fail();
+      toast(errorMessage(err), "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const move = async (index: number, dir: -1 | 1) => {
+    const target = index + dir;
+    if (target < 0 || target >= slides.length) return;
+    const ids = slides.map((s) => s.id);
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+    await contentApi.reorderHeroSlides({ ids });
+    load();
+  };
+
+  const toggleActive = async (slide: HeroSlide) => {
+    const form = new FormData();
+    form.append("_method", "PUT");
+    form.append("is_active", slide.is_active ? "0" : "1");
+    await contentApi.updateHeroSlide(slide.id, form);
+    load();
+  };
+
+  const remove = async (slide: HeroSlide) => {
+    if (
+      !(await confirmAction({
+        title: "Delete this home picture?",
+        text: "It will be removed from the public landing page.",
+        confirmText: "Yes, delete",
+        danger: true,
+      }))
+    )
+      return;
+    await contentApi.deleteHeroSlide(slide.id);
+    load();
+  };
+
+  return (
+    <div>
+      <PageHeader
+        title="Home Section Pictures"
+        subtitle="The carousel photos shown at the top of the public landing page"
+        actions={
+          <button
+            type="button"
+            onClick={openAdd}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
+          >
+            <FiPlus className="h-4 w-4" aria-hidden="true" /> Add picture
+          </button>
+        }
+      />
+
+      {loading && slides.length === 0 ? (
+        <CardGridSkeleton cards={2} height={180} />
+      ) : slides.length === 0 ? (
+        <Card>
+          <p className="py-10 text-center text-sm text-gray-400">
+            No home pictures yet — the public site is showing the default images.
+            Add pictures to replace them.
+          </p>
+        </Card>
+      ) : (
+        <>
+          <p className="mb-3 text-sm text-gray-500">
+            Pictures show in this order — the <strong>first</strong> one appears first on the site.
+            Use the arrows to change the order.
+          </p>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {slides.map((slide, index) => (
+              <div key={slide.id} className="overflow-hidden rounded-2xl border border-gray bg-white shadow-sm">
+                <div className="relative h-44 bg-secondary">
+                  {slide.image_url && (
+                    <img src={slide.image_url} alt={slide.title ?? "Home picture"} className="h-full w-full object-cover" />
+                  )}
+                  {index === 0 && (
+                    <span className="absolute left-2 top-2 rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold text-white">
+                      Shows first
+                    </span>
+                  )}
+                  {!slide.is_active && (
+                    <span className="absolute right-2 top-2 rounded-full bg-dark/70 px-2 py-0.5 text-xs font-semibold text-white">
+                      Hidden
+                    </span>
+                  )}
+                </div>
+                <div className="p-4">
+                  <p className="truncate text-sm font-semibold text-dark">{slide.title || "Untitled"}</p>
+                  <p className="truncate text-xs text-gray-500">{slide.subtitle || "—"}</p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => move(index, -1)}
+                      disabled={index === 0}
+                      title="Move earlier"
+                      className="cursor-pointer rounded-full border border-gray px-2.5 py-1 text-xs font-semibold text-dark hover:border-primary hover:text-primary disabled:opacity-30"
+                    >
+                      ↑ Earlier
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => move(index, 1)}
+                      disabled={index === slides.length - 1}
+                      title="Move later"
+                      className="cursor-pointer rounded-full border border-gray px-2.5 py-1 text-xs font-semibold text-dark hover:border-primary hover:text-primary disabled:opacity-30"
+                    >
+                      ↓ Later
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openEdit(slide)}
+                      className="cursor-pointer rounded-full border border-primary/40 px-3 py-1 text-xs font-semibold text-primary hover:bg-primary hover:text-white"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleActive(slide)}
+                      className="cursor-pointer rounded-full border border-gray px-3 py-1 text-xs font-semibold text-dark hover:border-primary hover:text-primary"
+                    >
+                      {slide.is_active ? "Hide" : "Show"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => remove(slide)}
+                      className="cursor-pointer rounded-full border border-danger/40 px-3 py-1 text-xs font-semibold text-danger hover:bg-danger hover:text-white"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      <Modal open={open} onClose={() => setOpen(false)} title={editId ? "Edit Home Picture" : "Add Home Picture"}>
+        <form onSubmit={save} className="space-y-4">
+          {editId && currentImage && (
+            <div>
+              <p className="mb-1.5 text-sm font-medium text-dark">Current picture</p>
+              <img src={currentImage} alt="Current" className="h-40 w-full rounded-xl object-cover" />
+            </div>
+          )}
+          <FormField
+            label={editId ? "Replace picture (optional)" : "Picture"}
+            required={!editId}
+            hint="JPG/PNG, up to 5MB. Wide/landscape looks best."
+          >
+            <FileField
+              file={file}
+              onPick={setFile}
+              progress={upload.progress}
+              done={upload.done}
+            />
+          </FormField>
+          <FormField label="Heading (optional)">
+            <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputClasses} placeholder="Welcome to Barangay Natumolan" />
+          </FormField>
+          <FormField label="Subtitle (optional)">
+            <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className={inputClasses} />
+          </FormField>
+          <button
+            type="submit"
+            disabled={saving || (!editId && !file)}
+            className="w-full cursor-pointer rounded-full bg-primary py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark disabled:opacity-50"
+          >
+            {saving ? "Saving…" : editId ? "Save changes" : "Add picture"}
+          </button>
+        </form>
+      </Modal>
+    </div>
+  );
+}

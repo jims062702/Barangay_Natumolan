@@ -3,7 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\Account\User;
-use App\Support\OfficePassword;
+use App\Rules\OfficePassword;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateAccountRequest extends FormRequest

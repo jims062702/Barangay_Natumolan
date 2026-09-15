@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api\Portal;
 
 use App\Models\Service\Certificate;
 use App\Models\Service\Guide;
-use App\Support\CertificateCatalogue;
+use App\Services\Service\CertificateCatalogue;
 
 /** The resident's certificates, and what each kind needs and costs. */
 class CertificateController extends PortalController

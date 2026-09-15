@@ -11,7 +11,6 @@ use Illuminate\Support\Facades\Route;
 | Loaded inside the auth:sanctum group of routes/api.php.
 */
 
-// Account endpoints (staff + residents)
 Route::prefix('auth')->group(function () {
     Route::get('me', [AuthController::class, 'me']);
     Route::post('logout', [AuthController::class, 'logout']);
@@ -22,7 +21,7 @@ Route::prefix('auth')->group(function () {
      * The same job, done properly: the current password AND a code to the
      * account's own mailbox. The portal uses this one. The route above
      * stays until the offices have addresses that can receive email —
-     * see the note in PasswordResetController.
+     * see the note in PasswordChangeController.
      */
     Route::post('password-change/code', [PasswordChangeController::class, 'requestCode'])
         ->middleware('throttle:password-reset-request');

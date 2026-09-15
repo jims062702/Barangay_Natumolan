@@ -4,10 +4,6 @@ use App\Http\Controllers\Api\Chat\ResidentChatController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| Live chat, the resident's side.
-*/
-
-/*
 | Live-agent chat — REGISTERED RESIDENTS, signed in.
 |
 | It was open to anyone, on the reasoning that whoever most needs a human is

@@ -9,7 +9,7 @@ use App\Models\Account\Notification;
 use App\Models\Resident\Resident;
 use App\Models\Service\Certificate;
 use App\Models\Service\ServiceRequest;
-use App\Support\CertificateCatalogue;
+use App\Services\Service\CertificateCatalogue;
 use Illuminate\Http\Request;
 
 /** Request intake at the counter — the Clerk's, and the PB's to oversee. */

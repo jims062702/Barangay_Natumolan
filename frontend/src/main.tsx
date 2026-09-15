@@ -1,8 +1,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import App from "./App";
+import App from "./app/App";
 import "./index.css";
-import { registerServiceWorker } from "./lib/serviceWorker";
+import { registerServiceWorker } from "./shared/offline/serviceWorker";
 
 /*
  * Before React mounts, so the worker is installing while the app boots

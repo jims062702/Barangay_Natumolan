@@ -7,7 +7,7 @@ use App\Http\Requests\Service\StoreCertificateRequest;
 use App\Models\Service\Certificate;
 use App\Services\Service\CertificateFiling;
 use App\Services\Service\CertificateFilingRefused;
-use App\Support\CertificateCatalogue;
+use App\Services\Service\CertificateCatalogue;
 use Illuminate\Http\Request;
 
 /**

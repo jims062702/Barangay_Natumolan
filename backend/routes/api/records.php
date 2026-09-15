@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\Route;
 | Loaded inside the staff group, where the Clerk is already turned away.
 */
 
-// Barangay administrative records (ordinances, resolutions, …)
 Route::prefix('administrative-records')->middleware('office:Main Office,PB')->group(function () {
     Route::get('statistics', [AdministrativeRecordController::class, 'statistics']);
     // Adoption is the Punong Barangay's act, not the secretary's.

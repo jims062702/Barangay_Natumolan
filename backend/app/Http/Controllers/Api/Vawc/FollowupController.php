@@ -55,7 +55,7 @@ class FollowupController extends BaseController
          *
          * Without this the list would show, a year on, the level somebody
          * assessed on the first day — which is worse than showing nothing,
-         * because it looks current. See VawcCase::RISK_FROM_SAFETY for why
+         * because it looks current. See CaseFile::RISK_FROM_SAFETY for why
          * "Unknown" deliberately moves nothing.
          */
         $case->reassessRiskFrom($validated['safety_status'], $validated['followup_date']);

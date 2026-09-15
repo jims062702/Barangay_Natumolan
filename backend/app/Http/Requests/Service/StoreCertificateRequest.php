@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Service;
 
-use App\Support\CertificateCatalogue;
+use App\Services\Service\CertificateCatalogue;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 

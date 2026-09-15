@@ -10,7 +10,7 @@ use App\Http\Controllers\Api\Vawc\ReportController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| VAWC Desk
+| VAWC Desk — STRICTLY isolated: office VAWC only.
 |
 | Loaded inside the signed-in staff group of routes/api.php.
 |
@@ -18,10 +18,6 @@ use Illuminate\Support\Facades\Route;
 | (referrals owed a response, follow-ups due) instead of opening cases one
 | at a time. They carry the case CODE only — never the survivor's name.
 | Opening the case itself is what writes a `viewed` entry to the trail.
-*/
-
-/*
-| VAWC Desk — STRICTLY isolated: office VAWC only.
 */
 Route::prefix('vawc')->middleware('office:VAWC')->group(function () {
     // Desk-wide worklists (case codes only — never survivor names).

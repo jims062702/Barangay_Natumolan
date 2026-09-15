@@ -193,7 +193,7 @@ four derived, never stored).
   `officials`; if those are empty it falls back to bundled default content.
 - AI-assisted inquiry (`POST assistant/inquiry`) is a rule-based search over
   the `service_guides` table; an LLM can be integrated in
-  `PublicController::assistantInquiry` without changing the API contract.
+  `App\Services\Public\GuideAssistant` without changing the API contract.
 - Notifications are in-system only (SMS channels are modeled but not wired).
   **Email is wired** and is required: activation codes and the welcome message
   go out through the `MAIL_*` mailer. With `MAIL_MAILER=log` they land in

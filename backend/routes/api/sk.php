@@ -6,14 +6,10 @@ use App\Http\Controllers\Api\Council\OfficialController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| The public landing content the SK office keeps: pictures, posts, officials.
-|
-| Loaded inside the signed-in staff group of routes/api.php.
-*/
-
-/*
 | Sangguniang Kabataan (SK) — manages the public landing content:
 | home pictures, news & announcements, and officials.
+|
+| Loaded inside the signed-in staff group of routes/api.php.
 */
 Route::prefix('sk')->middleware('office:SK,PB,AdminRole')->group(function () {
     Route::post('hero-slides/reorder', [HeroSlideController::class, 'reorder']);

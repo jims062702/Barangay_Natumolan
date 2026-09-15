@@ -7,7 +7,7 @@ use App\Http\Requests\Chat\ChatMessageRequest;
 use App\Models\Account\Notification;
 use App\Models\Chat\Conversation;
 use App\Services\Chat\ConversationViews;
-use App\Support\ChatShortcuts;
+use App\Services\Chat\Shortcuts;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -31,7 +31,7 @@ class DeskController extends BaseController
      */
     public function shortcuts(): JsonResponse
     {
-        return $this->success(ChatShortcuts::all(), 'Shortcuts retrieved');
+        return $this->success(Shortcuts::all(), 'Shortcuts retrieved');
     }
 
     /** The live desk worklist: waiting first, then whatever is still open. */

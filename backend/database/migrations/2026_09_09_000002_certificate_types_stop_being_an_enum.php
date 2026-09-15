@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Schema;
  * death certification failed at the last moment with a database error the
  * clerk could do nothing about.
  *
- * A VARCHAR instead, with the list living in App\Support\CertificateCatalogue
+ * A VARCHAR instead, with the list living in App\Services\Service\CertificateCatalogue
  * where the validation rule already reads it. One place saying which types
  * exist, and it is the place that also knows what each one costs and asks
  * for. An enum would have to be migrated every time the barangay adds a form,

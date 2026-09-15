@@ -9,13 +9,9 @@ use App\Http\Controllers\Api\Health\VisitController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| Barangay Health Station
+| Barangay Health Station — health personnel only.
 |
 | Loaded inside the signed-in staff group of routes/api.php.
-*/
-
-/*
-| Barangay Health Station — health personnel only.
 */
 Route::prefix('health')->middleware('office:Health Station')->group(function () {
     Route::get('visits', [VisitController::class, 'index']);

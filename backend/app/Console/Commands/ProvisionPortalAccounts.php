@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Resident\Resident;
-use App\Support\PortalAccount;
+use App\Services\Account\PortalAccount;
 use Illuminate\Console\Command;
 
 /**
