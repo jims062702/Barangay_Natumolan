@@ -89,7 +89,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::middleware('deny_role:Clerk')->group(function () {
             require __DIR__ . '/api/records.php';
 
-            require __DIR__ . '/api/appointments.php';
 
             require __DIR__ . '/api/sessions.php';
         });

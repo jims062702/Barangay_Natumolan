@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Vawc\AccessLogController;
+use App\Http\Controllers\Api\Vawc\AgreementController;
 use App\Http\Controllers\Api\Vawc\CaseController;
 use App\Http\Controllers\Api\Vawc\DocumentController;
 use App\Http\Controllers\Api\Vawc\FollowupController;
@@ -32,6 +33,16 @@ Route::prefix('vawc')->middleware('office:VAWC')->group(function () {
     Route::post('cases', [CaseController::class, 'store']);
     Route::get('cases/{case}', [CaseController::class, 'show']);
     Route::put('cases/{case}', [CaseController::class, 'update']);
+
+    /*
+    | The ONE session this case gets, and what was agreed at it.
+    |
+    | Saving again edits that record — the table's unique key makes a second
+    | sitting impossible. A VAWC matter is not mediated in a series, and a
+    | desk that could book a second sitting has started doing exactly that.
+    */
+    Route::get('cases/{case}/agreement', [AgreementController::class, 'show']);
+    Route::post('cases/{case}/agreement', [AgreementController::class, 'store']);
     Route::post('cases/{case}/incidents', [IncidentController::class, 'store']);
     Route::post('cases/{case}/referrals', [ReferralController::class, 'store']);
     Route::put('cases/{case}/referrals/{referral}', [ReferralController::class, 'update']);

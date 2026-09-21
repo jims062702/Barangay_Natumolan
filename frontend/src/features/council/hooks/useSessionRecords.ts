@@ -137,8 +137,12 @@ export function useSessionRecords() {
     };
 
     try {
-      if (editing) await councilApi.updateSession(editing.id, payload);
-      else await councilApi.createSession(payload);
+      /* The secretary writes the minutes at the session itself, which is
+         exactly where the hall's line tends to be down. */
+      const waiting = { offline: { label: `${sessionType} session — ${sessionDate}` } };
+
+      if (editing) await councilApi.updateSession(editing.id, payload, waiting);
+      else await councilApi.createSession(payload, waiting);
 
       setOpen(false);
       load();

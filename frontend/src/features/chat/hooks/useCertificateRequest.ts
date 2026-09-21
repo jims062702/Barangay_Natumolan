@@ -49,7 +49,7 @@ export function useCertificateRequest(ctx: WidgetShellState & LiveDeskState) {
    * The portal's own endpoint, not a second one written for the chat —
    * so the request lands in My Requests, raises the same pending
    * certificate, and reaches the same clerk's worklist. The token goes with
-   * it only when a Secretary is actually on the conversation, so they see
+   * it only when a Clerk is actually on the conversation, so they see
    * what was asked for while they are still helping.
    */
   const fileRequest = async () => {

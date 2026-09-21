@@ -45,7 +45,7 @@ export default function ProtectedRoute({
   const isResident = user.role === "Resident";
 
   // Send accounts to their own area instead of a dead end.
-  if (staffOnly && isResident) return <Navigate to="/portal" replace />;
+  if (staffOnly && isResident) return <Navigate to="/resident" replace />;
   if (residentOnly && !isResident) return <Navigate to="/dashboard" replace />;
 
   const denied = deniedRoles?.includes(user.role) ?? false;

@@ -15,7 +15,6 @@ import { PortalAccountCard } from "../components/record/PortalAccountCard";
 import { ServiceHistory } from "../components/record/ServiceHistory";
 import { AddSectorModal } from "../components/record/AddSectorModal";
 import { IssueAccountModal } from "../components/record/IssueAccountModal";
-import { ChangePasswordModal } from "../components/record/ChangePasswordModal";
 
 export default function ResidentDetail() {
   const ctx = useResidentRecord();
@@ -78,7 +77,7 @@ export default function ResidentDetail() {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => navigate("/residents")}
+              onClick={() => navigate("/population/residents")}
               className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-gray px-5 py-2.5 text-sm font-semibold text-dark transition-colors hover:border-primary hover:text-primary"
             >
               <FiArrowLeft aria-hidden="true" /> Back
@@ -196,7 +195,6 @@ export default function ResidentDetail() {
 
       <IssueAccountModal ctx={ctx} resident={resident} />
 
-      <ChangePasswordModal ctx={ctx} resident={resident} />
     </div>
   );
 }

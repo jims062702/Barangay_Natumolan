@@ -86,28 +86,6 @@ export function SettlementTable({ ctx }: { ctx: SettlementDocketState }) {
               />
             ),
           },
-          {
-            header: "Certificates",
-            render: (s: LuponSettlement) => {
-              const issued = [
-                s.cfa_issued && { code: "CFA", title: "Certificate to File Action — may proceed to court" },
-                s.cba_issued && { code: "CBA", title: "Certificate to Bar Action — barred from court" },
-              ].filter(Boolean) as { code: string; title: string }[];
-
-              return issued.length ? (
-                <span className="text-xs font-semibold text-primary">
-                  {issued.map((c, i) => (
-                    <span key={c.code} title={c.title} className="cursor-help">
-                      {i > 0 && " · "}
-                      {c.code}
-                    </span>
-                  ))}
-                </span>
-              ) : (
-                <span className="text-xs text-gray-400">—</span>
-              );
-            },
-          },
           { header: "Status", render: (s: LuponSettlement) => <StatusBadge status={s.status} /> },
           {
             header: "Actions",
@@ -123,7 +101,7 @@ export function SettlementTable({ ctx }: { ctx: SettlementDocketState }) {
         numbered
         total={total}
         searchable
-        searchPlaceholder="Search by case number, party, title or terms…"
+        searchPlaceholder="Search by case number, party or terms…"
         getSearchText={(s) =>
           `${s.lupon_case?.case_number ?? ""} ${s.lupon_case?.case_title ?? ""} ${
             s.lupon_case?.complainant_display_name ?? ""

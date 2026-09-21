@@ -2,7 +2,7 @@ import { FiEye, FiEdit2 } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import Card from "../../../../shared/ui/Card";
 import DataTable from "../../../../shared/ui/DataTable";
-import { formatWallClock } from "../../../../shared/lib/datetime";
+import { formatInstant } from "../../../../shared/lib/datetime";
 import StatusBadge from "../../../../shared/ui/StatusBadge";
 import RowAction, { RowActions } from "../../../../shared/ui/RowAction";
 import { RiskBadge } from "../RiskBadge";
@@ -41,7 +41,7 @@ export function CaseTable({ ctx }: { ctx: CaseRegistryState }) {
           },
           {
             header: "Reported",
-            render: (c: VawcCase) => formatWallClock(c.report_date),
+            render: (c: VawcCase) => formatInstant(c.report_date),
           },
           {
             header: "Children Involved",

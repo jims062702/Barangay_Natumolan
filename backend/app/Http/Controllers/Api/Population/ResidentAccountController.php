@@ -141,79 +141,16 @@ class ResidentAccountController extends BaseController
         return $this->success(null, 'A new activation code was emailed to ' . $user->email);
     }
 
-    /** Change the password of a resident's existing portal account. */
-    public function changePassword(Request $request, Resident $resident)
-    {
-        $user = User::where('resident_id', $resident->id)->first();
-        if (!$user) {
-            return $this->error('This resident does not have a portal account yet', 404);
-        }
-
-        $validated = $request->validate([
-            'password' => 'required|min:6',
-        ]);
-
-        $user->update(['password' => Hash::make($validated['password'])]);
-
-        return $this->success(null, 'Password updated');
-    }
-
-    /**
-     * A new password, set at the counter.
+    /*
+     * There is no changePassword, resetPassword or toggle here any more.
      *
-     * No code is emailed and none is asked for. The resident is standing
-     * there with a face and a record; sending a code to their phone so they
-     * can read it back to the clerk proves nothing the counter has not
-     * already proved, and it fails entirely for the resident whose phone is
-     * the thing they have lost.
+     * An office that can set a resident's portal password is an office that
+     * can sign in as them, and the one on the resident page even offered a
+     * DEFAULT built from their last name and birthday — a password anybody
+     * holding the register could compute for every resident at once.
      *
-     * RESIDENTS ONLY. A clerk who could reset a colleague's password could
-     * sign in as the VAWC officer, and this office is not that office. The
-     * check is on the role, not on the menu.
+     * A resident who cannot reach their email gets resendActivation above:
+     * it proves the mailbox rather than going around it. Disabling an account
+     * went with it; it was the same reach into somebody else's login.
      */
-    public function resetPassword(Request $request, User $user)
-    {
-        if ($user->role !== 'Resident') {
-            return $this->forbidden('Only resident accounts are managed here.');
-        }
-
-        $validated = $request->validate([
-            'password' => 'required|string|min:8|confirmed',
-        ], [
-            'password.confirmed' => 'The two passwords do not match.',
-        ]);
-
-        /* Shared with the self-service routes on purpose: every path must
-           revoke the old sessions, and one of them forgetting to is the bug
-           worth designing out. */
-        $user->setPassword($validated['password'], auth()->id());
-
-        /*
-         * An account that had never been activated is now usable.
-         *
-         * The activation code exists to prove the email belongs to them. A
-         * clerk who has just identified the person at the counter has proved
-         * the same thing by a better method, and leaving them locked out
-         * behind a code sent to an address they may not have would undo the
-         * visit they just made.
-         */
-        if (! $user->activated_at) {
-            $user->forceFill(['activated_at' => now()])->save();
-        }
-
-        return $this->success(null, 'Password set. Tell the resident to sign in with it now.');
-    }
-
-    public function toggle(User $user)
-    {
-        if ($user->role !== 'Resident') {
-            return $this->error('Only resident portal accounts can be managed here', 422);
-        }
-
-        $user->update(['is_active' => !$user->is_active]);
-
-        // "Enabled", not "activated": activation is the resident entering the
-        // code emailed to them, which this switch has nothing to do with.
-        return $this->success($user, $user->is_active ? 'Account enabled' : 'Account disabled');
-    }
 }

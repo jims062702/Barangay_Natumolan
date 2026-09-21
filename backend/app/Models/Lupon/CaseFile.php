@@ -191,6 +191,26 @@ class CaseFile extends Model
         return $this->hasOne(Complaint::class, 'lupon_case_id');
     }
 
+    /**
+     * The fees on this case: the ₱20 to file, the ₱230 to certify to court.
+     *
+     * Asked for by the Lupon and taken at the Clerk's counter, so the case
+     * carries them and both offices read the same row.
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class, 'lupon_case_id');
+    }
+
+    /** True once the filing fee has actually been taken. Gates the summons. */
+    public function getFilingFeePaidAttribute(): bool
+    {
+        return $this->payments
+            ->where('kind', Payment::KIND_FILING)
+            ->where('status', 'Paid')
+            ->isNotEmpty();
+    }
+
     public function hearings(): HasMany
     {
         return $this->hasMany(Hearing::class, 'lupon_case_id');

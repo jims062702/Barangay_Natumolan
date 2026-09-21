@@ -1,16 +1,8 @@
-/** The front desk: requests, certificates and appointments. */
+/** The front desk: requests and certificates. */
 
 import { api, type BodyArgs, type PathParam, type QueryArgs } from "../../shared/lib/api";
 
 export const serviceApi = {
-  appointments: (...args: QueryArgs) =>
-    api.get("/appointments", ...args),
-  cancelAppointment: (appointmentId: PathParam, ...args: BodyArgs) =>
-    api.post(`/appointments/${appointmentId}/cancel`, ...args),
-  confirmAppointment: (appointmentId: PathParam, ...args: BodyArgs) =>
-    api.post(`/appointments/${appointmentId}/confirm`, ...args),
-  recordAppointmentMinutes: (appointmentId: PathParam, ...args: BodyArgs) =>
-    api.post(`/appointments/${appointmentId}/minutes`, ...args),
   certificates: (...args: QueryArgs) =>
     api.get("/certificates", ...args),
   createCertificate: (...args: BodyArgs) =>

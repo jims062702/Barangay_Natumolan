@@ -39,8 +39,6 @@ export const actionsFor = (s: LuponSettlement): { action: string; label: string;
     out.push({ action: "mark_not_complied", label: "Not complied", tone: "danger" });
     out.push({ action: "execute", label: "Execute", tone: "primary" });
   }
-  if (!s.cfa_issued) out.push({ action: "issue_cfa", label: "Issue CFA", tone: "muted" });
-  if (!s.cba_issued) out.push({ action: "issue_cba", label: "Issue CBA", tone: "muted" });
 
   return out;
 };
@@ -54,10 +52,6 @@ export const ACTION_HELP: Record<string, string> = {
   mark_not_complied: "The deadline passed without compliance. Execution becomes available.",
   execute:
     "Enforce the settlement. Within 6 months the Lupon may execute it; after that it takes a court action.",
-  issue_cfa:
-    "Certificate to File Action — conciliation was tried and failed, so the complainant MAY now go to court. Without it a court will dismiss the case.",
-  issue_cba:
-    "Certificate to Bar Action — the complainant failed to appear without justifiable cause, so they may NOT bring this dispute to court.",
 };
 
 export const TONES: Record<string, string> = {

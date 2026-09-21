@@ -21,10 +21,11 @@ const STATUS_TONES: Record<string, string> = {
   "For Signature": "bg-warning/10 text-warning",
   "Ready to Claim": "bg-success/10 text-success",
   Released: "bg-success/10 text-success",
-  // Appointments
+  // Hearings. "No Show" is spelled the way the hearing enum spells it —
+  // the badge used to carry "No-show", which matched nothing, so a hearing
+  // nobody attended drew no colour at all.
   Scheduled: "bg-primary/10 text-primary",
-  Confirmed: "bg-success/10 text-success",
-  "No-show": "bg-danger/10 text-danger",
+  "No Show": "bg-danger/10 text-danger",
   // Cases
   Active: "bg-primary/10 text-primary",
   Closed: "bg-gray text-gray-500",

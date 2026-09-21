@@ -19,8 +19,6 @@ class Settlement extends Model
         'status',
         'compliance_deadline',
         'compliance_notes',
-        'cfa_issued',
-        'cfa_issued_at',
         'cba_issued',
         'cba_issued_at',
         'closed_at',
@@ -46,9 +44,7 @@ class Settlement extends Model
             'date_agreed' => 'date',
             'repudiation_deadline' => 'date',
             'compliance_deadline' => 'date',
-            'cfa_issued' => 'boolean',
             'cba_issued' => 'boolean',
-            'cfa_issued_at' => 'datetime',
             'cba_issued_at' => 'datetime',
             'closed_at' => 'datetime',
         ];

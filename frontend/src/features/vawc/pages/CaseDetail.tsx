@@ -1,14 +1,16 @@
+import NeedsConnection, { useNeedsConnection } from "../../../shared/offline/NeedsConnection";
 import { useEffect, useState, type FormEvent } from "react";
 import {   FiArrowLeft, FiPlus , FiXCircle , FiRotateCcw } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
 import { errorMessage } from "../../../shared/lib/api";
 import { toast } from "../../../shared/lib/toast";
 import { confirmAction } from "../../../shared/lib/confirm";
-import { formatWallClock } from "../../../shared/lib/datetime";
+import { formatInstant } from "../../../shared/lib/datetime";
 import Card from "../../../shared/ui/Card";
 import Modal from "../../../shared/ui/Modal";
 import StatusBadge from "../../../shared/ui/StatusBadge";
 import PageHeader from "../../../shared/ui/PageHeader";
+import { AgreementCard } from "../components/cases/AgreementCard";
 import FormField, { inputClasses } from "../../../shared/ui/FormField";
 import { vawcApi } from "../api";
 import type { VawcCase } from "../types";
@@ -27,6 +29,7 @@ const AGENCIES = [
 ];
 
 export default function CaseDetail() {
+  const { offline, noteOffline } = useNeedsConnection();
   const { id } = useParams();
   const [caseData, setCaseData] = useState<VawcCase | null>(null);
 
@@ -50,7 +53,7 @@ export default function CaseDetail() {
   const [docDescription, setDocDescription] = useState("");
 
   const load = () => {
-    vawcApi.caseFile(id).then((r) => setCaseData(r.data.data)).catch(() => undefined);
+    vawcApi.caseFile(id).then((r) => setCaseData(r.data.data)).catch(noteOffline);
   };
 
   useEffect(() => {
@@ -94,7 +97,7 @@ export default function CaseDetail() {
 
       <PageHeader
         title={caseData.case_code}
-        subtitle={`Reported ${formatWallClock(caseData.report_date, { dateStyle: "long", timeStyle: "short" })} · Officer: ${caseData.officer?.name ?? "—"}`}
+        subtitle={`Reported ${formatInstant(caseData.report_date, { dateStyle: "long", timeStyle: "short" })} · Officer: ${caseData.officer?.name ?? "—"}`}
         actions={
           <div className="flex gap-2">
             {caseData.status === "Active" ? (
@@ -119,6 +122,10 @@ export default function CaseDetail() {
         }
       />
 
+      {offline && (
+        <NeedsConnection what="this case" why="The VAWC desk's records are never kept on this device: the server encrypts them with a key this browser never holds, which is what keeps a survivor's case off a laptop." />
+      )}
+
       <div className="grid gap-6 lg:grid-cols-3">
         <Card title="Case profile">
           <dl className="space-y-2.5 text-sm">
@@ -132,7 +139,38 @@ export default function CaseDetail() {
                     }${caseData.reported_by_contact ? ` · ${caseData.reported_by_contact}` : ""}`
                   : "The survivor herself",
               ],
+              /*
+                Who the complaint is against — item 4, and the party a
+                protection order actually restrains. Read from the register
+                when it knows them, so the name and address are the current
+                ones rather than a copy taken at intake.
+              */
+              [
+                "Respondent",
+                caseData.respondent
+                  ? `${caseData.respondent.first_name} ${caseData.respondent.last_name}`
+                  : "Not yet named",
+              ],
               ["Violence type", caseData.violence_type],
+              /*
+                When and where the act happened — asked for at intake, stored
+                since, and shown nowhere until now. It is not the same fact as
+                "Reported ..." in the header above: a prescription period runs
+                from the ACT, and last night and last year are not the same
+                case to whoever decides what to do tonight.
+
+                A date with no clock, because that is what intake asks for.
+                formatInstant, not formatWallClock: the column holds Manila
+                midnight stored as UTC, so the components must be converted
+                back rather than read off as they sit.
+              */
+              [
+                "When it happened",
+                caseData.incidents?.[0]?.occurred_at
+                  ? formatInstant(caseData.incidents[0].occurred_at, { dateStyle: "long" })
+                  : "Not recorded",
+              ],
+              ["Where it happened", caseData.incidents?.[0]?.location || "Not recorded"],
               ["Relationship to offender", caseData.relationship_to_offender ?? "—"],
               ["Children involved", caseData.children_involved ? `Yes (${caseData.children_count})` : "No"],
               ["Previous incidents", String(caseData.previous_incidents_count)],
@@ -152,7 +190,7 @@ export default function CaseDetail() {
               <ul className="mt-1 space-y-1 text-sm text-dark">
                 {caseData.dependents?.map((d) => (
                   <li key={d.id}>
-                    <Link to={`/residents/${d.id}`} className="text-primary hover:underline">
+                    <Link to={`/population/residents/${d.id}`} className="text-primary hover:underline">
                       {[d.first_name, d.middle_name, d.last_name].filter(Boolean).join(" ")}
                     </Link>{" "}
                     <span className="text-xs text-gray-500">{d.resident_number}</span>
@@ -231,24 +269,17 @@ export default function CaseDetail() {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <Card title="Incident records (encrypted at rest)">
-          {(caseData.incidents ?? []).length === 0 ? (
-            <p className="py-4 text-center text-sm text-gray-400">No incident narratives recorded.</p>
-          ) : (
-            <ul className="space-y-3">
-              {caseData.incidents?.map((incident) => (
-                <li key={incident.id} className="rounded-xl bg-secondary p-3 text-sm">
-                  <p className="text-dark">{incident.incident_narrative}</p>
-                  <p className="mt-1.5 text-xs text-gray-500">
-                    {incident.medical_certificate_reference && `Med cert: ${incident.medical_certificate_reference} · `}
-                    {incident.police_report_reference && `Police report: ${incident.police_report_reference} · `}
-                    {incident.protection_order_filed ? "Protection order filed" : "No protection order"}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
+        {/*
+          Incident records are gone from this page.
+
+          They were a second narrative alongside the case's own, kept apart
+          from the session that actually decides anything — so the desk had
+          three places to write what happened and no rule about which. What
+          was said is now recorded once, at the session, in the card above.
+          The rows already stored are untouched and reachable through the
+          API; nothing was deleted.
+        */}
+        <AgreementCard caseId={caseData.id} />
 
         <Card
           title="Confidential documents"

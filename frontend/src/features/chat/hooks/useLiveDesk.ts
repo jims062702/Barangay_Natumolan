@@ -10,7 +10,7 @@ import type { WidgetShellState } from "./useWidgetShell";
 import type { ChatMessage as LiveMessage, PastConversation, WidgetMessage, RasaReply } from "../types";
 
 /**
- * Talking to the assistant, and handing over to the Secretary: the queue, the live thread, ending it.
+ * Talking to the assistant, and handing over to the Clerk: the queue, the live thread, ending it.
  */
 export function useLiveDesk(ctx: WidgetShellState) {
   const {
@@ -27,7 +27,7 @@ export function useLiveDesk(ctx: WidgetShellState) {
   const [agentName, setAgentName] = useState<string | null>(null);
   const [firstMessage, setFirstMessage] = useState("");
   /*
-   * Where they are in the line. One Secretary answers one person at a time,
+   * Where they are in the line. One Clerk answers one person at a time,
    * so anyone who is not first is waiting behind somebody — and a wait with
    * no number on it is indistinguishable from a broken page.
    */
@@ -69,7 +69,7 @@ export function useLiveDesk(ctx: WidgetShellState) {
           playChatSound();
           if (document.hidden) {
             showDesktopNotification(
-              newest.sender_name ?? "Barangay Secretary",
+              newest.sender_name ?? "Barangay Clerk",
               newest.body,
               "bn-live-chat"
             );
@@ -89,7 +89,7 @@ export function useLiveDesk(ctx: WidgetShellState) {
    * Restore an unfinished conversation — from the ACCOUNT first.
    *
    * The token lives in one browser. Starting on a laptop and opening the
-   * phone used to lose the thread, and with it whatever the Secretary had
+   * phone used to lose the thread, and with it whatever the Clerk had
    * already answered. The account is the durable handle now.
    */
   useEffect(() => {
@@ -154,7 +154,7 @@ export function useLiveDesk(ctx: WidgetShellState) {
             from: "bot",
             text: "Sorry, I did not catch that. Could you say it another way?",
             // A bot that cannot answer should offer the person who can.
-            buttons: [{ title: "Talk to the Secretary", payload: "__live__" }],
+            buttons: [{ title: "Talk to Clerk", payload: "__live__" }],
           },
         ];
       }
@@ -177,7 +177,7 @@ export function useLiveDesk(ctx: WidgetShellState) {
             text:
               "I cannot reach the assistant right now. Please try again in a moment, " +
               "or visit the Barangay Main Office (Mon–Fri, 8:00 AM–5:00 PM).",
-            buttons: [{ title: "Talk to the Secretary", payload: "__live__" }],
+            buttons: [{ title: "Talk to Clerk", payload: "__live__" }],
           },
         ];
       }
@@ -217,7 +217,7 @@ export function useLiveDesk(ctx: WidgetShellState) {
     void send(input);
   };
   /**
-   * Opens the step before queueing for the Secretary.
+   * Opens the step before queueing for the Clerk.
    *
    * A signed-out visitor is stopped here rather than at the end: filling in a
    * message and only then being told to sign in is how a person gives up.
@@ -301,11 +301,11 @@ export function useLiveDesk(ctx: WidgetShellState) {
         ? "Conversation ended"
         : agentName
           ? `${agentName} is with you`
-          : "Waiting for the Barangay Secretary…"
+          : "Waiting for the Barangay Clerk…"
       : mode === "form"
         ? "Connecting you to a person"
         : mode === "signin"
-          ? "Sign in to reach the Secretary"
+          ? "Sign in to reach the Clerk"
           : "Online — ask me anything";
 
   return {

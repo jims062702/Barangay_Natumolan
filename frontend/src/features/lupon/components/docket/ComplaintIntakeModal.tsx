@@ -3,6 +3,7 @@ import FormField, { inputClasses } from "../../../../shared/ui/FormField";
 import PhoneInput from "../../../../shared/ui/PhoneInput";
 import ResidentPicker from "../../../resident/components/ResidentPicker";
 import ResidentMultiPicker from "../../../resident/components/ResidentMultiPicker";
+import { useIsOffline } from "../../../../shared/offline/useConnectivity";
 import { CLASSIFICATIONS, RELATIONSHIPS } from "../../lib/docket";
 import type { LuponDocketState } from "../../hooks/useLuponDocket";
 
@@ -13,16 +14,25 @@ export function ComplaintIntakeModal({ ctx }: { ctx: LuponDocketState }) {
   const {
     intakeOpen, closeIntake, intake, outsideComplainant, outsideName, setOutsideName,
     complainant, setComplainant, respondents, setOutsideComplainant, setRespondents,
-    outsideAddress, setOutsideAddress, outsideContact, setOutsideContact, title, setTitle,
+    outsideAddress, setOutsideAddress, outsideContact, setOutsideContact,
     classification, setClassification, occurrenceDate, setOccurrenceDate, place, setPlace,
     relationship, setRelationship, narrative, setNarrative,
   } = ctx;
+  const offline = useIsOffline();
 
   return (
     <Modal open={intakeOpen} onClose={closeIntake} title="Complaint Intake & Screening" size="xl">
       <p className="mb-3 text-xs text-warning">
         VAWC and child-abuse matters are outside KP jurisdiction and are blocked automatically.
       </p>
+      {offline && (
+        <p className="mb-3 rounded-xl border border-warning/40 bg-warning/5 px-3 py-2 text-xs leading-relaxed text-gray-600">
+          <span className="font-semibold text-dark">No connection.</span> You can still file this
+          complaint — it is kept on this device and sent when the line returns. The jurisdiction
+          and VAWC checks run here as well, so a case the Lupon may not hear is refused now rather
+          than later. The KP case number is issued when the office record receives it.
+        </p>
+      )}
       <form onSubmit={intake} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div>
           <FormField label="Complainant" required plain>
@@ -61,12 +71,21 @@ export function ComplaintIntakeModal({ ctx }: { ctx: LuponDocketState }) {
             label="Respondent(s)"
             required
             plain
-            hint="One or more. KP venue follows where the respondent lives, so a complainant from another barangay may file here."
+            hint="One or more, and each must live in this barangay — that is what gives the Lupon jurisdiction. The complainant need not."
           >
+            {/*
+              Residents only, and the complainant above is deliberately not.
+
+              KP venue follows where the RESPONDENT lives. Somebody from
+              another barangay was offered here and accepted, and the filing
+              was then refused by the server after the whole complaint had
+              been typed — the narrative, the date, the place, all of it.
+            */}
             <ResidentMultiPicker
               value={respondents}
               onChange={setRespondents}
               excludeIds={complainant ? [complainant.id] : []}
+              residentsOnly
             />
           </FormField>
         </div>
@@ -90,12 +109,16 @@ export function ComplaintIntakeModal({ ctx }: { ctx: LuponDocketState }) {
           </>
         )}
 
-        <div className="sm:col-span-1 lg:col-span-2">
-          <FormField label="Case title" required>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} required className={inputClasses} />
-          </FormField>
-        </div>
-        <FormField label="Classification" required>
+        {/*
+          ONE field, where there were two.
+
+          "Case title" was free text and "Classification" was a list, and the
+          office typed the classification into the title every time — so the
+          docket carried "Theft" twice, sometimes spelt differently, and no
+          report could group by either with confidence. The list is the
+          answer; the title follows it.
+        */}
+        <FormField label="Nature of the case" required>
           <select value={classification} onChange={(e) => setClassification(e.target.value)} className={inputClasses}>
             {CLASSIFICATIONS.map((c) => (
               <option key={c}>{c}</option>

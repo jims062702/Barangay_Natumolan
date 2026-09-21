@@ -325,7 +325,7 @@ class CertificateCatalogue
 
     /**
      * Service types that produce a certificate, mapped to the certificate
-     * type. Non-certificate services (blotter, complaints, …) are not here.
+     * type. Non-certificate services (complaints, …) are not here.
      *
      * Every value must be a type in TYPES. "Other" was here for the two
      * general services, and no such type exists — the certificate it raised

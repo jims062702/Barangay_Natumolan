@@ -1,3 +1,4 @@
+import NeedsConnection, { useNeedsConnection } from "../../../shared/offline/NeedsConnection";
 import { useEffect } from "react";
 import { FiPrinter } from "react-icons/fi";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
@@ -58,6 +59,7 @@ const CRITICAL = "#DC2626";
 
 /** 2.7 — anonymized periodic reporting and VAW Desk functionality. */
 export default function Reports() {
+  const { offline, noteOffline } = useNeedsConnection();
   /*
    * Compared by VALUE, not by reference.
    *
@@ -69,7 +71,7 @@ export default function Reports() {
   const year = new Date().getFullYear();
 
   const load = () => {
-    vawcApi.statistics().then((r) => setStats(r.data.data)).catch(() => undefined);
+    vawcApi.statistics().then((r) => setStats(r.data.data)).catch(noteOffline);
   };
 
   useEffect(load, []);
@@ -93,6 +95,10 @@ export default function Reports() {
           </button>
         }
       />
+
+      {offline && (
+        <NeedsConnection what="these figures" why="The VAWC desk's records are never kept on this device: the server encrypts them with a key this browser never holds, which is what keeps a survivor's case off a laptop." />
+      )}
 
       {/*
         Five counts, so one chart.

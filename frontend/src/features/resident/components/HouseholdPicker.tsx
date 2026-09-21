@@ -33,6 +33,10 @@ export default function HouseholdPicker({ value, selected, onSelect, onAddNew, p
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Household[]>([]);
   const [loading, setLoading] = useState(false);
+  /** True while the list on screen came off this device, not the server. */
+  const [offline, setOffline] = useState(false);
+  /** The last unfiltered page the server gave, to search with no line. */
+  const held = useRef<Household[]>([]);
   const boxRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -52,8 +56,39 @@ export default function HouseholdPicker({ value, selected, onSelect, onAddNew, p
     setLoading(true);
     const t = setTimeout(() => {
       residentApi.householdOptions({ params: query.trim() ? { q: query.trim() } : {} })
-        .then((r) => active && setResults(r.data.data ?? []))
-        .catch(() => active && setResults([]))
+        .then((r) => {
+          if (!active) return;
+          const rows = (r.data.data ?? []) as Household[];
+          setResults(rows);
+          /* Kept so a search with no line can narrow THESE rather than
+             empty the list. Only the unfiltered page: it is the only one
+             that stands for "the households this device has seen". */
+          if (!query.trim()) held.current = rows;
+          setOffline(false);
+        })
+        .catch((error) => {
+          if (!active) return;
+          /*
+           * A refusal is the server talking and the old behaviour — an
+           * empty list — is right for it. A request that never arrived is
+           * not: emptying the list there told a clerk registering someone
+           * with no line that the household does not exist.
+           *
+           * The register the device holds carries no household links (see
+           * OfflineSyncController), so there is nothing fuller to search.
+           * What there is gets searched, and the panel says as much.
+           */
+          if ((error as { response?: unknown })?.response) {
+            setResults([]);
+            setOffline(false);
+            return;
+          }
+          const term = query.trim().toLowerCase();
+          setResults(term
+            ? held.current.filter((h) => householdLabel(h).toLowerCase().includes(term))
+            : held.current);
+          setOffline(true);
+        })
         .finally(() => active && setLoading(false));
     }, 250);
     return () => {
@@ -83,7 +118,7 @@ export default function HouseholdPicker({ value, selected, onSelect, onAddNew, p
         className={`${inputClasses} flex w-full cursor-pointer items-center justify-between gap-2 text-left`}
       >
         <span className={`truncate ${selected ? "text-dark" : "text-gray-400"}`}>
-          {selected ? householdLabel(selected) : placeholder ?? "Search household no., address, or owner…"}
+          {selected ? householdLabel(selected) : placeholder ?? "Search by household number, street or owner…"}
         </span>
         <span className="flex shrink-0 items-center gap-1">
           {selected && (
@@ -107,9 +142,16 @@ export default function HouseholdPicker({ value, selected, onSelect, onAddNew, p
             <SearchInput
               value={query}
               onChange={setQuery}
-              placeholder="Type household no., street, purok, or owner…"
+              placeholder="Search by household number, street or owner…"
             />
           </div>
+
+          {offline && (
+            <p className="mb-2 rounded-lg border border-warning/40 bg-warning/5 px-3 py-2 text-[11px] leading-relaxed text-gray-600">
+              No connection — only the households already opened on this device can be searched.
+              The rest come back with the line.
+            </p>
+          )}
 
           <div className="max-h-64 overflow-auto">
             <button

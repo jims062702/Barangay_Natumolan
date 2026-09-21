@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Resident\OfflineSyncController;
 use App\Http\Controllers\Api\Resident\ResidentController;
 use App\Http\Controllers\Api\Service\CertificateCatalogueController;
+use App\Http\Controllers\Api\Population\ZoneController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -36,3 +37,15 @@ Route::get('residents/offline-sync', [OfflineSyncController::class, 'index']);
  */
 Route::get('certificates/number-series', [CertificateCatalogueController::class, 'numberSeries']);
 Route::get('residents/household-options', [ResidentController::class, 'householdOptions']);
+
+/*
+ | The barangay's zones, and the BHW covering each.
+ |
+ | READ by every office: the registry intake, the census and the household
+ | record all ask where somebody lives, and the answer has to come from one
+ | list rather than from four hard-coded copies of it.
+ |
+ | WRITING lives in routes/api/population.php — the office that knows when a
+ | zone splits is the one that may change it.
+ */
+Route::get('zones', [ZoneController::class, 'index']);

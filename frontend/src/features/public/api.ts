@@ -7,8 +7,6 @@ export const publicApi = {
     api.get("/announcements", ...args),
   announcement: (announcementId: PathParam | undefined, ...args: QueryArgs) =>
     api.get(`/announcements/${announcementId}`, ...args),
-  requestAppointment: (...args: BodyArgs) =>
-    api.post("/appointment-requests", ...args),
   askAssistant: (...args: BodyArgs) =>
     api.post("/assistant/inquiry", ...args),
   sendContactMessage: (...args: BodyArgs) =>

@@ -3,13 +3,15 @@ import Card from "../../../../shared/ui/Card";
 import { inputClasses } from "../../../../shared/ui/FormField";
 import { Text } from "../fields/Text";
 import { Choice } from "../fields/Choice";
-import { PUROKS } from "../../lib/constants";
+import { useZoneNames } from "../../../population/lib/useZones";
 import type { CensusFormState } from "../../hooks/useCensusForm";
 
 /**
  * Part A — where the household is, and who heads it.
  */
 export function IdentificationSection({ ctx }: { ctx: CensusFormState }) {
+  /* The barangay's own zones, kept by the Population Office. */
+  const zones = useZoneNames();
   const {
     form, set, setHouseCheck, editing, verifyHouse, status, checking, houseCheck,
     continueHousehold, fillLineOneFrom, filledLines,
@@ -247,10 +249,10 @@ export function IdentificationSection({ ctx }: { ctx: CensusFormState }) {
           creates resident records.
         */}
         <Choice
-          label="Purok"
+          label="Zone"
           neededToRegister
           hint="Not on the paper form — the register needs one."
-          options={PUROKS.map((p) => ({ value: p, label: p }))}
+          options={zones.map((z) => ({ value: z, label: z }))}
           value={form.zone_purok as string}
           onChange={(v) => set("zone_purok", v)}
         />

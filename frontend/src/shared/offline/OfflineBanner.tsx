@@ -74,7 +74,7 @@ export default function OfflineBanner({
         <span>
           No connection — <span className="text-gray-300">
             you can keep working. {held.toLocaleString("en-PH")} residents are
-            stored on this device.
+            stored on this device, and each page shows what it last saw.
           </span>
         </span>
       ) : (

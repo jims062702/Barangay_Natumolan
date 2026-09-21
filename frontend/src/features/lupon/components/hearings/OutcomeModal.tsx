@@ -10,7 +10,7 @@ export function OutcomeModal({ ctx }: { ctx: HearingCalendarState }) {
   const {
     outcomeFor, setOutcomeFor, saveOutcome, status, setStatus, complainantPresent,
     setComplainantPresent, respondentPresent, setRespondentPresent, proceedings,
-    setProceedings, outcome, setOutcome,
+    setProceedings, outcome, setOutcome, settleCase,
   } = ctx;
 
   return (
@@ -48,12 +48,21 @@ export function OutcomeModal({ ctx }: { ctx: HearingCalendarState }) {
             Respondent present
           </label>
         </div>
-        <FormField label="Proceedings notes">
+        {/*
+          The minutes of the sitting: what was said, what was offered, what
+          was agreed. Every session has them — an agreement recorded with no
+          account of how it was reached is the one a party later disputes.
+        */}
+        <FormField
+          label="Minutes of this sitting"
+          hint="What was discussed, offered and agreed. Required before the case can be closed."
+        >
           <textarea
             value={proceedings}
             onChange={(e) => setProceedings(e.target.value)}
-            rows={3}
+            rows={5}
             className={`${inputClasses} resize-none`}
+            placeholder="Both parties appeared. The complainant asked for…"
           />
         </FormField>
         <FormField label="Outcome">
@@ -70,6 +79,26 @@ export function OutcomeModal({ ctx }: { ctx: HearingCalendarState }) {
         >
           Record outcome
         </button>
+
+        {/*
+          Its own button, not a word typed into "Outcome".
+          "Settlement reached" written in that box closed nothing: the case
+          stayed open and three more Tuesdays sat on the calendar that
+          nobody would attend. This one ends the case and clears them.
+        */}
+        <div className="rounded-xl border border-success/40 bg-success/5 px-3.5 py-3">
+          <p className="text-sm font-semibold text-dark">The parties agreed</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-gray-600">
+            Closes the case to the Lupon and stands down every sitting still on the calendar.
+          </p>
+          <button
+            type="button"
+            onClick={() => void settleCase()}
+            className="mt-2.5 w-full cursor-pointer rounded-full bg-success py-2 text-sm font-semibold text-white transition-colors hover:brightness-95"
+          >
+            Settle &amp; close case
+          </button>
+        </div>
       </form>
     </Modal>
   );

@@ -16,7 +16,7 @@ export const WELCOME: WidgetMessage = {
   text:
     "Kumusta! 👋 I'm the Barangay Natumolan assistant. Ask me about certificates, " +
     "fees, requirements, office hours, or how to use the resident portal.\n\n" +
-    "Need a real person? Tap “Talk to the Secretary” below and I'll put you through.",
+    "Need a real person? Tap “Talk to Clerk” below and I'll put you through.",
   buttons: [
     { title: "What certificates can I get?", payload: "What certificates can I get?" },
     { title: "How much are the fees?", payload: "How much are the certificate fees?" },

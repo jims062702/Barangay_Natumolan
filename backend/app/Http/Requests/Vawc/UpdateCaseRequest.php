@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Vawc;
 
+use App\Models\Vawc\CaseFile;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateCaseRequest extends FormRequest
@@ -16,7 +17,9 @@ class UpdateCaseRequest extends FormRequest
             'reported_by_resident_id' => 'nullable|exists:residents,id',
             'reported_by_relationship' => 'nullable|string|max:100',
             'reported_by_contact' => 'nullable|string|max:50',
-            'violence_type' => 'in:Physical,Psychological,Economic,Sexual,Mixed',
+            /* The WIDE list here: a case filed before the intake form
+               narrowed still has to be saveable as what it is. */
+            'violence_type' => 'in:' . implode(',', CaseFile::VIOLENCE_TYPES),
             'relationship_to_offender' => 'nullable|string',
             'children_involved' => 'boolean',
             'children_count' => 'integer|min:0',

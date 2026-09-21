@@ -113,12 +113,11 @@ export function useSettlementDocket() {
       (daysUntil(s.compliance_deadline) ?? 0) < 0
   ).length;
   const complied = rows.filter((s) => ["Complied", "Executed"].includes(s.status)).length;
-  const certificates = rows.filter((s) => s.cfa_issued || s.cba_issued).length;
 
   return {
     rows, setRows, page, setPage, lastPage, setLastPage, total, setTotal, loading, setLoading,
     dueOnly, setDueOnly, viewing, setViewing, notes, setNotes, deadline, setDeadline, load,
-    open, run, saveDeadline, inWindow, overdue, complied, certificates,
+    open, run, saveDeadline, inWindow, overdue, complied,
   };
 }
 

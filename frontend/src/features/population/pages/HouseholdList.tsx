@@ -16,6 +16,7 @@ import type { Household, Resident } from "../../../shared/types";
 import { ageFromBirthdate } from "../../resident/components/ResidentFormFields";
 import ResidentPicker from "../../resident/components/ResidentPicker";
 import { populationApi } from "../api";
+import { useZoneNames } from "../lib/useZones";
 
 
 // @frezieh palambing ko dol
@@ -34,7 +35,9 @@ export default function HouseholdList() {
   const [viewing, setViewing] = useState<Household | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [number, setNumber] = useState("");
-  const [zone, setZone] = useState("Purok 1");
+  /* The barangay's own zones, kept by the Health Station. */
+  const zones = useZoneNames();
+  const [zone, setZone] = useState("");
   const [address, setAddress] = useState("");
   const [houseType, setHouseType] = useState("Concrete");
   const [head, setHead] = useState<Resident | null>(null);
@@ -78,7 +81,7 @@ export default function HouseholdList() {
   const openEdit = (h: Household) => {
     setEditingId(h.id);
     setNumber(h.household_number ?? "");
-    setZone(h.zone_purok ?? "Purok 1");
+    setZone(h.zone_purok ?? "");
     setAddress(h.street_address ?? "");
     setHouseType(h.house_type ?? "Concrete");
     setHead(h.head ?? null);
@@ -105,10 +108,14 @@ export default function HouseholdList() {
     };
     try {
       if (editing) {
-        await populationApi.updateHousehold(editingId, payload);
+        await populationApi.updateHousehold(editingId, payload, {
+          offline: { label: `Household ${number || editingId}` },
+        });
         toast("Household updated.");
       } else {
-        await populationApi.createHousehold(payload);
+        await populationApi.createHousehold(payload, {
+          offline: { label: `Household ${number || "(new)"}` },
+        });
         toast("Household registered.");
       }
       setModalOpen(false);
@@ -134,7 +141,7 @@ export default function HouseholdList() {
               header: "Household #",
               render: (h: Household) => <span className="font-medium text-dark">{h.household_number}</span>,
             },
-            { header: "Purok", render: (h: Household) => h.zone_purok ?? "—" },
+            { header: "Zone", render: (h: Household) => h.zone_purok ?? "—" },
             { header: "Address", render: (h: Household) => h.street_address ?? "—" },
             {
               header: "Owner / Head",
@@ -145,6 +152,36 @@ export default function HouseholdList() {
                   </span>
                 ) : (
                   <span className="text-gray-400">No owner set</span>
+                ),
+            },
+            {
+              /*
+                The census sheet, on the household it belongs to.
+
+                This was a second table under this one — and it listed the
+                same households, because the form number IS the household
+                number. Two lists of one thing meant the office had to know
+                which one carried the answer. It is a column now.
+              */
+              header: "Census form",
+              render: (h: Household) =>
+                h.census ? (
+                  <span>
+                    <Link
+                      to={`/population/rbim/${h.census.id}`}
+                      className="font-medium text-primary hover:underline"
+                    >
+                      {h.census.status}
+                    </Link>
+                    <span className="block text-[11px] text-gray-400">
+                      {h.census.recorder?.name ?? "—"}
+                      {h.census.created_at
+                        ? ` · ${new Date(h.census.created_at).toLocaleDateString("en-PH")}`
+                        : ""}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-gray-400">Not censused</span>
                 ),
             },
             {
@@ -196,13 +233,13 @@ export default function HouseholdList() {
           numbered
           total={total}
           searchable
-          searchPlaceholder="Search by household #, owner, or address…"
+          searchPlaceholder="Search by household number, owner or address…"
           getSearchText={(h) =>
             `${h.household_number} ${h.zone_purok ?? ""} ${h.street_address ?? ""} ${
               h.head ? `${h.head.first_name} ${h.head.last_name}` : ""
             }`
           }
-          filters={[{ label: "Purok", getValue: (h) => h.zone_purok ?? "" }]}
+          filters={[{ label: "Zone", getValue: (h) => h.zone_purok ?? "" }]}
           loading={loading}
           page={page}
           lastPage={lastPage}
@@ -255,7 +292,7 @@ export default function HouseholdList() {
                     >
                       <div className="min-w-0">
                         <Link
-                          to={`/residents/${person.id}`}
+                          to={`/population/residents/${person.id}`}
                           className="block text-sm font-semibold text-primary hover:underline"
                         >
                           {personName(person)}
@@ -310,11 +347,20 @@ export default function HouseholdList() {
           <FormField label="Household number" required>
             <input value={number} onChange={(e) => setNumber(e.target.value)} required className={inputClasses} placeholder="HH-2026-0009" />
           </FormField>
-          <FormField label="Zone / Purok" required>
-            <select value={zone} onChange={(e) => setZone(e.target.value)} className={inputClasses}>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <option key={n}>Purok {n}</option>
+          <FormField label="Zone" required>
+            <select value={zone} onChange={(e) => setZone(e.target.value)} required className={inputClasses}>
+              <option value="">Select…</option>
+              {/*
+                The barangay's own list, kept by the Health Station. This was
+                "Purok 1" to "Purok 5" written out here — five choices for a
+                barangay with twenty-five zones, none of them named that.
+              */}
+              {zones.map((z) => (
+                <option key={z} value={z}>{z}</option>
               ))}
+              {zone && !zones.includes(zone) && (
+                <option value={zone}>{zone} (no longer in use)</option>
+              )}
             </select>
           </FormField>
           <FormField label="Street address" required>
@@ -339,6 +385,7 @@ export default function HouseholdList() {
           </button>
         </form>
       </Modal>
+
     </div>
   );
 }

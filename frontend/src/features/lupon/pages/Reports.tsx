@@ -303,7 +303,7 @@ export default function Reports() {
           numbered
           total={archive.length}
           searchable
-          searchPlaceholder="Search closed cases by number, title or classification…"
+          searchPlaceholder="Search by case number, title or classification…"
           getSearchText={(c) => `${c.case_number} ${c.case_title} ${c.case_classification}`}
           filters={[
             { label: "Outcome", getValue: (c) => c.current_stage, options: CLOSED_STAGES },

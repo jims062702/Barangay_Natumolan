@@ -46,6 +46,89 @@ export interface QueuedJob {
   /** Set when the server refused it; cleared if a person fixes and retries. */
   problem: string | null;
   status: "waiting" | "sending" | "failed";
+  /**
+   * The local name for the record this job creates, if it creates one.
+   *
+   * A Lupon case filed with no line has no id: the server has never seen it.
+   * But the clerk carries on working on it — screens it, sets a hearing — and
+   * each of those is another job that has to say WHICH case. So the filing
+   * job names its result (`case:7f3a…`) and the jobs after it refer to that
+   * name; when the filing finally lands, the real id is put in their place.
+   */
+  produces?: string | null;
+}
+
+/**
+ * Where a local name stands in for an id the server has not issued yet.
+ *
+ * Written into a path or a body as `local:<name>`, and swapped for the real
+ * id at the moment the job is sent.
+ */
+const LOCAL = /^local:(.+)$/;
+const LOCAL_IDS = "queue.local_ids";
+
+type LocalIds = Record<string, number | string>;
+
+/** The server ids that local names turned out to mean. */
+export async function localIds(): Promise<LocalIds> {
+  return (await meta<LocalIds>(LOCAL_IDS, {})) ?? {};
+}
+
+/** The server id a local name stands for, once its job has landed. */
+export async function serverIdFor(name: string): Promise<number | string | null> {
+  return (await localIds())[name] ?? null;
+}
+
+/**
+ * Replaces every `local:<name>` with the id it turned out to mean.
+ *
+ * Walks the whole value, because a name can be anywhere a record is referred
+ * to: `/lupon/cases/local:x/hearings`, or `{ case_id: "local:x" }`.
+ *
+ * Returns the unresolved names as well as the value. A job still carrying one
+ * must NOT be sent: it would reach the server as the literal string
+ * "local:x", and the server would either refuse it or — far worse — read it
+ * as something else.
+ */
+export function resolveLocal(value: unknown, ids: LocalIds): { value: unknown; missing: string[] } {
+  const missing: string[] = [];
+
+  const walk = (node: unknown): unknown => {
+    if (typeof node === "string") {
+      /* Whole-string form: "local:x". */
+      const whole = LOCAL.exec(node);
+      if (whole) {
+        const id = ids[whole[1]];
+        if (id === undefined) {
+          missing.push(whole[1]);
+          return node;
+        }
+        return id;
+      }
+
+      /* Embedded form: "/lupon/cases/local:x/hearings". */
+      return node.replace(/local:([A-Za-z0-9_:-]+)/g, (match, name) => {
+        const id = ids[name];
+        if (id === undefined) {
+          missing.push(name);
+          return match;
+        }
+        return String(id);
+      });
+    }
+
+    if (Array.isArray(node)) {
+      return node.map(walk);
+    }
+
+    if (node && typeof node === "object") {
+      return Object.fromEntries(Object.entries(node).map(([k, v]) => [k, walk(v)]));
+    }
+
+    return node;
+  };
+
+  return { value: walk(value), missing };
 }
 
 type Listener = (jobs: QueuedJob[]) => void;
@@ -140,6 +223,7 @@ export async function enqueue(
   path: string,
   body: unknown,
   label: string,
+  options: { produces?: string } = {},
 ): Promise<{ queued: true; id: string }> {
   const job: QueuedJob = {
     id: newId(),
@@ -151,6 +235,7 @@ export async function enqueue(
     attempts: 0,
     problem: null,
     status: "waiting",
+    produces: options.produces ?? null,
   };
 
   await write(job);
@@ -193,17 +278,58 @@ export async function flush(): Promise<{ sent: number; failed: number }> {
         continue;
       }
 
+      /*
+       * Whatever this job says about records made earlier offline, said in
+       * the server's own ids now that they exist.
+       */
+      const ids = await localIds();
+      const url = resolveLocal(job.path, ids);
+      const data = resolveLocal(job.body, ids);
+      const missing = [...new Set([...url.missing, ...data.missing])];
+
+      if (missing.length > 0) {
+        /*
+         * This belongs to something that never landed — the job that would
+         * have created it was refused, or is still waiting behind a refusal.
+         * Sending it anyway would attach the work to nothing, so it is held
+         * with the reason, next to the job it is waiting on.
+         */
+        await write({
+          ...job,
+          status: "failed",
+          problem: "The record this belongs to has not reached the server yet. "
+            + "Send or fix that one first, then retry this.",
+        });
+        failed += 1;
+        announce(await allJobs());
+        continue;
+      }
+
       await write({ ...job, status: "sending", attempts: job.attempts + 1 });
       announce(await allJobs());
 
       try {
-        await api.request({
+        const response = await api.request({
           method: job.method,
-          url: job.path,
-          data: job.body,
+          url: url.value as string,
+          data: data.value,
           /* The id the SERVER uses to recognise a repeat. */
           headers: { "X-Offline-Job": job.id },
         });
+
+        /*
+         * What the server called it, kept for the jobs queued behind this
+         * one. Written BEFORE the job is dropped: if the page dies in
+         * between, a job that was sent is retried — which the id above makes
+         * safe — whereas a lost mapping would strand everything after it.
+         */
+        if (job.produces) {
+          const created = (response?.data as { data?: { id?: number | string } } | undefined)?.data?.id;
+
+          if (created !== undefined && created !== null) {
+            await setMeta(LOCAL_IDS, { ...(await localIds()), [job.produces]: created });
+          }
+        }
 
         await drop(job.id);
         sent += 1;

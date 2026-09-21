@@ -51,7 +51,7 @@ export default function ResidentCreate() {
         actions={
           <button
             type="button"
-            onClick={() => (step === "preview" ? setStep("form") : navigate("/residents"))}
+            onClick={() => (step === "preview" ? setStep("form") : navigate("/population/residents"))}
             className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-gray px-5 py-2.5 text-sm font-semibold text-dark transition-colors hover:border-primary hover:text-primary"
           >
             <FiArrowLeft aria-hidden="true" /> {step === "preview" ? "Back to the form" : "Back"}

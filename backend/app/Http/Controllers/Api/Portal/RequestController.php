@@ -109,7 +109,7 @@ class RequestController extends PortalController
             return $this->forbidden('This request does not belong to your account');
         }
 
-        $serviceRequest->load(['certificate', 'appointments', 'assignedUser:id,name']);
+        $serviceRequest->load(['certificate', 'assignedUser:id,name']);
 
         return $this->success($serviceRequest, 'Request retrieved');
     }

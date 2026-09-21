@@ -1,4 +1,4 @@
-/** Live chat — the resident's widget and the Secretary's desk. */
+/** Live chat — the resident's widget and the Clerk's desk. */
 
 import { api, type BodyArgs, type PathParam, type QueryArgs } from "../../shared/lib/api";
 

@@ -34,7 +34,7 @@ trait RegistersResidents
             'mother_maiden_name' => 'nullable|string|max:100',
             'last_name' => 'required|string|max:100',
             'suffix' => 'nullable|string|max:50',
-            'gender' => 'required|in:Male,Female,Other',
+            'gender' => 'required|in:Male,Female',
             'birthdate' => 'required|date',
             'birth_place' => 'nullable|string|max:150',
             'civil_status' => 'nullable|string',
@@ -76,7 +76,7 @@ trait RegistersResidents
             'suffix' => 'nullable|string|max:50',
             // Optional, but it is what turns "Parent" into "Mother" on the
             // child's record — every family word is derived from it.
-            'gender' => 'nullable|in:Male,Female,Other',
+            'gender' => 'nullable|in:Male,Female',
             'contact_number' => 'nullable|string',
             'address' => 'nullable|string|max:255',
         ];

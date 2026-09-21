@@ -20,7 +20,7 @@ class ServiceRequestController extends BaseController
 
     public function index(Request $request)
     {
-        $query = ServiceRequest::with(['resident', 'assignedUser', 'appointments']);
+        $query = ServiceRequest::with(['resident', 'assignedUser']);
         
         if ($request->has('office')) {
             $query->where('office', $request->office);
@@ -108,7 +108,7 @@ class ServiceRequestController extends BaseController
 
     public function show(ServiceRequest $serviceRequest)
     {
-        $serviceRequest->load(['resident', 'appointments', 'certificate', 'referrals']);
+        $serviceRequest->load(['resident', 'certificate', 'referrals']);
         return $this->success($serviceRequest, 'Service request retrieved');
     }
 

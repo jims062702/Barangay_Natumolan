@@ -128,6 +128,49 @@ export function useHearingCalendar() {
     }
   };
 
+  /**
+   * The parties agreed at the table, so the case is over.
+   *
+   * Not an outcome among others: this CLOSES the case to the Lupon and
+   * stands down every sitting still on the calendar. It is deliberately a
+   * separate action rather than a word typed into the outcome box, because
+   * "Settlement reached" written there closed nothing and left three more
+   * Tuesdays on the calendar nobody would attend.
+   *
+   * NOT QUEUED OFFLINE. Closing a case stands other sittings down and is
+   * read by the Lupon straight away; a closure that reaches the server
+   * hours later is a hearing somebody may have held in the meantime.
+   */
+  const settleCase = async () => {
+    if (!outcomeFor) return;
+
+    if (!proceedings.trim()) {
+      toast("Write the minutes of this sitting before closing the case.", "error");
+
+      return;
+    }
+
+    if (!(await confirmAction({
+      title: "Settle and close this case?",
+      text: "The remaining sittings are stood down and the Lupon has nothing further to work.",
+      confirmText: "Yes, settle",
+    }))) return;
+
+    try {
+      const saved = await luponApi.settleAtHearing(outcomeFor.id, {
+        proceedings_notes: proceedings,
+        outcome: outcome || "Settlement Reached",
+        complainant_present: complainantPresent,
+        respondent_present: respondentPresent,
+      });
+      setOutcomeFor(null);
+      announceWrite(saved, "Case settled and closed.");
+      load();
+    } catch (err) {
+      toast(errorMessage(err), "error");
+    }
+  };
+
   const openReset = (hearing: LuponHearing) => {
     setResetFor(hearing);
     setNewDateTime("");
@@ -181,16 +224,17 @@ export function useHearingCalendar() {
   const awaitingService = rows.filter(unserved).length;
   const noShows = rows.filter((h) => h.status === "No Show").length;
   const completed = rows.filter((h) => h.status === "Completed").length;
+  const cancelled = rows.filter((h) => h.status === "Cancelled").length;
 
   return {
     view, setView, rows, setRows, page, setPage, lastPage, setLastPage, total, setTotal,
     loading, setLoading, summonsFor, setSummonsFor, issued, setIssued, servedDate,
     setServedDate, outcomeFor, setOutcomeFor, status, setStatus, complainantPresent,
-    setComplainantPresent, respondentPresent, setRespondentPresent, proceedings,
+    setComplainantPresent, respondentPresent, setRespondentPresent, proceedings, settleCase,
     setProceedings, outcome, setOutcome, resetFor, setResetFor, newDateTime, setNewDateTime,
     reason, setReason, formsFor, setFormsFor, forms, setForms, load, openSummons, saveSummons,
     openOutcome, saveOutcome, openReset, saveReset, openForms, scheduled, awaitingService,
-    noShows, completed,
+    noShows, completed, cancelled,
   };
 }
 

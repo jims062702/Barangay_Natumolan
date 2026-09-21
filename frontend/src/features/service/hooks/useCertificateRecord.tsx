@@ -8,6 +8,7 @@ import { useUpload } from "../../../shared/hooks/useUpload";
 import { imageToDataUrl } from "../../../shared/lib/imageData";
 import type { Certificate } from "../../../shared/types";
 import { serviceApi } from "../api";
+import { feeFor } from "../lib/certificateFees";
 import { mintLocalNumber, mintReference } from "../lib/certificateNumbers";
 import { openPrintView } from "../lib/printView";
 import type { CertificateRowsState } from "./useCertificateRows";
@@ -45,11 +46,62 @@ export function useCertificateRecord(ctx: CertificateRowsState) {
       }))
     )
       return;
+    /* The server's own rule: a type that prints a purpose must have one. */
+    const purpose = asksPurpose(detailType) ? detailPurpose : null;
+
+    if (asksPurpose(detailType) && !String(purpose ?? "").trim()) {
+      toast("Please enter the purpose — it is printed on this certificate.", "error");
+
+      return;
+    }
+
+    const changes = { certificate_type: detailType, purpose };
+    const jobId = (detail as unknown as { _jobId?: string })._jobId;
+
+    /*
+     * A correction is a correction with or without a line.
+     *
+     * Typing the wrong type or purpose is the commonest thing to get wrong
+     * at a counter, and it is caught while the resident is still standing
+     * there. Refused offline, the clerk's only way out was to file a second
+     * certificate and leave the first one wrong on the register.
+     *
+     * The fee follows the correction here as it does on the server, so the
+     * amount quoted at the counter is the amount that will be recorded:
+     * a clearance corrected from "Loan" to "Mayor's Permit" is repriced.
+     */
+    const repriced = detail.is_exempt
+      ? Number(detail.fee_amount)
+      : feeFor(catalogue, detailType, purpose ?? "", detail.template_fields ?? {});
+
+    if (jobId) {
+      /* Still in the queue: correct the job, so what is sent is right. */
+      await updateJobBody(jobId, { ...changes, fee_amount: repriced });
+      setDetail({ ...detail, ...changes, fee_amount: repriced });
+      setEditingDetail(false);
+      toast("Corrected on this device. It will be sent as corrected.", "success");
+      load();
+
+      return;
+    }
+
+    if (isOffline()) {
+      await enqueue(
+        "put",
+        `/certificates/${detail.id}`,
+        changes,
+        `Correction — ${detail.certificate_number}`,
+      );
+      setDetail({ ...detail, ...changes, fee_amount: repriced });
+      setEditingDetail(false);
+      toast("Corrected on this device. It will be sent when the connection returns.", "info");
+      load();
+
+      return;
+    }
+
     try {
-      const response = await serviceApi.updateCertificate(detail.id, {
-        certificate_type: detailType,
-        purpose: asksPurpose(detailType) ? detailPurpose : null,
-      });
+      const response = await serviceApi.updateCertificate(detail.id, changes);
       setDetail(response.data.data);
       setEditingDetail(false);
       toast(response.data.message);
@@ -213,6 +265,28 @@ export function useCertificateRecord(ctx: CertificateRowsState) {
   const printAndFinish = async (certificate: Certificate) => {
     const jobId = (certificate as unknown as { _jobId?: string })._jobId;
     let printable = certificate;
+
+    /*
+     * A clearance WITH PICTURE is not printable without the picture.
+     *
+     * The form has a photo box on it, and a clerk with a queue in front of
+     * them can miss it. Printed without one, the paper comes out with an
+     * empty frame where the resident's photograph belongs — and nobody
+     * notices until it has been signed, stamped and handed over. So the
+     * press opens the record at the photo instead of printing, and says
+     * why. Once a photo is attached it prints as it always did.
+     */
+    const spec = catalogue?.types.find((t) => t.name === certificate.certificate_type);
+
+    if (spec?.needs_photo && !certificate.photo_url) {
+      openDetail(certificate);
+      toast(
+        "This certificate prints the resident's photograph. Take it at the counter first, then print.",
+        "error",
+      );
+
+      return;
+    }
 
     /*
      * A queued certificate from before device numbering existed has no

@@ -53,8 +53,16 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 function offlineSignInMessage(result: OfflineSignIn): string {
   switch (result.kind) {
     case "no-grant":
-      return "No connection, and no account has been saved on this device yet. "
-        + "Sign in once while connected to the internet first.";
+      /*
+       * Deliberately says "office account". Offline this is answered by the
+       * device, which knows the email and the password but not whose they
+       * are — and the old wording told a resident to sign in once online and
+       * it would work next time, which is not true and never will be: the
+       * portal is online-only, so no grant is ever kept for one.
+       */
+      return "No connection, and no office account has been saved on this device yet. "
+        + "An office account has to sign in here once while connected. "
+        + "The resident portal needs the internet.";
     case "wrong-account":
       return "No connection. Only the account that last signed in on this device "
         + "can sign in offline.";
@@ -74,7 +82,7 @@ function offlineSignInMessage(result: OfflineSignIn): string {
 
 /** Where an account lands after login. */
 export function homePathFor(user: User): string {
-  return user.role === "Resident" ? "/portal" : "/dashboard";
+  return user.role === "Resident" ? "/resident" : "/dashboard";
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

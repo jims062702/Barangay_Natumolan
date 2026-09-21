@@ -22,7 +22,7 @@ final class ChangeLog
      */
     public const TOPICS = [
         'residents', 'households', 'certificates', 'service_requests',
-        'appointments', 'vawc_cases', 'lupon_cases', 'sessions',
+        'vawc_cases', 'lupon_cases', 'sessions',
         'announcements', 'officials', 'hero_slides', 'health',
         'population_events', 'chat', 'users',
     ];

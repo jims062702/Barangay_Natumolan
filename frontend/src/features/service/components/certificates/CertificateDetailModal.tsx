@@ -1,20 +1,31 @@
+import { useState } from "react";
+import { FiRefreshCw } from "react-icons/fi";
 import Modal from "../../../../shared/ui/Modal";
 import StatusBadge from "../../../../shared/ui/StatusBadge";
 import FormField, { inputClasses } from "../../../../shared/ui/FormField";
 import ChoiceWithOther, { isListed } from "../../../../shared/ui/ChoiceWithOther";
 import { personName } from "../../../../shared/lib/names";
-import FileField from "../../../../shared/ui/FileField";
 import { FLOW, STAGE_HELP } from "../../lib/certificateFlow";
 import type { CertificateDeskState } from "../../hooks/useCertificateDesk";
+import { CounterCamera } from "./CounterCamera";
 
 /**
  * One certificate: where it is, what it says, and the next press.
  */
 export function CertificateDetailModal({ ctx }: { ctx: CertificateDeskState }) {
+  /*
+   * Open the camera again over a photo already taken.
+   *
+   * The photo on file is shown in the box beside this; the camera replaces
+   * it only when the clerk asks, so a stream is not left running on every
+   * certificate that already has one.
+   */
+  const [retaking, setRetaking] = useState(false);
+
   const {
     detail, setDetail, setEditingDetail, editingDetail, detailType, setDetailType, catalogue,
-    asksPurpose, detailPurpose, setDetailPurpose, saveDetailEdit, openDetailEdit, photoFile,
-    setPhotoFile, attachPhoto, photoUpload, actionsFor,
+    asksPurpose, detailPurpose, setDetailPurpose, saveDetailEdit, openDetailEdit,
+    attachPhoto, photoUpload, actionsFor,
   } = ctx;
 
   return (
@@ -212,18 +223,35 @@ export function CertificateDetailModal({ ctx }: { ctx: CertificateDeskState }) {
                     </p>
                   ) : (
                     <>
-                      {/* The shared field, so this upload names the file it
-                          took and reports how far it has got — like every
-                          other upload in the system. */}
-                      <FileField
-                        file={photoFile}
-                        onPick={(file) => {
-                          setPhotoFile(file);
-                          if (file) void attachPhoto(detail, file);
-                        }}
-                        progress={photoUpload.progress}
-                        done={photoUpload.done}
-                      />
+                      {/*
+                        TAKEN HERE, NOT UPLOADED.
+
+                        A clearance with a picture is proof that the person
+                        named on it stood at this counter. A file picker
+                        accepts a photograph from any year, of anybody — so
+                        the clearance would prove nothing. The resident is in
+                        front of the clerk when this is issued, so the camera
+                        takes it.
+                      */}
+                      {detail.photo_url && !retaking ? (
+                        <button
+                          type="button"
+                          onClick={() => setRetaking(true)}
+                          className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-gray px-4 py-2 text-xs font-semibold text-gray-600 transition-colors hover:border-primary hover:text-primary"
+                        >
+                          <FiRefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                          Take it again
+                        </button>
+                      ) : (
+                        <CounterCamera
+                          /* null means nothing is in flight. */
+                          busy={photoUpload.progress !== null && !photoUpload.done}
+                          onCapture={(photo) => {
+                            setRetaking(false);
+                            void attachPhoto(detail, photo);
+                          }}
+                        />
+                      )}
                       <p className="mt-2 text-xs leading-relaxed text-gray-500">
                         It prints in the box beside the thumbmarks. The thumbmarks themselves
                         are inked onto the printed sheet here at the counter.

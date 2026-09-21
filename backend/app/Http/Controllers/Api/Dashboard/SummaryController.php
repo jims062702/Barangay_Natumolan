@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Dashboard;
 use App\Http\Controllers\Api\BaseController;
 use App\Models\Health\Visit;
 use App\Models\Lupon;
+use App\Models\Lupon\Payment as LuponPayment;
 use App\Models\Service\Certificate;
 use App\Models\Service\ServiceRequest;
 use App\Models\Vawc;
@@ -12,6 +13,33 @@ use App\Models\Vawc;
 /** The signed-in staff member's landing numbers: their office's stats and waiting work. */
 class SummaryController extends BaseController
 {
+    /**
+     * What residents actually come in for, this year.
+     *
+     * Its own endpoint rather than a field on the executive summary, because
+     * the COUNTER needs it too. The clerk who issues these documents all day
+     * should be able to see which ones, and reaching that figure through the
+     * Punong Barangay's summary would have meant handing a clerk the office
+     * workload, the aging backlog and the executive directives with it.
+     *
+     * Six, ordered, because the point is which ones lead — a ranked list
+     * with a long tail is read at the top and nowhere else.
+     */
+    public function requestedServices()
+    {
+        $rows = ServiceRequest::whereYear('created_at', date('Y'))
+            ->groupBy('service_type')
+            ->selectRaw('service_type, count(*) as count')
+            ->orderByDesc('count')
+            ->limit(6)
+            ->get();
+
+        return $this->success([
+            'services' => $rows,
+            'year' => (int) date('Y'),
+        ], 'Requested services retrieved');
+    }
+
     /**
      * Get dashboard summary
      */
@@ -67,11 +95,21 @@ class SummaryController extends BaseController
                 ->count();
         }
 
-        // Service requests pending assignment
-        if (in_array($user->role, ['Secretary', 'Clerk'])) {
-            $pending['unassigned_requests'] = ServiceRequest::where('status', 'Pending')
-                ->whereNull('assigned_to')
-                ->count();
+        /*
+         * Lupon fees waiting at this counter.
+         *
+         * The Clerk collects them now — ₱20 to file a case, ₱230 to certify a
+         * failed conciliation to court — and each one sitting here is a Lupon
+         * case standing still: the summons cannot be issued until it is paid.
+         * It was the one piece of the Clerk's work with no figure anywhere.
+         *
+         * It replaces two tiles that both counted service requests. A request
+         * raises its certificate the moment it is made, so they were the same
+         * work as "certificates to start", under an earlier name, linking to
+         * a queue that is no longer on the menu.
+         */
+        if ($user->office === 'Main Office' || $user->role === 'Punong Barangay') {
+            $pending['lupon_fees_waiting'] = LuponPayment::where('status', 'Requested')->count();
         }
 
         return $this->success($pending, 'Pending items retrieved');
@@ -103,10 +141,29 @@ class SummaryController extends BaseController
     {
         $activities = [];
 
-        $activities['recent_requests'] = ServiceRequest::where('office', $user->office)
-            ->orderBy('created_at', 'desc')
+        /*
+         * CERTIFICATES, not service requests.
+         *
+         * The counter issues documents: a request for one raises the
+         * certificate the moment it is made, so the request list was the
+         * same work under an earlier name — and the page it linked to came
+         * off the Clerk's menu. What the clerk wants on opening the day is
+         * the last few certificates and where each has got to.
+         */
+        $activities['recent_certificates'] = Certificate::with([
+                'resident:id,first_name,middle_name,last_name,suffix',
+            ])
+            ->orderByDesc('created_at')
             ->limit(5)
-            ->get(['id', 'request_number', 'service_type', 'status', 'created_at']);
+            ->get(['id', 'certificate_number', 'certificate_type', 'status', 'resident_id', 'created_at'])
+            ->map(fn ($c) => [
+                'id' => $c->id,
+                'certificate_number' => $c->certificate_number,
+                'certificate_type' => $c->certificate_type,
+                'status' => $c->status,
+                'resident' => $c->resident?->full_name,
+                'created_at' => $c->created_at,
+            ]);
 
         return $activities;
     }

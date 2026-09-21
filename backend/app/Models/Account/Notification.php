@@ -97,4 +97,21 @@ class Notification extends Model
             ->pluck('id');
         self::notifyUsers($ids, $type, $subject, $message, $entityType, $entityId);
     }
+
+    /**
+     * Notify the Lupon office.
+     *
+     * For the half of a two-office job the OTHER office finishes. The Lupon
+     * asks the Clerk for a filing fee and then cannot proceed until it is
+     * settled — and had no way to learn that it had been, short of reopening
+     * the case and looking. An officer who has to keep checking is an officer
+     * who checks late.
+     */
+    public static function notifyLupon(string $type, string $subject, string $message, ?string $entityType = null, ?int $entityId = null): void
+    {
+        $ids = User::where('is_active', true)
+            ->where('office', 'Lupon')
+            ->pluck('id');
+        self::notifyUsers($ids, $type, $subject, $message, $entityType, $entityId);
+    }
 }

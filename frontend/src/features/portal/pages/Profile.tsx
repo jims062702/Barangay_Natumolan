@@ -10,6 +10,7 @@ import { inputClasses } from "../../../shared/ui/FormField";
 import type { Family, User } from "../../../shared/types";
 import FamilyPanel from "../../resident/components/FamilyPanel";
 import ChangePasswordCard from "../../account/components/ChangePasswordCard";
+import ChangeEmailCard from "../components/ChangeEmailCard";
 import { portalApi } from "../api";
 
 /**
@@ -23,10 +24,19 @@ import { portalApi } from "../api";
  * corrections are made there; showing it here is what lets a resident notice
  * a mistake at all.
  *
- * Occupation is the exception, and it is the resident who owns that one:
- * nobody at the counter knows what work somebody does better than they do,
- * and an office typing a neighbour's occupation is guessing at the figure a
- * livelihood programme then gets planned around.
+ * THREE ROWS ARE THE EXCEPTION, and the resident owns all three:
+ *
+ *   Occupation      nobody at the counter knows what work somebody does
+ *                   better than they do, and an office typing a neighbour's
+ *                   occupation is guessing at the figure a livelihood
+ *                   programme then gets planned around.
+ *   Civil status    a marriage or a bereavement is true before any paperwork
+ *                   reaches the barangay, and the resident is not obliged to
+ *                   report it at a counter first.
+ *   Contact number  the number the office rings when a certificate is ready.
+ *                   A stale one fails silently — the document sits there and
+ *                   nobody answers — so the person who knows it should be
+ *                   able to fix it without queueing to do so.
  */
 
 function Row({
@@ -50,6 +60,126 @@ function Row({
   );
 }
 
+/**
+ * A row the resident may change, with its editor folded away until asked.
+ *
+ * One component rather than three copies: the rows differ only in where
+ * their value comes from and whether it is picked from a list or typed, and
+ * three hand-written editors is three places for the Save button to drift.
+ */
+function EditableRow({
+  label,
+  shown,
+  initial,
+  options,
+  placeholder,
+  allowEmpty = false,
+  onSave,
+}: {
+  label: string;
+  /** What the row reads while it is not being edited. */
+  shown?: string | null;
+  /** What the editor opens with — not always the stored value. */
+  initial: string;
+  /** Given for a dropdown; left out for a typed box. */
+  options?: { value: string; label: string }[];
+  placeholder?: string;
+  /** True where clearing the field is a real answer, as for a phone number. */
+  allowEmpty?: boolean;
+  onSave: (next: string) => Promise<boolean>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      if (await onSave(draft)) setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const unchanged = draft === initial;
+  const empty = draft.trim() === "";
+
+  return (
+    <div className="border-b border-gray/60 py-2.5 text-sm last:border-0">
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-gray-500">{label}</span>
+
+        {!editing && (
+          <span className="flex items-center gap-2">
+            <span className="text-right font-medium text-dark">{shown || "—"}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setDraft(initial);
+                setEditing(true);
+              }}
+              className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-primary/40 px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
+            >
+              <FiEdit2 className="h-3 w-3" aria-hidden="true" />
+              Change
+            </button>
+          </span>
+        )}
+      </div>
+
+      {editing && (
+        <div className="mt-2 space-y-2">
+          {options ? (
+            <select
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              aria-label={label}
+              className={inputClasses}
+            >
+              <option value="">Choose…</option>
+              {options.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              aria-label={label}
+              placeholder={placeholder}
+              className={inputClasses}
+            />
+          )}
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={saving || unchanged || (empty && !allowEmpty)}
+              onClick={save}
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary-dark disabled:opacity-50"
+            >
+              <FiCheck className="h-3.5 w-3.5" aria-hidden="true" />
+              {saving ? "Saving…" : "Save"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="cursor-pointer rounded-full border border-gray px-4 py-1.5 text-xs font-semibold text-gray-500 transition-colors hover:border-primary hover:text-primary"
+            >
+              Cancel
+            </button>
+            <span className="text-xs text-gray-400">
+              Only you can change this. The office cannot.
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Profile() {
   const [account, setAccount] = useState<User | null>(null);
   const [family, setFamily] = useState<Family | null>(null);
@@ -58,17 +188,21 @@ export default function Profile() {
   /* The occupation list comes with the profile — the page cannot draw its one
      editable field without it. */
   const [occupations, setOccupations] = useState<string[]>([]);
-  const [editingJob, setEditingJob] = useState(false);
-  const [job, setJob] = useState("");
-  const [savingJob, setSavingJob] = useState(false);
+  const [civilStatuses, setCivilStatuses] = useState<string[]>([]);
 
-  useEffect(() => {
+  /* Named rather than inline: the email card calls it once a change is
+     confirmed, so the address on screen is the one now in use. */
+  const loadProfile = () =>
     portalApi.profile()
       .then((r) => {
         setAccount(r.data.data.user ?? null);
         setOccupations(r.data.data.occupations ?? []);
+        setCivilStatuses(r.data.data.civil_statuses ?? []);
       })
       .catch(() => undefined);
+
+  useEffect(() => {
+    loadProfile();
     portalApi.family()
       .then((r) => setFamily(r.data.data))
       .catch(() => setFamilyError("Your family record could not be loaded right now."));
@@ -96,19 +230,28 @@ export default function Profile() {
    */
   const labelFor = (option: string) => (option === "None" ? "—" : option);
 
-  const saveJob = async () => {
-    setSavingJob(true);
+  /**
+   * Sends one changed field and folds the new value back into the page.
+   *
+   * One field per request, because that is how the rows are edited — and a
+   * request carrying only what changed cannot blank the other two if the
+   * page's copy of them is out of date.
+   *
+   * Returns whether it landed, so the row knows whether to close.
+   */
+  const saveField = async (patch: Record<string, string>, said: string) => {
     try {
-      await portalApi.updateOccupation({ occupation: job });
+      await portalApi.updateDetails(patch);
       setAccount((was) =>
-        was?.resident ? { ...was, resident: { ...was.resident, occupation: job } } : was
+        was?.resident ? { ...was, resident: { ...was.resident, ...patch } } : was
       );
-      setEditingJob(false);
-      toast("Your occupation has been updated.");
+      toast(said);
+
+      return true;
     } catch (err) {
       toast(errorMessage(err), "error");
-    } finally {
-      setSavingJob(false);
+
+      return false;
     }
   };
 
@@ -137,7 +280,7 @@ export default function Profile() {
                 : undefined
             }
           />
-          <Row label="Gender" value={resident?.gender} />
+          <Row label="Sex" value={resident?.gender} />
           {/*
             Month and year when that is all the census gave.
 
@@ -152,77 +295,39 @@ export default function Profile() {
             value={formatBirthdate(resident?.birthdate, resident?.birthdate_is_estimated) || undefined}
             hint={birthdateNote(resident?.birthdate_is_estimated) || undefined}
           />
-          <Row label="Civil status" value={resident?.civil_status} />
-          {/*
-            The one row on this page with a control on it.
-          */}
-          <div className="border-b border-gray/60 py-2.5 text-sm last:border-0">
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-gray-500">Occupation</span>
-
-              {editingJob ? null : (
-                <span className="flex items-center gap-2">
-                  <span className="text-right font-medium text-dark">
-                    {resident?.occupation ? labelFor(resident.occupation) : "—"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setJob(offList ? "" : current);
-                      setEditingJob(true);
-                    }}
-                    className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-primary/40 px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
-                  >
-                    <FiEdit2 className="h-3 w-3" aria-hidden="true" />
-                    Change
-                  </button>
-                </span>
-              )}
-            </div>
-
-            {editingJob && (
-              <div className="mt-2 space-y-2">
-                <select
-                  value={job}
-                  onChange={(e) => setJob(e.target.value)}
-                  aria-label="Occupation"
-                  className={inputClasses}
-                >
-                  <option value="">Choose your occupation…</option>
-                  {/* What they already have, when the list does not hold it. */}
-                  {offList && <option value={current}>{current} (already recorded)</option>}
-                  {occupations.map((option) => (
-                    <option key={option} value={option}>
-                      {labelFor(option)}
-                    </option>
-                  ))}
-                </select>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={savingJob || job === "" || job === current}
-                    onClick={saveJob}
-                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary-dark disabled:opacity-50"
-                  >
-                    <FiCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                    {savingJob ? "Saving…" : "Save"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditingJob(false)}
-                    className="cursor-pointer rounded-full border border-gray px-4 py-1.5 text-xs font-semibold text-gray-500 transition-colors hover:border-primary hover:text-primary"
-                  >
-                    Cancel
-                  </button>
-                  <span className="text-xs text-gray-400">
-                    Only you can change this. The office cannot.
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-          <Row label="Contact number" value={resident?.contact_number} />
+          <EditableRow
+            label="Civil status"
+            shown={resident?.civil_status}
+            initial={resident?.civil_status ?? ""}
+            options={civilStatuses.map((s) => ({ value: s, label: s }))}
+            onSave={(next) =>
+              saveField({ civil_status: next }, "Your civil status has been updated.")}
+          />
+          <EditableRow
+            label="Occupation"
+            shown={resident?.occupation ? labelFor(resident.occupation) : ""}
+            /* Blank when what they have is not on the list, so the dropdown
+               opens on "Choose…" rather than on a value it cannot show. */
+            initial={offList ? "" : current}
+            options={[
+              /* What they already have, when the list does not hold it. */
+              ...(offList ? [{ value: current, label: `${current} (already recorded)` }] : []),
+              ...occupations.map((option) => ({ value: option, label: labelFor(option) })),
+            ]}
+            onSave={(next) =>
+              saveField({ occupation: next }, "Your occupation has been updated.")}
+          />
+          <EditableRow
+            label="Contact number"
+            shown={resident?.contact_number}
+            initial={resident?.contact_number ?? ""}
+            placeholder="09XX XXX XXXX"
+            /* Clearing it is a real answer: some residents have no number,
+               and the office should read that rather than an old one. */
+            allowEmpty
+            onSave={(next) =>
+              saveField({ contact_number: next.trim() }, "Your contact number has been updated.")}
+          />
         </Card>
 
         <Card title="Residency & household">
@@ -240,7 +345,8 @@ export default function Profile() {
         details; changing a password is the rarer errand, and it should be
         findable without being the first thing in the way.
       */}
-      <div className="mt-6">
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <ChangeEmailCard current={account?.email} onChanged={loadProfile} />
         <ChangePasswordCard />
       </div>
 

@@ -8,6 +8,7 @@ import { StageTracker } from "../components/case/StageTracker";
 import { ComplaintCard } from "../components/case/ComplaintCard";
 import { HearingsCard } from "../components/case/HearingsCard";
 import { SettlementCard } from "../components/case/SettlementCard";
+import { FeeAndScheduleCard } from "../components/case/FeeAndScheduleCard";
 import { HearingModal } from "../components/case/HearingModal";
 import { MediationModal } from "../components/case/MediationModal";
 import { ConciliationModal } from "../components/case/ConciliationModal";
@@ -80,7 +81,9 @@ export default function CaseDetail() {
       )}
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <ComplaintCard ctx={ctx} caseData={caseData} />
+        <ComplaintCard caseData={caseData} />
+
+        <FeeAndScheduleCard ctx={ctx} caseData={caseData} />
 
         <HearingsCard ctx={ctx} caseData={caseData} />
 

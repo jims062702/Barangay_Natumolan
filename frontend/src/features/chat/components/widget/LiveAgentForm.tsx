@@ -1,7 +1,7 @@
 import type { ChatWidgetState } from "../../hooks/useChatWidget";
 
 /**
- * Who are you, and what do you need — before the Secretary is asked to join.
+ * Who are you, and what do you need — before the Clerk is asked to join.
  */
 export function LiveAgentForm({ ctx }: { ctx: ChatWidgetState }) {
   const { startLive, liveError, user, firstMessage, setFirstMessage, setMode, starting } = ctx;
@@ -9,7 +9,7 @@ export function LiveAgentForm({ ctx }: { ctx: ChatWidgetState }) {
   return (
     <form onSubmit={startLive} className="flex-1 space-y-3 overflow-y-auto bg-secondary/60 px-4 py-4">
       <p className="rounded-2xl bg-white px-4 py-3 text-sm leading-relaxed text-dark shadow-sm">
-        I&rsquo;ll pass you to the <strong>Barangay Secretary</strong> — office hours are
+        I&rsquo;ll pass you to the <strong>Barangay Clerk</strong> — office hours are
         Mon–Fri, 8:00 AM–5:00 PM.
       </p>
       {liveError && (
@@ -18,10 +18,10 @@ export function LiveAgentForm({ ctx }: { ctx: ChatWidgetState }) {
       {/*
         Nothing is asked about who they are. They are signed in, so the
         barangay already has their name, their purok and their number —
-        and the Secretary sees all three when the chat arrives.
+        and the Clerk sees all three when the chat arrives.
       */}
       <p className="rounded-xl bg-primary/10 px-4 py-2.5 text-xs leading-relaxed text-dark">
-        Signed in as <strong>{user?.name}</strong>. The Secretary will see your resident
+        Signed in as <strong>{user?.name}</strong>. The Clerk will see your resident
         record, so there is nothing else to fill in.
       </p>
       <label className="block">

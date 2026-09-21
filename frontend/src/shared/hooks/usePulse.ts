@@ -38,7 +38,7 @@ const PAUSE_AFTER_IDLE_MS = 2 * 60 * 1000;
  */
 export type PulseTopic =
   | "residents" | "households" | "certificates" | "service_requests"
-  | "appointments" | "vawc_cases" | "lupon_cases" | "sessions"
+  | "vawc_cases" | "lupon_cases" | "sessions"
   | "announcements" | "officials" | "hero_slides" | "health"
   | "population_events" | "chat" | "users";
 

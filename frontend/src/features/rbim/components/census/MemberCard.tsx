@@ -123,7 +123,7 @@ export function MemberCard({ ctx, index, member, m }: {
             <p className="mt-2 text-xs text-gray-500">
               On the register as{" "}
               <Link
-                to={`/residents/${matches[index]!.id}`}
+                to={`/population/residents/${matches[index]!.id}`}
                 className="font-semibold text-primary hover:underline"
               >
                 {matches[index]!.resident_number}

@@ -19,6 +19,9 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        /* An address asked for but not yet proved. Never the login until a
+           code sent TO IT comes back — see redeemActivationOtp(). */
+        'pending_email',
         'password',
         'role',
         'office',
@@ -164,6 +167,15 @@ class User extends Authenticatable
     /**
      * Checks a submitted code and, on a match, activates the account and
      * clears the code so it cannot be replayed.
+     *
+     * A PENDING EMAIL BECOMES THE LOGIN HERE, and nowhere else. The code was
+     * sent to that address, so answering it is the proof that the person
+     * asking for the change can actually read mail there — which is the
+     * whole reason the address waited instead of being written straight in.
+     *
+     * That also settles the awkward case: somebody who changes their address
+     * BEFORE ever activating. One code does both jobs, because both jobs are
+     * the same job — proving this mailbox belongs to this person.
      */
     public function redeemActivationOtp(string $code): bool
     {
@@ -178,14 +190,29 @@ class User extends Authenticatable
         }
 
         $this->forceFill([
+            'email' => $this->pending_email ?: $this->email,
+            'pending_email' => null,
             'activated_at' => now(),
-            'email_verified_at' => $this->email_verified_at ?? now(),
+            'email_verified_at' => now(),
             'otp_code' => null,
             'otp_expires_at' => null,
             'otp_attempts' => 0,
         ])->save();
 
         return true;
+    }
+
+    /**
+     * Where the next code should be sent.
+     *
+     * The address being PROVED, which is the pending one whenever there is
+     * one. Sending to the current address instead would let somebody change
+     * the login to an address they cannot read, and confirm it from the one
+     * they can — which proves nothing about the new mailbox.
+     */
+    public function otpDestination(): string
+    {
+        return $this->pending_email ?: $this->email;
     }
 
     /**

@@ -44,7 +44,7 @@ export default function ChatWidget() {
           {/* Body */}
           {mode === "signin" ? (
             /*
-              The desk is one Secretary at a time, so the queue is only as
+              The desk is one Clerk at a time, so the queue is only as
               useful as it is short. Keeping it to registered residents is
               what makes a queue number mean anything — and it means whoever
               is answered can actually be looked up, and reached afterwards.
@@ -105,7 +105,7 @@ export default function ChatWidget() {
               className="flex cursor-pointer items-center justify-center gap-2 border-t border-gray bg-white px-4 py-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/5"
             >
               <FiHeadphones className="h-4 w-4" aria-hidden="true" />
-              Talk to the Secretary (live agent)
+              Talk to Clerk (live agent)
             </button>
           )}
           {/*
@@ -117,7 +117,7 @@ export default function ChatWidget() {
             <div className="border-t border-gray bg-warning/10 px-4 py-2.5">
               <p className="text-xs font-semibold text-dark">
                 {queuePosition === 1
-                  ? "You are next — the Secretary will be with you shortly."
+                  ? "You are next — the Clerk will be with you shortly."
                   : `You are number ${queuePosition} in the queue.`}
               </p>
               {queueTotal > 1 && (
@@ -126,7 +126,7 @@ export default function ChatWidget() {
                     ? `${queueTotal} waiting in total.`
                     : `${queuePosition - 1} ${queuePosition - 1 === 1 ? "person is" : "people are"} ahead of you.`}{" "}
                   The desk answers one person at a time. You can keep typing — your messages are
-                  saved, and you will be notified when the Secretary joins.
+                  saved, and you will be notified when the Clerk joins.
                 </p>
               )}
             </div>
@@ -158,10 +158,10 @@ export default function ChatWidget() {
                   mode === "live"
                     ? liveStatus === "Closed"
                       ? "This conversation has ended"
-                      : "Message the Secretary…"
+                      : "Message the Clerk…"
                     : "Type your question…"
                 }
-                aria-label={mode === "live" ? "Message the Secretary" : "Type your question"}
+                aria-label={mode === "live" ? "Message the Clerk" : "Type your question"}
                 disabled={mode === "live" && liveStatus === "Closed"}
                 className="flex-1 rounded-full border border-gray bg-secondary/60 px-4 py-2.5 text-sm text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/25 disabled:opacity-60"
               />

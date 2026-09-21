@@ -162,10 +162,23 @@ export default function ResidentPicker({
 
   if (value) {
     return (
-      <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-3.5 py-2.5 text-sm">
-        <span className="font-medium text-dark">
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3.5 py-2.5 text-sm">
+        {/*
+          The distinguisher stays after the pick, not only during it.
+
+          The dropdown shows age and purok under every option so two people
+          called James Gasang can be told apart — and then the chip that
+          replaced it showed the name alone, so the one fact that separated
+          them disappeared at the exact moment it became the answer. Naming
+          the wrong namesake as a respondent is how a summons reaches the
+          wrong house.
+        */}
+        <span className="min-w-0 font-medium text-dark">
           {fullName(value)}
           {value.resident_number && <span className="text-xs text-gray-500"> ({value.resident_number})</span>}
+          {distinguisher(value) && (
+            <span className="block text-xs font-normal text-gray-500">{distinguisher(value)}</span>
+          )}
         </span>
         <button
           type="button"
@@ -183,7 +196,7 @@ export default function ResidentPicker({
       <SearchInput
         value={query}
         onChange={setQuery}
-        placeholder="Start typing a name or resident number…"
+        placeholder="Search by name or resident number…"
         label="Search residents"
       />
       {loading && (

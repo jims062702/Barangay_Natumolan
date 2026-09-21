@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import { usePulse } from "../../../shared/hooks/usePulse";
 import { errorMessage } from "../../../shared/lib/api";
 import { confirmAction } from "../../../shared/lib/confirm";
 import { toast } from "../../../shared/lib/toast";
@@ -46,6 +47,17 @@ export function useLuponCase() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  /*
+   * Somebody else's change, about a second after they make it.
+   *
+   * The one that matters here happens at ANOTHER COUNTER: the Clerk marks
+   * the filing fee settled, and until they do the summons button is
+   * disabled. The page loaded once, so a Lupon secretary sitting on the
+   * case watched a button stay greyed out after the complainant had already
+   * paid — and only learned otherwise by reloading.
+   */
+  usePulse("lupon_cases", load);
 
   /** Confirms, sends the change, closes its form and reloads the case. */
   const post = async (request: () => Promise<{ data: { message?: string } }>, close?: () => void, message = "Saved.") => {

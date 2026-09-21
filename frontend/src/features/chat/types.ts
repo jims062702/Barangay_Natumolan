@@ -2,7 +2,7 @@
  * Live chat, as the desk and the widget see it.
  */
 
-/** One live-agent conversation, as the Secretary's desk sees it. */
+/** One live-agent conversation, as the Clerk's desk sees it. */
 export interface ChatConversation {
   id: number;
   visitor_name: string;

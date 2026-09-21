@@ -11,7 +11,7 @@ use App\Models\Resident\Resident;
 
 /**
  * One live-agent conversation between a person on the website and the
- * Barangay Secretary, who staffs the live desk.
+ * Barangay Clerk, who staffs the live desk.
  */
 class Conversation extends Model
 {

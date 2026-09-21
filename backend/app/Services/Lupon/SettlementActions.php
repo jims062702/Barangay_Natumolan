@@ -13,7 +13,9 @@ final class SettlementActions
     /** Compliance/execution transitions available on a recorded settlement. */
     public const ACTIONS = [
         'finalize', 'repudiate', 'mark_complied', 'mark_not_complied',
-        'execute', 'issue_cfa', 'issue_cba',
+        /* No issue_cfa or issue_cba: neither document is issued here
+           any more, and the columns they wrote to are dropped. */
+        'execute',
     ];
 
     /**
@@ -42,13 +44,6 @@ final class SettlementActions
                 break;
             case 'execute':
                 $settlement->update(['status' => 'Executed', 'compliance_notes' => $notes]);
-                break;
-            case 'issue_cfa':
-                $settlement->update(['cfa_issued' => true, 'cfa_issued_at' => now()]);
-                $case?->update(['current_stage' => 'Referred', 'notes' => 'Certificate to File Action issued']);
-                break;
-            case 'issue_cba':
-                $settlement->update(['cba_issued' => true, 'cba_issued_at' => now()]);
                 break;
         }
 

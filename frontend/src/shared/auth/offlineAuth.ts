@@ -111,6 +111,11 @@ async function derive(password: string, salt: Uint8Array, iterations: number): P
  * Called only after the SERVER has accepted the password. Nothing here
  * decides whether a password is right the first time; it records that the
  * server already said so.
+ *
+ * OFFICES ONLY. Offline exists because a barangay hall loses its line and
+ * the counter cannot stop; a resident at home with no signal is not in that
+ * position — nothing they can do in the portal works without the server
+ * anyway, and a password kept on their phone is a risk taken for nothing.
  */
 export async function rememberForOffline(
   email: string,
@@ -118,6 +123,10 @@ export async function rememberForOffline(
   user: User,
   token: string,
 ): Promise<void> {
+  if (user.role === "Resident") {
+    return;
+  }
+
   try {
     const salt = crypto.getRandomValues(new Uint8Array(16));
 
@@ -162,6 +171,11 @@ export async function signInOffline(email: string, password: string): Promise<Of
   const grant = await meta<StoredGrant | null>(GRANT, null);
 
   if (!grant) {
+    return { kind: "no-grant" };
+  }
+
+  /* A grant kept from before offices-only: a resident's is not honoured. */
+  if (grant.user?.role === "Resident") {
     return { kind: "no-grant" };
   }
 

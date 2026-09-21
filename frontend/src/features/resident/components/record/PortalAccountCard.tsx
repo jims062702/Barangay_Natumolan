@@ -1,7 +1,6 @@
 import Card from "../../../../shared/ui/Card";
 import type { Resident } from "../../../../shared/types";
 import { Row } from "./Row";
-import { defaultPortalPassword } from "../../lib/portalPassword";
 import type { ResidentRecordState } from "../../hooks/useResidentRecord";
 
 /**
@@ -16,7 +15,7 @@ export function PortalAccountCard({ ctx, account, activated, resident }: {
   activated: boolean;
   resident: Resident;
 }) {
-  const { openChangePassword, resendActivation, setAccountEmail, setAccountOpen } = ctx;
+  const { resendActivation, setAccountEmail, setAccountOpen } = ctx;
 
   return (
     <div className="mt-6">
@@ -35,19 +34,11 @@ export function PortalAccountCard({ ctx, account, activated, resident }: {
             />
             {!activated && (
               <p className="rounded-xl bg-warning/10 px-4 py-2.5 text-xs leading-relaxed text-dark">
-                They have not signed in yet. Their password is{" "}
-                <strong>{defaultPortalPassword(resident.last_name, resident.birthdate) || "their last name + birthday (MMDDYY)"}</strong>
-                , and a 6-digit code is emailed to them the first time they try.
+                They have not signed in yet. A 6-digit code is emailed to them
+                the first time they try; resend it below if it did not arrive.
               </p>
             )}
             <div className="flex flex-wrap gap-2 pt-1">
-              <button
-                type="button"
-                onClick={openChangePassword}
-                className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-primary/40 px-5 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
-              >
-                Change password
-              </button>
               {!activated && (
                 <button
                   type="button"

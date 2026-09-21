@@ -39,7 +39,6 @@ class RecordMerge
      * more than a column rewrite and is handled on its own below.
      */
     private const SIMPLE_REFERENCES = [
-        'appointments' => ['resident_id'],
         'certificates_clearances' => ['resident_id'],
         'chat_conversations' => ['resident_id'],
         'child_health' => ['child_id'],

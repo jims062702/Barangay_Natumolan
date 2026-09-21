@@ -3,7 +3,9 @@
 use App\Http\Controllers\Api\Lupon\CaseController;
 use App\Http\Controllers\Api\Lupon\HearingController;
 use App\Http\Controllers\Api\Lupon\ProceedingController;
+use App\Http\Controllers\Api\Lupon\PaymentController;
 use App\Http\Controllers\Api\Lupon\ReportController;
+use App\Http\Controllers\Api\Lupon\ScheduleController;
 use App\Http\Controllers\Api\Lupon\SettlementController;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +35,10 @@ Route::prefix('lupon')
         Route::put('hearings/{hearing}', [HearingController::class, 'update']);
         Route::post('hearings/{hearing}/summons', [HearingController::class, 'recordSummons']);
         Route::post('hearings/{hearing}/reschedule', [HearingController::class, 'reschedule']);
+        /* The one action that CLOSES a case: the parties agreed at the
+           table. The minutes come with it, and every sitting still on the
+           calendar is stood down — the Lupon has nothing further to work. */
+        Route::post('hearings/{hearing}/settle', [ScheduleController::class, 'settleAtHearing']);
     });
 
 Route::prefix('lupon')->middleware('office:Lupon,PB')->group(function () {
@@ -48,7 +54,6 @@ Route::prefix('lupon')->middleware('office:Lupon,PB')->group(function () {
     Route::get('cases', [CaseController::class, 'index']);
     Route::post('cases', [CaseController::class, 'store']);
     Route::get('cases/{case}', [CaseController::class, 'show']);
-    Route::post('cases/{case}/screen-jurisdiction', [CaseController::class, 'screenJurisdiction']);
     Route::post('cases/{case}/hearings', [HearingController::class, 'store']);
     Route::put('cases/{case}/hearings/{hearing}', [HearingController::class, 'recordOutcome']);
     Route::post('cases/{case}/mediation', [ProceedingController::class, 'mediation']);
@@ -56,4 +61,34 @@ Route::prefix('lupon')->middleware('office:Lupon,PB')->group(function () {
     Route::post('cases/{case}/settlement', [SettlementController::class, 'store']);
     Route::post('cases/{case}/settlement-action', [SettlementController::class, 'caseAction']);
     Route::get('cases/{case}/forms', [ReportController::class, 'forms']);
+
+    /*
+    | Summons, and the weeks of hearings it opens.
+    |
+    | Three Tuesdays with the Punong Barangay, then — if nothing is agreed —
+    | three Thursdays with the Lupon, all put on the calendar at once so the
+    | office is not booking the next sitting every week.
+    */
+    Route::post('cases/{case}/summons', [ScheduleController::class, 'issueSummons']);
+    Route::post('cases/{case}/to-conciliation', [ScheduleController::class, 'toConciliation']);
+
+    /* The Lupon asks the Clerk for a fee, and may withdraw the request. */
+    Route::post('cases/{case}/payments', [PaymentController::class, 'store']);
+    Route::post('payments/{payment}/cancel', [PaymentController::class, 'cancel']);
+});
+
+/*
+| The Clerk's counter, where Lupon fees are actually taken.
+|
+| A separate group because it is a different office: the Lupon asks for the
+| money and the Main Office takes it, and neither should be able to do the
+| other's half. Reading is open to both so each can see where a fee stands.
+*/
+Route::prefix('lupon')->middleware('office:Main Office,Lupon,PB')->group(function () {
+    Route::get('payments', [PaymentController::class, 'index']);
+});
+
+Route::prefix('lupon')->middleware('office:Main Office')->group(function () {
+    /* Paid, or back to Unpaid. Set by hand, so correctable by hand. */
+    Route::post('payments/{payment}/mark', [PaymentController::class, 'mark']);
 });

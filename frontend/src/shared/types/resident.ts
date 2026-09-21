@@ -13,6 +13,19 @@ export interface Household {
   household_head_id?: number | null;
   residents?: Resident[];
   head?: Resident | null;
+  /*
+   * The RBIM census sheet this household came from, if it came from one.
+   *
+   * Read on the Household Registry so the office does not look the same
+   * household up in two lists — the form number IS the household number.
+   */
+  census?: {
+    id: number;
+    census_no: string;
+    status: "Draft" | "Submitted";
+    created_at?: string | null;
+    recorder?: { id: number; name: string } | null;
+  } | null;
 }
 
 export interface ResidentSector {

@@ -29,6 +29,16 @@ class HouseholdController extends BaseController
             'residents:id,household_id,resident_number,first_name,middle_name,last_name,suffix,gender,birthdate,spouse_id',
             'residents.parents:id',
             'head:id,first_name,middle_name,last_name,suffix',
+            /*
+             * The census sheet this household came from.
+             *
+             * On the registry rather than in a list of its own: the two were
+             * the same households reached two ways — the form number IS the
+             * household number — and the office had to know which list
+             * carried the answer.
+             */
+            'census:id,household_id,census_no,status,created_at,recorded_by',
+            'census.recorder:id,name',
         ]);
 
         if ($request->filled('zone_purok')) {

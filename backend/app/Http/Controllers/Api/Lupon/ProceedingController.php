@@ -53,9 +53,10 @@ class ProceedingController extends BaseController
 
         if ($validated['outcome'] === 'Settlement') {
             $case->update(['current_stage' => 'Settled']);
-        } elseif ($validated['outcome'] === 'Arbitration') {
-            $case->update(['current_stage' => 'Arbitration']);
         } else {
+            /* Dismissed. There is no arbitration branch: a matter this Lupon
+               cannot settle is closed here, not escalated into a stage the
+               barangay has no power to run. */
             $case->update(['current_stage' => 'Dismissed', 'date_resolved' => now()->toDateString()]);
         }
 

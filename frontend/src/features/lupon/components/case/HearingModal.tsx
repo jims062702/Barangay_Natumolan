@@ -30,7 +30,6 @@ export function HearingModal({ ctx }: { ctx: LuponCaseState }) {
           <select value={hearingType} onChange={(e) => setHearingType(e.target.value)} className={inputClasses}>
             <option>Mediation</option>
             <option>Conciliation</option>
-            <option>Arbitration</option>
           </select>
         </FormField>
         <FormField label="Date & time" required>

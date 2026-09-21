@@ -39,7 +39,7 @@ export const SKIPPED = "99";
  * Named once. The three address boxes are read-only on the form, so a form
  * that arrived without them would show three blanks nobody could fix.
  */
-export const PUROKS = ["Purok 1", "Purok 2", "Purok 3", "Purok 4", "Purok 5"];
+/* The zones come from the office's own list now — see useZones. */
 
 /**
  * What Q32 fills in when the tick says "registered here".

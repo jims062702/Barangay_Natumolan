@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { FiX } from "react-icons/fi";
 import SearchInput from "../../../shared/ui/SearchInput";
+import { searchResidentsOffline } from "../../../shared/offline/residentCache";
 import type { Resident } from "../../../shared/types";
 import { residentApi } from "../api";
 
@@ -11,6 +12,23 @@ interface Props {
   disabled?: boolean;
   /** Residents named on the other side of the case — never offered here. */
   excludeIds?: number[];
+  /**
+   * Leave out people who live outside the barangay.
+   *
+   * For a RESPONDENT. Both the Lupon's jurisdiction and a barangay
+   * protection order follow where the person complained of lives: a case
+   * against somebody from another barangay is not this barangay's to hear,
+   * and a settlement or an order made in it is one no court will honour.
+   *
+   * The complainant is deliberately not restricted anywhere — a person
+   * wronged by a resident may complain whoever they are and wherever they
+   * live. It is the respondent's residence that decides venue, and only
+   * the respondent's.
+   *
+   * The server refuses either way; this stops the clerk getting that far
+   * and filling in a whole complaint that cannot be filed.
+   */
+  residentsOnly?: boolean;
 }
 
 const fullName = (r: Resident) =>
@@ -29,9 +47,10 @@ const ageOf = (birthdate?: string | null) => {
 export default function ResidentMultiPicker({
   value,
   onChange,
-  placeholder = "Start typing a name or resident number…",
+  placeholder = "Search by name or resident number…",
   disabled,
   excludeIds = [],
+  residentsOnly = false,
 }: Props) {
   const [query, setQuery] = useState("");
   const [options, setOptions] = useState<Resident[]>([]);
@@ -48,12 +67,29 @@ export default function ResidentMultiPicker({
     setLoading(true);
     const seq = ++latest.current;
     const timer = setTimeout(() => {
-      residentApi.search({ params: { q: term } })
+      /*
+       * The device's copy answers first, and the server corrects it — the
+       * same order as ResidentPicker, and for the same reason.
+       *
+       * This one was left on the server alone, which made a Lupon complaint
+       * half-fillable with no line: the complainant could be found and the
+       * respondent could not, so the case could not be filed at all.
+       */
+      void searchResidentsOffline(term)
+        .then((rows) => {
+          if (seq === latest.current) setOptions(rows as Resident[]);
+        })
+        .catch(() => {
+          /* No IndexedDB. The server request below is the only hope. */
+        });
+
+      residentApi.search({ params: { q: term }, timeout: 8000 })
         .then((r) => {
           if (seq === latest.current) setOptions(r.data.data ?? []);
         })
         .catch(() => {
-          if (seq === latest.current) setOptions([]);
+          /* Left alone: whatever the device found is already on screen, and
+             emptying it because the line is down is the failure itself. */
         })
         .finally(() => {
           if (seq === latest.current) setLoading(false);
@@ -74,6 +110,7 @@ export default function ResidentMultiPicker({
   // out of the suggestions.
   const suggestions = options.filter(
     (o) => !value.some((r) => r.id === o.id) && !excludeIds.includes(o.id)
+      && !(residentsOnly && o.record_type === "Non-resident")
   );
 
   return (

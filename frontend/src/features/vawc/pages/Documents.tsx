@@ -1,3 +1,4 @@
+import NeedsConnection, { useNeedsConnection } from "../../../shared/offline/NeedsConnection";
 import { useEffect, useState, type FormEvent } from "react";
 import { FiEdit2, FiEye } from "react-icons/fi";
 import { Link } from "react-router-dom";
@@ -50,6 +51,7 @@ const asDateTime = (value?: string | null) =>
 type Tab = "documents" | "trail";
 
 export default function Documents() {
+  const { offline, noteOffline } = useNeedsConnection();
   const [tab, setTab] = useState<Tab>("documents");
 
   const [documents, setDocuments] = useState<VawcDocument[]>([]);
@@ -79,6 +81,7 @@ export default function Documents() {
         setDocuments(r.data.data.data ?? []);
         setDocLastPage(r.data.data.last_page ?? 1);
       })
+      .catch(noteOffline)
       .finally(() => setDocLoading(false));
   };
 
@@ -89,6 +92,7 @@ export default function Documents() {
         setLogs(r.data.data.data ?? []);
         setLogLastPage(r.data.data.last_page ?? 1);
       })
+      .catch(noteOffline)
       .finally(() => setLogLoading(false));
   };
 
@@ -151,6 +155,10 @@ export default function Documents() {
         title="Incident & Confidential Documents"
         subtitle="Document register across every case, and the complete access trail"
       />
+
+      {offline && (
+        <NeedsConnection what="the document list" why="The VAWC desk's records are never kept on this device: the server encrypts them with a key this browser never holds, which is what keeps a survivor's case off a laptop." />
+      )}
 
       <div className="mb-4 rounded-2xl border border-danger/20 bg-danger/5 px-4 py-3 text-sm text-dark">
         <strong>Controlled access:</strong> printing or downloading any item
@@ -260,7 +268,7 @@ export default function Documents() {
             rowKey={(l) => l.id}
             numbered
             searchable
-            searchPlaceholder="Search the trail by case code, action or officer…"
+            searchPlaceholder="Search by case code, action or officer…"
             getSearchText={(l) =>
               `${l.vawc_case?.case_code ?? ""} ${ACTION_LABELS[l.action] ?? l.action} ${l.detail ?? ""} ${l.user?.name ?? ""}`
             }

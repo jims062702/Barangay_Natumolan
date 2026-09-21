@@ -3,6 +3,12 @@
 import { api, type BodyArgs, type PathParam, type QueryArgs } from "../../shared/lib/api";
 
 export const vawcApi = {
+  /* The ONE session a case gets, and what was agreed at it. Saving again
+     corrects that record — the table cannot hold a second. */
+  agreement: (caseId: PathParam | undefined, ...args: QueryArgs) =>
+    api.get(`/vawc/cases/${caseId}/agreement`, ...args),
+  recordAgreement: (caseId: PathParam | undefined, ...args: BodyArgs) =>
+    api.post(`/vawc/cases/${caseId}/agreement`, ...args),
   accessLogs: (...args: QueryArgs) =>
     api.get("/vawc/access-logs", ...args),
   cases: (...args: QueryArgs) =>

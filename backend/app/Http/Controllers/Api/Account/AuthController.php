@@ -8,6 +8,7 @@ use App\Http\Requests\Account\ChangePasswordRequest;
 use App\Http\Requests\Account\CredentialsRequest;
 use App\Http\Requests\Account\UpdateProfileRequest;
 use App\Models\Account\User;
+use App\Models\Resident\Resident;
 use App\Services\Account\ActivationCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -112,6 +113,10 @@ class AuthController extends BaseController
             );
         }
 
+        /* Held before the swap: redeeming the code moves pending_email into
+           email and clears it, so afterwards there is nothing left to read. */
+        $wasPending = $user->pending_email;
+
         if (!$user->redeemActivationOtp(trim($validated['code']))) {
             $left = max(0, User::OTP_MAX_ATTEMPTS - $user->fresh()->otp_attempts);
 
@@ -119,6 +124,17 @@ class AuthController extends BaseController
                 'That code is not correct.' . ($left > 0 ? " You have {$left} attempt(s) left." : ' Request a new code.'),
                 422
             );
+        }
+
+        /*
+         * The register follows the login.
+         *
+         * A resident who corrected their address before activating has just
+         * proved the new mailbox. Leaving the old one on their resident record
+         * would have the barangay writing to an address they told us is wrong.
+         */
+        if ($wasPending) {
+            $user->resident?->update(['email' => $wasPending]);
         }
 
         return $this->success([
@@ -147,6 +163,75 @@ class AuthController extends BaseController
         return $this->success(
             $this->activation->send($user),
             'A new code is on its way.'
+        );
+    }
+
+    /**
+     * "The email on my account is wrong and I cannot read the code."
+     *
+     * Unauthenticated on purpose, and for the one case that cannot be solved
+     * any other way: an account that has never been activated has no token,
+     * so its owner cannot reach the portal to correct the address — and the
+     * code that would let them in is going to a mailbox they cannot open.
+     * Resending it forever does not help.
+     *
+     * What stands in for a session is the PASSWORD, which the office gave
+     * them at the counter and which nobody else has. The new address is not
+     * written: it waits in `pending_email` while a code goes to it, and
+     * entering that code both moves the address across and activates the
+     * account. One code, because it is one question — is this mailbox yours?
+     *
+     * Only for accounts that are not yet activated. An activated resident
+     * signs in and uses the portal's own two-step change, which is the same
+     * machinery behind a session.
+     */
+    public function changeEmailBeforeActivation(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => 'required|email',
+            'password' => 'required|string',
+            'new_email' => 'required|email|different:email',
+        ]);
+
+        $user = User::where('email', $validated['email'])->first();
+
+        if (!$user || !Hash::check($validated['password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'email' => 'The provided credentials are invalid.',
+            ]);
+        }
+
+        if ($user->isActivated()) {
+            return $this->error(
+                'This account is already activated. Sign in and change the email from your profile.',
+                422
+            );
+        }
+
+        /*
+         * Free on both tables.
+         *
+         * Checked by hand rather than with a Rule, because the account being
+         * corrected is identified by its CURRENT address — `ignore()` would
+         * need the id, and reporting "already in use" for the row we are
+         * about to move is the confusing answer.
+         */
+        $taken = User::where('email', $validated['new_email'])->where('id', '!=', $user->id)->exists()
+            || Resident::where('email', $validated['new_email'])
+                ->where('id', '!=', $user->resident_id)->exists();
+
+        if ($taken) {
+            throw ValidationException::withMessages([
+                'new_email' => 'That email address is already in use.',
+            ]);
+        }
+
+        $user->forceFill(['pending_email' => $validated['new_email']])->save();
+
+        return $this->success(
+            $this->activation->send($user) + ['pending_email' => $validated['new_email']],
+            'A 6-digit code was sent to ' . $validated['new_email']
+                . '. Entering it will change your sign-in email and activate your account.'
         );
     }
 

@@ -12,6 +12,7 @@ import { FormSkeleton } from "../../../shared/ui/Skeleton";
 import type { Household, Resident } from "../../../shared/types";
 import HouseholdPicker from "../components/HouseholdPicker";
 import { residentApi } from "../api";
+import { useZoneNames } from "../../population/lib/useZones";
 
 /** Whole-year age from a YYYY-MM-DD birthdate. */
 function ageFromBirthdate(birthdate: string): number | null {
@@ -47,6 +48,8 @@ type EditForm = {
 };
 
 export default function ResidentEdit() {
+  /* The barangay's own zones, kept by the Health Station. */
+  const zones = useZoneNames();
   const { id } = useParams();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -216,11 +219,10 @@ export default function ResidentEdit() {
             <FormField label="Suffix">
               <input value={form.suffix} onChange={set("suffix")} className={inputClasses} placeholder="Jr., Sr., III" />
             </FormField>
-            <FormField label="Gender">
+            <FormField label="Sex">
               <select value={form.gender} onChange={set("gender")} className={inputClasses}>
                 <option>Male</option>
                 <option>Female</option>
-                <option>Other</option>
               </select>
             </FormField>
             <FormField label="Birthdate">
@@ -283,14 +285,19 @@ export default function ResidentEdit() {
               </>
             ) : (
               <>
-                <FormField label="Household (Household No. / Address)" hint="Search to set the household, address & Purok" plain>
+                <FormField label="Household (Household No. / Address)" hint="Search to set the household, address & zone" plain>
                   <HouseholdPicker value={form.household_id} selected={selectedHousehold} onSelect={selectHousehold} />
                 </FormField>
-                <FormField label="Zone / Purok">
+                <FormField label="Zone">
                   <select value={form.zone_purok} onChange={set("zone_purok")} className={inputClasses}>
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <option key={n}>Purok {n}</option>
+                    <option value="">Select…</option>
+                    {/* The barangay's own list — see useZones. */}
+                    {zones.map((z) => (
+                      <option key={z} value={z}>{z}</option>
                     ))}
+                    {form.zone_purok && !zones.includes(form.zone_purok) && (
+                      <option value={form.zone_purok}>{form.zone_purok} (no longer in use)</option>
+                    )}
                   </select>
                 </FormField>
                 <FormField label="Residency status">

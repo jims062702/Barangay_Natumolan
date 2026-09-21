@@ -26,6 +26,17 @@ export interface VawcCase {
   reported_by_name?: string | null;
   reported_by_relationship?: string | null;
   reported_by_contact?: string | null;
+  /** Item 9: on what authority somebody files for another person. */
+  applicant_consent?: string | null;
+  /*
+   * Item 4 of the protection-order application: who it is against.
+   *
+   * Always a resident of this barangay, so always a register id — an order
+   * can only be issued against somebody the Punong Barangay has power over.
+   * Everything else item 4 asks for is read off `respondent`.
+   */
+  respondent_id?: number | null;
+  respondent?: Resident | null;
   violence_type: string;
   relationship_to_offender?: string | null;
   children_involved: boolean;
@@ -48,6 +59,17 @@ export interface VawcCase {
 
 export interface VawcIncident {
   id: number;
+  /*
+   * When and where it happened.
+   *
+   * Both were asked for at intake and both were stored — and neither was
+   * declared here, so nothing on the desk could read them and no screen
+   * showed them. A VAWC officer picking up a case could not tell whether
+   * the act was last night or last year, which is the first thing that
+   * decides what to do about it.
+   */
+  occurred_at?: string | null;
+  location?: string | null;
   incident_narrative: string;
   injury_documentation?: string | null;
   medical_certificate_reference?: string | null;

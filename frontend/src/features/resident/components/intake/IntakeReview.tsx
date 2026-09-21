@@ -42,7 +42,7 @@ export function IntakeReview({ ctx }: { ctx: ResidentIntakeState }) {
                         {n.zone_purok ? ` · ${n.zone_purok}` : ""}
                       </span>
                       <Link
-                        to={`/residents/${n.id}`}
+                        to={`/population/residents/${n.id}`}
                         target="_blank"
                         className="shrink-0 font-semibold text-primary hover:underline"
                       >

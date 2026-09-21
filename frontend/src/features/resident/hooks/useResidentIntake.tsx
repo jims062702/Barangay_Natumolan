@@ -206,7 +206,7 @@ export function useResidentIntake() {
         return;
       }
 
-      navigate(`/residents/${created}`);
+      navigate(`/population/residents/${created}`);
     } catch (err) {
       const found = (err as { response?: { status?: number; data?: { errors?: { possible_duplicates?: DuplicateWarning[] } } } })
         .response;

@@ -5,12 +5,25 @@ import { api, type BodyArgs, type PathParam, type QueryArgs } from "../../shared
 export const populationApi = {
   accounts: (...args: QueryArgs) =>
     api.get("/population/accounts", ...args),
+  /* Reading is open to every office — the registry intake and the census
+     both ask where somebody lives. Only the KEEPING of the list moved to
+     the Health Station, whose own staff the BHWs are. */
+  zones: (...args: QueryArgs) =>
+    api.get("/zones", ...args),
+  createZone: (...args: BodyArgs) =>
+    api.post("/health/zones", ...args),
+  updateZone: (zoneId: PathParam, ...args: BodyArgs) =>
+    api.put(`/health/zones/${zoneId}`, ...args),
+  deleteZone: (zoneId: PathParam, ...args: QueryArgs) =>
+    api.delete(`/health/zones/${zoneId}`, ...args),
+  createBhw: (...args: BodyArgs) =>
+    api.post("/health/bhws", ...args),
+  updateBhw: (bhwId: PathParam, ...args: BodyArgs) =>
+    api.put(`/health/bhws/${bhwId}`, ...args),
+  deleteBhw: (bhwId: PathParam, ...args: QueryArgs) =>
+    api.delete(`/health/bhws/${bhwId}`, ...args),
   resendActivation: (userId: PathParam, ...args: BodyArgs) =>
     api.post(`/population/accounts/${userId}/resend-activation`, ...args),
-  resetAccountPassword: (userId: PathParam, ...args: BodyArgs) =>
-    api.post(`/population/accounts/${userId}/reset-password`, ...args),
-  toggleAccount: (userId: PathParam, ...args: BodyArgs) =>
-    api.post(`/population/accounts/${userId}/toggle`, ...args),
   analytics: (...args: QueryArgs) =>
     api.get("/population/analytics", ...args),
   events: (...args: QueryArgs) =>
@@ -27,8 +40,6 @@ export const populationApi = {
     api.put(`/population/households/${householdId}`, ...args),
   sectoralReport: (...args: QueryArgs) =>
     api.get("/population/reports/sectoral", ...args),
-  setResidentPassword: (residentId: PathParam | undefined, ...args: BodyArgs) =>
-    api.post(`/population/residents/${residentId}/change-password`, ...args),
   createResidentAccount: (residentId: PathParam | undefined, ...args: BodyArgs) =>
     api.post(`/population/residents/${residentId}/create-account`, ...args),
   sectorList: (sector: PathParam, ...args: QueryArgs) =>

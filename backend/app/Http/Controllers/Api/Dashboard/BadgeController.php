@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Dashboard;
 
 use App\Http\Controllers\Api\BaseController;
+use App\Models\Lupon\CaseFile as LuponCase;
 use App\Models\Chat\Conversation;
 use App\Models\Lupon;
 use App\Models\Service\Certificate;
@@ -63,27 +64,78 @@ class BadgeController extends BaseController
              * anything not yet finished, plus a document that is signed and
              * waiting at the counter for them to collect.
              */
-            $badges['/portal/requests'] = ServiceRequest::where('resident_id', $mine)
+            $badges['/resident/requests'] = ServiceRequest::where('resident_id', $mine)
                 ->whereNotIn('status', ['Completed', 'Rejected'])
                 ->count();
 
-            $badges['/portal/appointments'] = DB::table('appointments')
-                ->where('resident_id', $mine)
-                ->whereIn('status', ['Scheduled', 'Confirmed'])
-                ->where('scheduled_datetime', '>=', now()->startOfDay())
+            /*
+             * The two halves of "My cases", counted apart.
+             *
+             * "Somebody filed a complaint against me" is the one a resident
+             * opens the portal to find, and as a single number beside "My
+             * cases" it was indistinguishable from a case they filed
+             * themselves. Two entries, two counts.
+             *
+             * OPEN CASES ONLY. A settled case is not something waiting for
+             * them, and a badge that never clears is a badge nobody reads.
+             */
+            $closed = ['Settled', 'Dismissed', 'Referred'];
+
+            $badges['/resident/lupon/against-me'] = LuponCase::whereNotIn('current_stage', $closed)
+                ->whereHas('respondents', fn ($q) => $q->where('residents.id', $mine))
                 ->count();
+
+            $badges['/resident/lupon/filed'] = LuponCase::whereNotIn('current_stage', $closed)
+                ->where('complainant_id', $mine)
+                ->count();
+
+            /*
+             * Sittings still ahead of them, on any case either side.
+             *
+             * The one badge on this menu a person can be PENALISED for
+             * ignoring: a summons names a day, and a number beside Hearings
+             * is what turns "sometime" into "twice this month".
+             *
+             * Nothing behind them is counted. A hearing already held is not
+             * waiting for anybody, and a badge that never clears is a badge
+             * that stops being read.
+             */
+            $badges['/resident/lupon/hearings'] = DB::table('lupon_hearings')
+                ->where('status', 'Scheduled')
+                ->where('scheduled_at', '>=', now()->startOfDay())
+                ->whereIn('lupon_case_id', function ($q) use ($mine) {
+                    $q->select('id')->from('lupon_cases')->where('complainant_id', $mine)
+                        ->union(
+                            DB::table('lupon_case_respondents')
+                                ->select('lupon_case_id')
+                                ->where('resident_id', $mine)
+                        );
+                })
+                ->count();
+
+            /*
+             * Case History carries no badge, deliberately. It is a log: it
+             * only grows, so a count on it would climb for ever and mean
+             * nothing. Health Records likewise — nothing there is pending.
+             */
 
             return $this->success(array_filter($badges), 'Sidebar counts retrieved');
         }
 
         if ($frontDesk) {
-            // Filed and untouched — the intake nobody has picked up.
-            $badges['/services'] = ServiceRequest::where('status', 'Pending')->count();
-
-            // Anybody physically at the window right now.
-            $badges['/queue'] = DB::table('office_queue')
-                ->whereIn('status', ['Waiting', 'Called', 'Serving'])
-                ->count();
+            /*
+             * FOUR COUNTS ARE GONE, and none of them was being read.
+             *
+             * /services, /queue, /referrals and /records were keyed to menu
+             * entries that came off the sidebar. A badge is looked up BY PATH,
+             * so with no entry to sit on each of these was a database query
+             * run on every sidebar refresh, for every signed-in clerk, whose
+             * answer was then thrown away.
+             *
+             * /queue and /referrals have no page left at all. /services and
+             * /records still have a route but no menu entry — if either comes
+             * back to the sidebar, its count comes back with it.
+             */
 
             /*
              * Everything short of released or cancelled: accepted, printed,
@@ -95,21 +147,6 @@ class BadgeController extends BaseController
                 ['Released', 'Cancelled']
             )->count();
 
-            // Booked and still ahead of us — a past appointment needs nothing.
-            $badges['/appointments'] = DB::table('appointments')
-                ->whereIn('status', ['Scheduled', 'Confirmed'])
-                ->where('scheduled_datetime', '>=', now()->startOfDay())
-                ->count();
-
-            $badges['/referrals'] = DB::table('referrals')
-                ->whereIn('status', ['Pending', 'Acknowledged', 'In Progress'])
-                ->count();
-
-            // Drafted but not yet adopted by the Punong Barangay.
-            $badges['/records'] = DB::table('administrative_records')
-                ->whereNull('approved_at')
-                ->where('is_archived', false)
-                ->count();
         }
 
         /*

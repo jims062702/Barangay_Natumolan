@@ -1,249 +1,52 @@
-import { FiClock, FiFileText, FiAward, FiCalendar, FiBookOpen } from "react-icons/fi";
-import { Link } from "react-router-dom";
+import { FiBookOpen } from "react-icons/fi";
 import PageHeader from "../../../../shared/ui/PageHeader";
 import { DashboardBodySkeleton } from "../../../../shared/ui/Skeleton";
 import StatTile from "../../../../shared/ui/StatTile";
 import Card from "../../../../shared/ui/Card";
-import DataTable from "../../../../shared/ui/DataTable";
-import { formatWallClock } from "../../../../shared/lib/datetime";
-import StatusBadge from "../../../../shared/ui/StatusBadge";
-import type { Appointment } from "../../../../shared/types";
-import { asDate, AGING_TONES } from "./format";
+import { asDate } from "./format";
+import { RequestedServicesCard } from "./RequestedServicesCard";
 import type { FrontDeskDashboardState } from "../../hooks/useFrontDeskDashboard";
 
 /**
  * The Punong Barangay's view: the whole barangay at a glance.
  */
 export function ExecutiveView({ ctx }: { ctx: FrontDeskDashboardState }) {
-  const { ready, stats, exec, appointments, kpCounts, readyQueue } = ctx;
+  const { ready, exec, kpCounts, requested } = ctx;
 
   return (
     <div>
       <PageHeader
         title="Executive Dashboard"
-        subtitle="Everything awaiting your decision, and the barangay-wide service picture"
+        subtitle="The sittings you preside over, and what the barangay is being asked for"
       />
 
       {!ready ? (
         <DashboardBodySkeleton tiles={6} tileColumns={3} cards={2} cardColumns={2} />
       ) : (
       <>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <StatTile label="Ready To Claim" value={stats.ready_to_claim ?? 0} icon={FiClock} tone="warning" />
-        <StatTile label="Documents To Sign" value={exec?.documents_awaiting_count ?? 0} icon={FiFileText} tone="warning" />
-        <StatTile label="Certificates This Month" value={stats.monthly_certificates ?? 0} icon={FiAward} />
-        <StatTile label="Scheduled Appointments" value={appointments.length} icon={FiCalendar} />
+      {/*
+        Two tiles, not five.
+        The counter's certificate figures and the documents awaiting a
+        signature came off: they are the Clerk's and the Secretary's work,
+        and a dashboard that counts somebody else's backlog invites the PB
+        to do somebody else's job. What is left is what the PB presides over.
+      */}
+      {/*
+        One tile. Appointments came off every menu that had them, so a count
+        of them on the PB's dashboard pointed at a page that is gone. What is
+        left is the thing the PB presides over.
+      */}
+      <div className="grid gap-4">
         <StatTile label="KP Hearings / Deadlines" value={kpCounts.hearings + kpCounts.repudiation} icon={FiBookOpen} tone="warning" />
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <Card
-          title="Certificates waiting on the counter"
-          action={
-            <Link to="/certificates" className="text-sm font-medium text-primary hover:underline">
-              View all
-            </Link>
-          }
-        >
-          {readyQueue.length === 0 ? (
-            <p className="py-6 text-center text-sm text-gray-400">Nothing waiting — all caught up.</p>
-          ) : (
-            <ul className="divide-y divide-gray/70">
-              {readyQueue.slice(0, 6).map((certificate) => (
-                <li key={certificate.id} className="flex items-center justify-between gap-3 py-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-dark">
-                      {certificate.certificate_type} — {certificate.resident?.first_name}{" "}
-                      {certificate.resident?.last_name}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {certificate.certificate_number} · {certificate.purpose}
-                    </p>
-                  </div>
-                  <span className="shrink-0 rounded-full bg-success/10 px-3 py-1 text-xs font-semibold text-success">
-                    Ready to claim
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-
-        <Card
-          title="Upcoming appointments"
-          action={
-            <Link to="/appointments" className="text-sm font-medium text-primary hover:underline">
-              Open scheduler
-            </Link>
-          }
-        >
-          <DataTable
-            columns={[
-              {
-                header: "Resident",
-                render: (a: Appointment) =>
-                  a.resident ? `${a.resident.first_name} ${a.resident.last_name}` : "—",
-              },
-              {
-                header: "When",
-                render: (a: Appointment) => formatWallClock(a.scheduled_datetime),
-              },
-              { header: "Status", render: (a: Appointment) => <StatusBadge status={a.status} /> },
-            ]}
-            rows={appointments.slice(0, 6)}
-            rowKey={(a) => a.id}
-            numbered
-            total={appointments.slice(0, 6).length}
-            emptyMessage="No upcoming appointments."
-          />
-        </Card>
+      {/* What residents actually come in for. */}
+      <div className="mt-6">
+        <RequestedServicesCard rows={requested} />
       </div>
 
-      {/* Documents awaiting signature & referrals requiring action */}
-      <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <Card
-          title="Documents awaiting your signature"
-          action={
-            <Link to="/records" className="text-sm font-medium text-primary hover:underline">
-              Open records
-            </Link>
-          }
-        >
-          {(exec?.documents_awaiting_signature ?? []).length === 0 ? (
-            <p className="py-6 text-center text-sm text-gray-400">
-              No documents waiting for adoption.
-            </p>
-          ) : (
-            <ul className="divide-y divide-gray/70">
-              {exec?.documents_awaiting_signature.map((doc) => (
-                <li key={doc.id} className="py-3">
-                  <p className="truncate text-sm font-semibold text-dark">
-                    {doc.document_number} — {doc.document_title}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {doc.document_type} · {asDate(doc.document_date)}
-                    {doc.creator && ` · filed by ${doc.creator.name}`}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-
-      </div>
-
-      {/* Office workload, aging requests, most-requested services */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <Card title="Office workload">
-          {Object.keys(exec?.office_workload ?? {}).length === 0 ? (
-            <p className="py-6 text-center text-sm text-gray-400">No open work anywhere.</p>
-          ) : (
-            <dl className="divide-y divide-gray/70 text-sm">
-              {Object.entries(exec?.office_workload ?? {})
-                .sort((a, b) => b[1].total - a[1].total)
-                .map(([office, load]) => (
-                  <div key={office} className="flex items-center justify-between py-2.5">
-                    <dt className="min-w-0">
-                      <span className="block truncate text-dark">{office}</span>
-                      <span className="text-xs text-gray-400">
-                        {load.pending} pending · {load.in_progress} in progress
-                      </span>
-                    </dt>
-                    <dd className="shrink-0 font-bold text-primary">{load.total}</dd>
-                  </div>
-                ))}
-            </dl>
-          )}
-        </Card>
-
-        <Card title="Aging requests">
-          <dl className="divide-y divide-gray/70 text-sm">
-            {Object.entries(exec?.aging_requests ?? {}).map(([bucket, count]) => (
-              <div key={bucket} className="flex items-center justify-between py-2.5">
-                <dt className="text-gray-500">{bucket}</dt>
-                <dd className={`font-bold ${AGING_TONES[bucket] ?? "text-dark"}`}>{count}</dd>
-              </div>
-            ))}
-          </dl>
-          {exec?.oldest_open_request ? (
-            <p className="mt-4 rounded-xl bg-secondary px-4 py-3 text-xs text-gray-500">
-              Oldest open: <span className="font-semibold text-dark">
-                {exec.oldest_open_request.request_number}
-              </span>{" "}
-              ({exec.oldest_open_request.service_type}, {exec.oldest_open_request.office}) —{" "}
-              {exec.oldest_open_request.days_open} day(s).
-            </p>
-          ) : (
-            <p className="mt-4 text-center text-xs text-gray-400">Nothing open.</p>
-          )}
-        </Card>
-
-        <Card title="Most requested services">
-          {(exec?.frequently_requested ?? []).length === 0 ? (
-            <p className="py-6 text-center text-sm text-gray-400">No requests this year.</p>
-          ) : (
-            <dl className="divide-y divide-gray/70 text-sm">
-              {exec?.frequently_requested.map((s) => (
-                <div key={s.service_type} className="flex items-center justify-between py-2.5">
-                  <dt className="min-w-0 truncate pr-3 text-dark">{s.service_type}</dt>
-                  <dd className="shrink-0 font-bold text-primary">{s.count}</dd>
-                </div>
-              ))}
-            </dl>
-          )}
-        </Card>
-      </div>
-
-      {/* Barangay service statistics */}
-      <Card title="Barangay service statistics" className="mt-6">
-        <div className="grid gap-4 text-center sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            ["Open requests", exec?.service_statistics.open_requests ?? 0],
-            ["Completed this month", exec?.service_statistics.completed_this_month ?? 0],
-            ["Certificates released", exec?.service_statistics.certificates_released_this_month ?? 0],
-            ["Residents served", exec?.service_statistics.residents_served_this_month ?? 0],
-          ].map(([label, value]) => (
-            <div key={label as string} className="rounded-2xl bg-secondary p-5">
-              <p className="text-3xl font-extrabold text-primary">{value}</p>
-              <p className="mt-1 text-xs font-medium text-gray-500">{label}</p>
-            </div>
-          ))}
-        </div>
-        <p className="mt-4 text-xs text-gray-400">
-          Counts cover the current month, except open requests which are live.
-        </p>
-      </Card>
-
-      {/* Executive instructions & announcements */}
-      <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <Card
-          title="Executive instructions"
-          action={
-            <Link to="/records" className="text-sm font-medium text-primary hover:underline">
-              File a directive
-            </Link>
-          }
-        >
-          {(exec?.recent_directives ?? []).length === 0 ? (
-            <p className="py-6 text-center text-sm text-gray-400">
-              No executive orders or memoranda adopted yet.
-            </p>
-          ) : (
-            <ul className="divide-y divide-gray/70">
-              {exec?.recent_directives.map((d) => (
-                <li key={d.id} className="py-3">
-                  <p className="truncate text-sm font-semibold text-dark">
-                    {d.document_number} — {d.document_title}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {d.document_type} · {asDate(d.document_date)}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-
+      {/* What the barangay has told everybody. */}
+      <div className="mt-6">
         <Card title="Latest announcements">
           {(exec?.announcements ?? []).length === 0 ? (
             <p className="py-6 text-center text-sm text-gray-400">Nothing published yet.</p>

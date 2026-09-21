@@ -23,6 +23,10 @@ export const authApi = {
     api.put("/auth/profile", ...args),
   resendActivation: (...args: BodyArgs) =>
     api.post("/auth/resend-activation", ...args),
+  /* "The email on my account is wrong and I cannot read the code." The one
+     case resending cannot solve — see AuthController for why it is open. */
+  changeEmailBeforeActivation: (...args: BodyArgs) =>
+    api.post("/auth/change-email", ...args),
   resetPassword: (...args: BodyArgs) =>
     api.post("/auth/reset-password", ...args),
   verifyResetCode: (...args: BodyArgs) =>

@@ -7,6 +7,7 @@ import { useAuth } from "../../../shared/auth/AuthContext";
 import Card from "../../../shared/ui/Card";
 import PageHeader from "../../../shared/ui/PageHeader";
 import SearchInput from "../../../shared/ui/SearchInput";
+import { searchResidentsOffline } from "../../../shared/offline/residentCache";
 import { populationApi } from "../api";
 
 /** The lookup payload — enough to confirm residency, nothing more. */
@@ -30,6 +31,14 @@ interface VerificationResult {
   is_active: boolean;
   /** Registered residents may still have no login issued to them. */
   has_portal_account: boolean;
+  /**
+   * True for a match found on the device with no line.
+   *
+   * The device's copy of the register carries who somebody is and where
+   * they live. It does not carry their portal account, and it does not
+   * carry whether the record is still active — so neither is claimed.
+   */
+  checked_offline?: boolean;
   portal_account_active?: boolean | null;
   portal_email?: string | null;
 }
@@ -56,6 +65,19 @@ const fullName = (r: VerificationResult) =>
  * with no login (still entitled to service), or an inactive record.
  */
 function statusOf(r: VerificationResult) {
+  /*
+   * Offline, the two REFUSALS still stand — both are in the device's copy,
+   * and both are the answer on their own. What cannot be said offline is
+   * the portal side, so it is not said.
+   */
+  if (r.checked_offline && !r.is_non_resident && r.life_status !== "Deceased") {
+    return {
+      tone: "border-primary/30 bg-primary/5",
+      pill: "bg-primary/10 text-primary",
+      icon: FiCheckCircle,
+      label: "On this device's register · portal not checked",
+    };
+  }
   if (r.is_non_resident) {
     return {
       tone: "border-dark/20 bg-dark/5",
@@ -152,7 +174,35 @@ export default function RecordsVerification() {
            * "Network Error" — which tells a clerk nothing about what to do.
            */
           if (!err?.response) {
+            /*
+             * The register is on the device, so the counter question — "is
+             * this person registered?" — can still be answered. What the
+             * device cannot answer is the portal question, and the card
+             * says so rather than guessing at it.
+             */
             setOfflineNotice(true);
+            void searchResidentsOffline(term).then((held) => {
+              if (seq !== latest.current) return;
+
+              setResults(held.map((r) => ({
+                id: r.id,
+                resident_number: r.resident_number,
+                first_name: r.first_name,
+                middle_name: r.middle_name,
+                last_name: r.last_name,
+                suffix: r.suffix,
+                zone_purok: r.zone_purok,
+                record_type: r.record_type,
+                is_non_resident: r.record_type === "Non-resident",
+                address: r.address,
+                life_status: r.life_status,
+                /* Not in the device's copy; neither is claimed as known. */
+                residency_status: null,
+                is_active: true,
+                has_portal_account: false,
+                checked_offline: true,
+              })));
+            });
 
             return;
           }
@@ -170,7 +220,8 @@ export default function RecordsVerification() {
 
   // Only people who could actually be issued one.
   const noAccount = (results ?? []).filter(
-    (r) => r.is_active && !r.is_non_resident && r.life_status !== "Deceased" && !r.has_portal_account
+    (r) => r.is_active && !r.is_non_resident && r.life_status !== "Deceased"
+      && !r.has_portal_account && !r.checked_offline
   ).length;
   const nonResidents = (results ?? []).filter((r) => r.is_non_resident).length;
 
@@ -205,7 +256,7 @@ export default function RecordsVerification() {
           <SearchInput
             value={query}
             onChange={setQuery}
-            placeholder="Start typing a name or resident number…"
+            placeholder="Search by name or resident number…"
             label="Search the registry"
             autoFocus
           />
@@ -232,19 +283,19 @@ export default function RecordsVerification() {
           to be trusted.
         */}
         {offlineNotice && !loading && (
-          <div className="mt-3 rounded-2xl border border-gray bg-secondary/40 px-4 py-3">
+          <div className="mt-3 rounded-2xl border border-warning/40 bg-warning/5 px-4 py-3">
             <p className="text-sm font-semibold text-dark">
-              This check needs a connection
+              No connection — searched on this device
             </p>
             <p className="mt-1 text-xs text-gray-500">
-              This screen checks whether a resident has a portal account and
-              whether it is active — only the server knows that, not the copy
-              stored on this device. It is not guessed at, so you are never
-              given a wrong answer.
+              The register is held here, so whether somebody is registered, which
+              purok they are in, and whether they are a non-resident or deceased are
+              all answered below.
             </p>
-            <p className="mt-2 text-xs text-gray-400">
-              Searching for residents still works in Certificates and
-              Residents without a connection.
+            <p className="mt-2 text-xs text-gray-500">
+              What is <strong>not</strong> answered is the portal side — whether an
+              account was issued and whether it is active. Only the server knows that,
+              and it is not guessed at, so you are never given a wrong answer.
             </p>
           </div>
         )}
@@ -289,8 +340,11 @@ export default function RecordsVerification() {
             <FiXCircle className="mx-auto h-8 w-8 text-danger" aria-hidden="true" />
             <p className="mt-2 text-sm font-semibold text-dark">No matching record</p>
             <p className="mt-1 text-xs text-gray-500">
-              No registered resident matches “{query}”. Refer the person to the
-              Population Office before issuing any certificate.
+              No registered resident matches “{query}”.{" "}
+              {offlineNotice
+                ? "This searched the copy of the register held on this device, which is as "
+                  + "recent as its last sync — somebody registered since then would not be found here."
+                : "Refer the person to the Population Office before issuing any certificate."}
             </p>
           </div>
         )}
@@ -348,13 +402,15 @@ export default function RecordsVerification() {
                     <div className="min-w-0">
                       <dt className="text-xs uppercase tracking-wide text-gray-400">Portal login</dt>
                       <dd className="truncate text-dark">
-                        {r.has_portal_account ? (r.portal_email ?? "Issued") : "None issued"}
+                        {r.checked_offline
+                          ? <span className="text-gray-400">Not checked — no connection</span>
+                          : r.has_portal_account ? (r.portal_email ?? "Issued") : "None issued"}
                       </dd>
                     </div>
                     <div className="sm:text-right">
                       {canOpenRegistry ? (
                         <Link
-                          to={`/residents/${r.id}`}
+                          to={`/population/residents/${r.id}`}
                           className="text-xs font-semibold text-primary hover:underline"
                         >
                           Open full record

@@ -1,28 +1,25 @@
 import type { IconType } from "react-icons";
 import {
   FiActivity,
-  FiArchive,
+  FiAlertCircle,
   FiAward,
   FiBarChart2,
   FiBell,
   FiBookOpen,
   FiCalendar,
-  FiCheckSquare,
-  FiClipboard,
+  FiClock,
   FiFileText,
   FiFolder,
   FiHeart,
-  FiHelpCircle,
   FiHome,
   FiImage,
   FiLayers,
   FiMap,
+  FiMapPin,
   FiMessageCircle,
   FiSettings,
-  FiShare2,
   FiShield,
   FiSmile,
-  FiTrendingUp,
   FiUser,
   FiUserPlus,
   FiUserX,
@@ -34,6 +31,15 @@ export interface MenuItem {
   label: string;
   to: string;
   icon: IconType;
+  /**
+   * Entries that open under this one.
+   *
+   * For a page that carries two different pieces of news — "My cases" is
+   * what I filed AND what was filed against me — where one badge could not
+   * say which. The parent stays clickable; the children each carry their
+   * own count.
+   */
+  children?: MenuItem[];
 }
 
 export interface MenuSection {
@@ -47,21 +53,53 @@ export function menuFor(user: User): MenuSection[] {
     return [
       {
         items: [
-          { label: "My Dashboard", to: "/portal", icon: FiHome },
+          { label: "My Dashboard", to: "/resident", icon: FiHome },
           /*
            * One entry, not two. "My Requests" and "My Certificates" listed
            * the same event twice — the asking and the document that came
            * out of it — and the two pages disagreed about its status.
            */
-          { label: "My Requests", to: "/portal/requests", icon: FiAward },
-          { label: "Appointments", to: "/portal/appointments", icon: FiCalendar },
-          // KP cases and blotter entries they are part of. Never VAWC —
-          // see PortalController::cases for why.
-          { label: "My Cases", to: "/portal/cases", icon: FiBookOpen },
-          { label: "Announcements", to: "/portal/announcements", icon: FiBell },
-          { label: "Service Guide", to: "/portal/assistant", icon: FiHelpCircle },
+          { label: "My Request Certificates", to: "/resident/requests", icon: FiAward },
+          /*
+           * Their Katarungang Pambarangay record — never VAWC, see
+           * Portal\CaseController for why.
+           *
+           * THREE CHILDREN, and they answer three different questions. "What
+           * cases am I in" is the register; "when do I have to appear" is the
+           * schedule, which is what a summons is about; "what has happened so
+           * far" is the history. The old "My Cases" split them by WHO FILED
+           * instead — two lists of the same shape, neither of which told a
+           * person when to turn up.
+           */
+          {
+            label: "Lupon Records",
+            to: "/resident/lupon",
+            icon: FiBookOpen,
+            children: [
+              /*
+               * THE TWO SIDES ARE TWO ENTRIES, and they are different news.
+               *
+               * "Somebody filed a complaint against me" is what a resident
+               * opens the portal to find out, and it was folded into one
+               * "Filed Cases" list where it read as a case they had brought
+               * themselves. A person named as a respondent is being summoned;
+               * that deserves its own line and its own count.
+               */
+              { label: "Cases I Filed", to: "/resident/lupon/filed", icon: FiFileText },
+              { label: "Cases Against Me", to: "/resident/lupon/against-me", icon: FiAlertCircle },
+              { label: "Hearings", to: "/resident/lupon/hearings", icon: FiCalendar },
+              { label: "Case History", to: "/resident/lupon/history", icon: FiClock },
+            ],
+          },
+          /*
+           * Read-only, and the page says so. A health record is written at
+           * the station by the person who took the reading; a resident
+           * reading their own is right, a resident editing it is not.
+           */
+          { label: "Health Records", to: "/resident/health", icon: FiActivity },
+          { label: "Announcements", to: "/resident/announcements", icon: FiBell },
           // Profile carries the family too — same question, one button.
-          { label: "My Profile", to: "/portal/profile", icon: FiUser },
+          { label: "My Profile", to: "/resident/profile", icon: FiUser },
         ],
       },
     ];
@@ -69,24 +107,6 @@ export function menuFor(user: User): MenuSection[] {
 
   const sections: MenuSection[] = [
     { items: [{ label: "Dashboard", to: "/dashboard", icon: FiHome }] },
-  ];
-
-  /*
-   * The front desk, which is now one desk and not two.
-   *
-   * Request intake and certificates are the CLERK's work and appear only on
-   * the Clerk's menu — the Secretary was seeing the same worklist, which is
-   * how the same request got started twice. The window queue and the blotter
-   * are gone entirely.
-   *
-   * The resident REGISTRY is deliberately not here. Only the Population
-   * Office (BPO) registers a person, so only they browse it; every other
-   * office attaches a resident through the picker, which returns identity
-   * fields and never the browsable registry.
-   */
-  const core: MenuItem[] = [
-    { label: "Records Verification", to: "/verify-records", icon: FiCheckSquare },
-    { label: "Appointments", to: "/appointments", icon: FiCalendar },
   ];
 
   /*
@@ -99,12 +119,16 @@ export function menuFor(user: User): MenuSection[] {
   const secretariat: MenuItem[] = [
     { label: "Barangay Sessions", to: "/sessions", icon: FiBookOpen },
     { label: "Hearing & Mediation", to: "/lupon/hearings", icon: FiCalendar },
+    /* The Lupon, the VAWC desk and the health station in one return. The
+       Secretary was copying figures off three screens onto paper, which is
+       where a transcription error becomes a submitted report. */
+    { label: "Consolidated Reports", to: "/reports/consolidated", icon: FiBarChart2 },
   ];
 
   /*
    * The Clerk works certificates, and nothing else.
    *
-   * The queue and the blotter belonged to a wider front desk. This one issues
+   * The queue belonged to a wider front desk. This one issues
    * documents: the list of them, the report on how many were asked for, and
    * the verification step that comes before one is filed.
    *
@@ -123,8 +147,13 @@ export function menuFor(user: User): MenuSection[] {
       items: [
         { label: "Certificates", to: "/certificates", icon: FiAward },
         { label: "Certificate Report", to: "/certificates/report", icon: FiBarChart2 },
-        // Verification is the clerk's own step before a certificate is filed.
-        { label: "Records Verification", to: "/verify-records", icon: FiCheckSquare },
+        /* The Lupon's fees are taken at this counter: ₱20 to file a case,
+           ₱230 to certify a failed conciliation to court. The Lupon asks
+           and watches for "Paid"; the money changes hands here. */
+        /* The website's chat desk moved here from the Secretary: the person
+           answering "how do I get a clearance?" should be the one who
+           issues it. */
+        { label: "Live Chat", to: "/chat", icon: FiMessageCircle },
       ],
     });
     return sections;
@@ -133,43 +162,42 @@ export function menuFor(user: User): MenuSection[] {
   switch (user.office) {
     case "Main Office":
       if (user.role === "Punong Barangay") {
-        // The PB decides certificates and adopts documents; appointments and
-        // KP cases remain. Residents and the queue are the clerk's/offices' work.
-        sections.push({
-          heading: "Main Office",
-          items: [
-            { label: "Certificates", to: "/certificates", icon: FiAward },
-            { label: "Appointments", to: "/appointments", icon: FiCalendar },
-            { label: "Live Chat", to: "/chat", icon: FiMessageCircle },
-            { label: "Administrative Records", to: "/records", icon: FiArchive },
-          ],
-        });
-        // The PB personally conducts mediation, so the hearing calendar
-        // belongs on their menu alongside the docket.
-        // The session record is the council's, so the PB reads it too.
-        sections.push({
-          heading: "Secretariat",
-          items: [{ label: "Barangay Sessions", to: "/sessions", icon: FiBookOpen }],
-        });
+        /*
+         * The Punong Barangay presides, and that is the whole menu.
+         *
+         * Certificates, the chat desk, administrative records, the session
+         * record and the KP docket all came off: each is an office's own
+         * work, and putting them here made the PB a second pair of hands on
+         * six desks rather than the one person who sits at the mediation
+         * table. What is left is the table: the sittings they conduct, the
+         * settlements that come out of them, and the reports on both.
+         */
         sections.push({
           heading: "Lupon Tagapamayapa",
           items: [
-            { label: "KP Cases", to: "/lupon/cases", icon: FiBookOpen },
-            { label: "Hearings & KP Forms", to: "/lupon/hearings", icon: FiCalendar },
+            /* Today's, upcoming and past sittings on one screen — the PB
+               mediates on Tuesdays and needs to know which is which. */
+            { label: "Hearings", to: "/lupon/hearings", icon: FiCalendar },
             { label: "Settlements", to: "/lupon/settlements", icon: FiFileText },
             { label: "Reports & Archives", to: "/lupon/reports", icon: FiBarChart2 },
+          { label: "Consolidated Report", to: "/reports/consolidated", icon: FiLayers },
+          ],
+        });
+        /* The return the PB signs, read before signing it. */
+        sections.push({
+          heading: "Barangay-wide",
+          items: [
+            { label: "Consolidated Reports", to: "/reports/consolidated", icon: FiBarChart2 },
           ],
         });
       } else {
-        /* The Secretary. */
-        sections.push({
-          heading: "Main Office",
-          items: [
-            ...core,
-            { label: "Live Chat", to: "/chat", icon: FiMessageCircle },
-            { label: "Administrative Records", to: "/records", icon: FiArchive },
-          ],
-        });
+        /*
+         * The Secretary keeps the record of what was decided, and nothing
+         * else. Appointments, Records Verification and the chat desk all
+         * belong to the front counter; administrative records came off with
+         * them. What is left is the session minutes, the hearings they take
+         * the minutes of, and the reports drawn from both.
+         */
         sections.push({ heading: "Secretariat", items: secretariat });
       }
       break;
@@ -181,10 +209,17 @@ export function menuFor(user: User): MenuSection[] {
         heading: "VAWC Desk",
         items: [
           { label: "Confidential Cases", to: "/vawc/cases", icon: FiShield },
-          { label: "Referrals", to: "/vawc/referrals", icon: FiShare2 },
-          { label: "Follow-Up Monitoring", to: "/vawc/followups", icon: FiActivity },
+          /*
+           * Referrals and Follow-Up Monitoring are off the menu. Both are
+           * recorded on the case itself, where the officer already is; a
+           * second screen listing them across cases was a separate place to
+           * look and a separate place to forget.
+           */
           { label: "Documents & Access Trail", to: "/vawc/documents", icon: FiFolder },
           { label: "Reports", to: "/vawc/reports", icon: FiBarChart2 },
+          /* The desk's own consolidated return, generated rather than
+             transcribed. Counts only — the section carries no case. */
+          { label: "Consolidated Report", to: "/reports/consolidated", icon: FiLayers },
         ],
       });
       break;
@@ -210,17 +245,18 @@ export function menuFor(user: User): MenuSection[] {
       sections.push({
         heading: "Population Office",
         items: [
-          { label: "Residents", to: "/residents", icon: FiUsers },
-          // On the register so families are whole, but not constituents —
-          // and impossible to find before this, short of opening the
-          // relative who named them.
-          { label: "Non-residents", to: "/residents/non-residents", icon: FiUserX },
+          { label: "Residents", to: "/population/residents", icon: FiUsers },
+          /*
+           * RBIM CENSUS IS NOT HERE ANY MORE, and that is deliberate.
+           *
+           * It was a menu entry whose list repeated the Households list and
+           * whose form was reached from a third place. The census is now
+           * started from a button on the resident register — where the
+           * office already is when a household walks in — and the forms
+           * themselves are read in the Households table.
+           */
           { label: "Households", to: "/population/households", icon: FiMap },
-          // The DILG baseline census the BHW collects house to house.
-          { label: "RBIM Census", to: "/population/rbim", icon: FiClipboard },
-          { label: "Population Events", to: "/population/events", icon: FiTrendingUp },
           { label: "Sector Lists", to: "/population/sectors", icon: FiLayers },
-          { label: "Records Verification", to: "/verify-records", icon: FiCheckSquare },
           { label: "Portal Accounts", to: "/population/accounts", icon: FiUserPlus },
         ],
       });
@@ -235,6 +271,16 @@ export function menuFor(user: User): MenuSection[] {
           { label: "Patient Visits", to: "/health/visits", icon: FiHeart },
           { label: "Immunization", to: "/health/immunization", icon: FiShield },
           { label: "Maternal & Child", to: "/health/maternal-child", icon: FiSmile },
+          /*
+           * Moved here from the Population Office.
+           *
+           * A zone's health worker is the health station's own staff — they
+           * know when somebody takes over an area, and the BPO learned it
+           * second-hand. The register still READS the zone list; only the
+           * keeping of it moved.
+           */
+          { label: "Zones & BHWs", to: "/health/zones", icon: FiMapPin },
+          { label: "Consolidated Report", to: "/reports/consolidated", icon: FiLayers },
         ],
       });
       break;

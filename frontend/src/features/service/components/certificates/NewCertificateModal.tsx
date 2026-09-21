@@ -150,9 +150,9 @@ export function NewCertificateModal({ ctx }: { ctx: CertificateDeskState }) {
 
         {spec?.needs_photo && (
           <p className="text-xs leading-relaxed text-gray-500">
-            This clearance prints a photo box and two thumbmark boxes. Attach the
-            photograph on the certificate&rsquo;s own page; the thumbmarks are inked onto
-            the printed sheet at the counter.
+            This clearance prints a photo box and two thumbmark boxes. The photograph is
+            TAKEN AT THE COUNTER on the certificate&rsquo;s own page — the resident is here,
+            so it is not uploaded — and the thumbmarks are inked onto the printed sheet.
           </p>
         )}
 

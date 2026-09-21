@@ -23,6 +23,11 @@ export default function SearchInput({
 }: {
   value: string;
   onChange: (value: string) => void;
+  /**
+   * "Search by <a>, <b> or <c>…" — the app's one shape for a search box.
+   * Spell "number" out rather than "#", no Oxford comma, three things at
+   * most. The reasoning is on DataTable's `searchPlaceholder`.
+   */
   placeholder?: string;
   /** What a screen reader is told this box searches. */
   label?: string;

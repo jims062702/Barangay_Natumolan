@@ -1,14 +1,20 @@
 import Card from "../../../../shared/ui/Card";
-import { luponApi } from "../../api";
-import type { LuponCaseState } from "../../hooks/useLuponCase";
 import type { LuponCase } from "../../types";
 
 /**
  * What the complaint is about, as filed.
+ *
+ * Read-only, and there is no "run the jurisdiction screening" button on it.
+ *
+ * The screening is not a thing the Lupon chooses to run — it runs when the
+ * complaint is FILED, and it refuses rather than records: a matter that reads
+ * as VAWC never becomes a case at all, and a respondent who lives outside the
+ * barangay is rejected at the same moment. Neither input can change
+ * afterwards, because nothing in the system edits a filed narrative or takes a
+ * respondent off a case. So a button re-running those tests on a case that
+ * exists could only ever confirm what the case already said.
  */
-export function ComplaintCard({ ctx, caseData }: { ctx: LuponCaseState; caseData: LuponCase }) {
-  const { post, id } = ctx;
-
+export function ComplaintCard({ caseData }: { caseData: LuponCase }) {
   return (
     <Card title="Complaint">
       <dl className="space-y-2.5 text-sm">
@@ -56,13 +62,6 @@ export function ComplaintCard({ ctx, caseData }: { ctx: LuponCaseState; caseData
       {caseData.jurisdiction_status !== "Accepted" && caseData.rejection_reason && (
         <p className="mt-3 rounded-xl bg-danger/10 p-3 text-sm text-danger">{caseData.rejection_reason}</p>
       )}
-      <button
-        type="button"
-        onClick={() => post(() => luponApi.screenJurisdiction(id, {}), undefined)}
-        className="mt-4 w-full cursor-pointer rounded-full border border-primary/30 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
-      >
-        Run jurisdiction screening
-      </button>
     </Card>
   );
 }

@@ -45,12 +45,25 @@ export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
             ),
           },
           {
-            header: "Parties",
+            /*
+              Named sides, not "A vs B".
+              Which name is the complainant and which the respondent is the
+              first thing anybody reading a docket needs, and "vs" left it to
+              be inferred from the order — an order the reader has to already
+              know to use.
+            */
+            header: "Complainant & Respondent",
             render: (h: LuponHearing) => (
-              <span className="block max-w-xs truncate text-xs text-gray-500">
-                {h.lupon_case?.complainant_display_name ?? "—"}
-                {h.lupon_case?.complainant_is_resident === false && " (non-resident)"} vs{" "}
-                {h.lupon_case?.respondent_display_names || "—"}
+              <span className="block max-w-xs text-xs">
+                <span className="block truncate text-gray-500">
+                  <span className="text-gray-400">Complainant:</span>{" "}
+                  {h.lupon_case?.complainant_display_name ?? "—"}
+                  {h.lupon_case?.complainant_is_resident === false && " (non-resident)"}
+                </span>
+                <span className="block truncate text-gray-500">
+                  <span className="text-gray-400">Respondent:</span>{" "}
+                  {h.lupon_case?.respondent_display_names || "—"}
+                </span>
               </span>
             ),
           },

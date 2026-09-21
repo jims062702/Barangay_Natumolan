@@ -51,7 +51,8 @@ class SettlementController extends BaseController
         }
 
         $validated = $request->validate([
-            'settlement_type' => 'required|in:Amicable Settlement,Arbitration Award',
+            /* One kind. An arbitration award is not something this Lupon makes. */
+            'settlement_type' => 'required|in:Amicable Settlement',
             'terms' => 'required|string',
             'date_agreed' => 'required|date',
             'compliance_deadline' => 'nullable|date|after:date_agreed',

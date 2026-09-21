@@ -63,6 +63,12 @@ final class CaseIntake
         $validated['children_count'] = $dependentIds->count();
         $validated['children_involved'] = $dependentIds->isNotEmpty();
 
+        /*
+         * Nothing to reconcile for the respondent: it is a register id and
+         * only ever was. Their name, address, number and birth date stay in
+         * the register, so a protection order drawn six weeks later is served
+         * on where they live THEN, not on a copy taken at the counter today.
+         */
         $validated['case_code'] = CaseFile::nextCaseCode();
         /*
          * Manila in, UTC stored.

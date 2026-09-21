@@ -32,24 +32,39 @@ export interface PortalKpCase {
     summons_served?: string | null;
   } | null;
   hearings_held: number;
+  /*
+   * Every sitting on this case, not only the next one — a person summoned to
+   * appear is entitled to the whole schedule. Deliberately WITHOUT minutes:
+   * what was said in a session is the Punong Barangay's record of it.
+   */
+  hearings?: {
+    type: string;
+    scheduled_at?: string | null;
+    status: string;
+    summons_served?: string | null;
+    /* THEIR OWN attendance, worked out by the server from which side they
+       are on. Null means the sitting has not been minuted yet — which is
+       not the same as "did not attend". */
+    i_attended?: boolean | null;
+  }[];
+  /**
+   * What has happened, oldest first — one row per event.
+   *
+   * Four fields rather than a sentence: `event` is the kind of thing,
+   * `status` how it went, `description` the line a person reads. As one
+   * string no column could be scanned down.
+   */
+  history?: {
+    on: string;
+    event: string;
+    status: string;
+    description: string;
+  }[];
   settlement?: {
     type: string;
     agreed_on?: string | null;
     status: string;
-    certificate_to_file_action: boolean;
   } | null;
-}
-
-/** A blotter entry as the resident sees it — no narrative, by design. */
-export interface PortalBlotter {
-  blotter_number: string;
-  recorded_at?: string | null;
-  incident_at?: string | null;
-  incident_type: string;
-  place: string;
-  my_role: string;
-  action_taken: string;
-  status: string;
 }
 
 /** One certificate type a resident can ask for, with what it takes. */

@@ -235,7 +235,7 @@ export default function ServiceRequestList() {
           numbered
           total={total}
           searchable
-          searchPlaceholder="Search by name, request #, or service…"
+          searchPlaceholder="Search by name, request number or service…"
           getSearchText={(r) =>
             `${r.request_number} ${
               r.resident ? `${r.resident.first_name} ${r.resident.last_name}` : ""

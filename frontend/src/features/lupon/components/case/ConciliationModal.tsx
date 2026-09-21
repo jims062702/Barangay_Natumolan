@@ -66,7 +66,9 @@ export function ConciliationModal({ ctx }: { ctx: LuponCaseState }) {
         </div>
         <FormField label="Outcome" required>
           <select value={conciliationOutcome} onChange={(e) => setConciliationOutcome(e.target.value)} className={inputClasses}>
-            {["Settlement", "Arbitration", "Dismissed"].map((o) => (
+            {/* Two outcomes. A matter this Lupon cannot settle is dismissed —
+                there is no arbitration here to send it to. */}
+            {["Settlement", "Dismissed"].map((o) => (
               <option key={o}>{o}</option>
             ))}
           </select>

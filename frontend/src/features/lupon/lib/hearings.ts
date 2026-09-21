@@ -4,7 +4,8 @@
 
 import type { LuponHearing } from "../types";
 
-export const HEARING_TYPES = ["Mediation", "Conciliation", "Arbitration"];
+/* Two. This Lupon mediates and conciliates; it does not arbitrate. */
+export const HEARING_TYPES = ["Mediation", "Conciliation"];
 
 export const OUTCOME_STATUSES = ["Completed", "Rescheduled", "Cancelled", "No Show"];
 

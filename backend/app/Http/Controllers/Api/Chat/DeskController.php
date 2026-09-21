@@ -12,7 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * The live desk: the Barangay Secretary's side of the chat, with the Punong
+ * The live desk: the Barangay Clerk's side of the chat, with the Punong
  * Barangay and Admin able to step in. One conversation at a time.
  */
 class DeskController extends BaseController
@@ -27,7 +27,7 @@ class DeskController extends BaseController
      *
      * Read from the same service guides and roster the public website
      * uses, so a correction made once is a correction everywhere — and
-     * the Secretary never retypes a requirement from memory.
+     * the Clerk never retypes a requirement from memory.
      */
     public function shortcuts(): JsonResponse
     {
@@ -163,7 +163,7 @@ class DeskController extends BaseController
             Notification::notifyResident(
                 $conversation->resident_id,
                 'chat_reply',
-                'Reply from the Barangay Secretary',
+                'Reply from the Barangay Clerk',
                 $validated['body'],
                 'chat',
                 $conversation->id
@@ -181,7 +181,7 @@ class DeskController extends BaseController
 
         $conversation->addMessage(
             'system',
-            'The Barangay Secretary marked this conversation as resolved.'
+            'The Barangay Clerk marked this conversation as resolved.'
         );
         $conversation->update(['status' => 'Closed', 'closed_at' => now()]);
 

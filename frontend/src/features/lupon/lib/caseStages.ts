@@ -26,7 +26,7 @@ export function reachedStages(caseData: LuponCase): Set<string> {
 
   const reached = new Set<string>(["Filed"]);
 
-  if (held("Mediation") || ["Mediation", "Conciliation", "Arbitration", "Settled", "Referred"]
+  if (held("Mediation") || ["Mediation", "Conciliation", "Settled", "Referred"]
     .includes(caseData.current_stage)) {
     reached.add("Mediation");
   }
@@ -54,10 +54,6 @@ export const EXIT_GUIDE: Record<string, { what: string; next: string }> = {
   Dismissed: {
     what: "The case was dropped — withdrawn, outside this Lupon's jurisdiction, or the complainant did not pursue it.",
     next: "Nothing further is scheduled. The record stays on the docket.",
-  },
-  Arbitration: {
-    what: "Both parties agreed in writing to let the Punong Barangay or the Pangkat decide for them.",
-    next: "The award is handed down not earlier than 6 days and not later than 15 days from the agreement, and is transmitted to the court within 5 days.",
   },
 };
 

@@ -16,7 +16,6 @@ use App\Models\Health\MaternalRecord;
 use App\Models\Health\Visit;
 use App\Models\Household\Household;
 use App\Models\Lupon;
-use App\Models\Service\Appointment;
 use App\Models\Service\Certificate;
 use App\Models\Service\Referral;
 use App\Models\Service\ServiceRequest;
@@ -136,6 +135,24 @@ class Resident extends Model
 
     /** Answered "something not on this list". */
     public const OTHER_OCCUPATION = 'Others';
+
+    /**
+     * The civil statuses the register recognises.
+     *
+     * Kept here rather than in a validation rule because two forms offer
+     * them — the Population Office's intake and the resident's own portal —
+     * and a list that lived in only one of them would let the two drift.
+     *
+     * Deliberately not "Annulled" or "Divorced": the register records what
+     * the resident says they are, and both of those arrive at the barangay
+     * as one of the four below.
+     */
+    public const CIVIL_STATUSES = [
+        'Single',
+        'Married',
+        'Widowed',
+        'Separated',
+    ];
 
     public const OCCUPATIONS = [
         /*
@@ -406,11 +423,6 @@ class Resident extends Model
     public function certificates(): HasMany
     {
         return $this->hasMany(Certificate::class);
-    }
-
-    public function appointments(): HasMany
-    {
-        return $this->hasMany(Appointment::class);
     }
 
     public function vawcCases(): HasMany

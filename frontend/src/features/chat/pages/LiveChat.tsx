@@ -1,3 +1,4 @@
+import NeedsConnection, { useNeedsConnection } from "../../../shared/offline/NeedsConnection";
 import { useEffect, useRef, useState } from "react";
 import { FiCheckCircle, FiCornerUpLeft, FiUser } from "react-icons/fi";
 import { errorMessage } from "../../../shared/lib/api";
@@ -15,7 +16,7 @@ import { chatApi } from "../api";
 import type { ChatConversation, ChatMessage } from "../types";
 
 /**
- * The live chat desk — the Barangay Secretary's page.
+ * The live chat desk — the Barangay Clerk's page.
  *
  * A two-pane inbox: everyone waiting on the left, the open conversation on the
  * right. It refreshes on a timer rather than a socket, matching the widget on
@@ -40,6 +41,7 @@ function waitedFor(since?: string | null): string {
 }
 
 export default function LiveChat() {
+  const { offline, noteOffline } = useNeedsConnection();
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [filter, setFilter] = useState<"open" | "Waiting" | "Closed">("open");
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -55,7 +57,7 @@ export default function LiveChat() {
    */
   const [shortcuts, setShortcuts] = useState<Shortcut[]>([]);
   /*
-   * The one conversation this agent is in, if any. The desk is one Secretary
+   * The one conversation this agent is in, if any. The desk is one Clerk
    * answering one person at a time — two threads at once means both visitors
    * get half an answer slowly, and the queue behind them hears nothing.
    */
@@ -81,6 +83,9 @@ export default function LiveChat() {
         playNotificationSound();
       }
       waitingRef.current = waiting;
+    } catch (err) {
+      /* The desk is never read from a copy on this device — see NeedsConnection. */
+      noteOffline(err);
     } finally {
       setLoading(false);
     }
@@ -88,7 +93,7 @@ export default function LiveChat() {
 
   /*
    * Loaded once, not per keystroke. A menu that waits on the network
-   * every time the Secretary presses @ is slower than typing the answer,
+   * every time the Clerk presses @ is slower than typing the answer,
    * which would defeat the whole point of having it.
    */
   useEffect(() => {
@@ -190,8 +195,12 @@ export default function LiveChat() {
     <div>
       <PageHeader
         title="Live Chat"
-        subtitle="Residents and visitors who asked to speak to a person — the Secretary's desk"
+        subtitle="Residents and visitors who asked to speak to a person — the Clerk's desk"
       />
+
+      {offline && (
+        <NeedsConnection what="the chat desk" why="A conversation only works while both sides can hear each other." />
+      )}
 
       {waiting > 0 && (
         <p className="mb-4 rounded-2xl bg-warning/10 px-4 py-3 text-sm font-medium text-dark">
@@ -225,7 +234,7 @@ export default function LiveChat() {
 
           {/*
             The desk answers one person at a time. Saying so — with the name
-            — is what stops a Secretary opening a second thread, typing a
+            — is what stops a Clerk opening a second thread, typing a
             reply, and only then being refused by the server.
           */}
           {busyWith && (
@@ -253,7 +262,7 @@ export default function LiveChat() {
                         ? "border-primary bg-primary/5"
                         : "border-gray hover:border-primary/40"
                     } ${
-                      // Readable, still openable — the Secretary may need to
+                      // Readable, still openable — the Clerk may need to
                       // see what is waiting. Replying is what is refused.
                       busyWith && busyWith.id !== conversation.id ? "opacity-50" : ""
                     }`}

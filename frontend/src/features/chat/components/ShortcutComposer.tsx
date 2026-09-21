@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FiCornerUpLeft } from "react-icons/fi";
 
 /**
- * The Secretary's reply box, with the canned answers one keystroke away.
+ * The Clerk's reply box, with the canned answers one keystroke away.
  *
  * Typing `@` opens the list; typing more narrows it. Picking one drops the
  * REAL text — the requirements the office publishes, the name on the current
@@ -104,7 +104,7 @@ export default function ShortcutComposer({
 
   /*
    * The box grows with what is in it. An expansion is a dozen lines, and two
-   * fixed rows meant the Secretary sent text they could not see.
+   * fixed rows meant the Clerk sent text they could not see.
    */
   useEffect(() => {
     const el = textareaRef.current;

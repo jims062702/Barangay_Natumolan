@@ -10,7 +10,7 @@ export function SignInPrompt({ ctx }: { ctx: ChatWidgetState }) {
   return (
     <div className="flex-1 space-y-3 overflow-y-auto bg-secondary/60 px-4 py-4">
       <p className="rounded-2xl bg-white px-4 py-3 text-sm leading-relaxed text-dark shadow-sm">
-        Talking to the <strong>Barangay Secretary</strong> needs your resident portal
+        Talking to the <strong>Barangay Clerk</strong> needs your resident portal
         account. Signing in means they can see your record while they help you — and you
         will not be asked to type your name, email or number.
       </p>

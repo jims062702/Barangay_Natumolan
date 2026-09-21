@@ -68,15 +68,7 @@ export function SettlementCard({ ctx, settlement }: {
                 </button>
               </>
             )}
-            {!settlement.cfa_issued && (
-              <button type="button" onClick={() => post(() => luponApi.caseSettlementAction(id, { action: "issue_cfa" }))} className="cursor-pointer rounded-full border border-gray py-2 text-xs font-semibold text-gray-500 hover:border-primary hover:text-primary">
-                Issue CFA
-              </button>
-            )}
           </div>
-          {settlement.cfa_issued && (
-            <p className="text-xs font-semibold text-danger">Certificate to File Action issued.</p>
-          )}
         </div>
       )}
     </Card>

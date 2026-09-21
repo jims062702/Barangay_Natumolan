@@ -16,7 +16,7 @@ export function ChatHeader({ ctx }: { ctx: ChatWidgetState }) {
       <img src={logo} alt="" aria-hidden="true" className="h-10 w-10 rounded-full bg-white/90 p-1" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-bold text-white">
-          {mode === "bot" ? "Natumolan Assistant" : "Barangay Secretary"}
+          {mode === "bot" ? "Natumolan Assistant" : "Barangay Clerk"}
         </p>
         <p className="flex items-center gap-1.5 text-xs text-white/80">
           <span

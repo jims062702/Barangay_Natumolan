@@ -24,6 +24,22 @@ class CaseFile extends Model
     public const RISK_LEVELS = ['Critical', 'High', 'Medium', 'Low'];
 
     /**
+     * Every kind of violence the column can hold.
+     *
+     * Two lists, deliberately. INTAKE_VIOLENCE_TYPES is what the desk may
+     * choose today; VIOLENCE_TYPES is everything a stored case might say,
+     * including the four the form stopped offering. Validating an EDIT
+     * against the narrow list would make an old case unsaveable until its
+     * kind was changed — which is the record being bent to fit the form.
+     */
+    public const VIOLENCE_TYPES = [
+        'Threat', 'Physical', 'Psychological', 'Economic', 'Sexual', 'Mixed',
+    ];
+
+    /** What a new case may be filed as. Mirrors the intake form's dropdown. */
+    public const INTAKE_VIOLENCE_TYPES = ['Threat', 'Physical'];
+
+    /**
      * How a follow-up's safety finding moves the case's risk level.
      *
      * Risk is not a fact about the day a case was filed. A survivor found
@@ -77,6 +93,11 @@ class CaseFile extends Model
         'reported_by_resident_id',
         'reported_by_relationship',
         'reported_by_contact',
+        /* Item 9: on what authority somebody files for another person. */
+        'applicant_consent',
+        /* Item 4 of the protection-order application. An id when the register
+           knows them; typed details when it does not. */
+        'respondent_id',
         'violence_type',
         'risk_level',
         'risk_assessed_at',
@@ -94,6 +115,18 @@ class CaseFile extends Model
         'closed_at',
     ];
 
+    /**
+     * The one session this case gets, and what was agreed at it.
+     *
+     * hasOne, because there is one — the table's unique key says so. The
+     * desk hears the parties once; a series of sittings is mediation, and
+     * mediating a VAWC matter is prohibited.
+     */
+    public function agreement()
+    {
+        return $this->hasOne(Agreement::class, 'vawc_case_id');
+    }
+
     protected function casts(): array
     {
         return [
@@ -105,6 +138,18 @@ class CaseFile extends Model
             'immediate_needs' => 'encrypted',
             'confidential_notes' => 'encrypted',
             'children_details' => 'encrypted',
+            /*
+             * Item 9 describes a survivor's circumstances, so it is encrypted
+             * like everything else the desk writes about her.
+             *
+             * The respondent needs no encrypted columns: they are a plain
+             * foreign key into the register, which holds their name and
+             * address already. The columns that once copied those details
+             * here existed only to carry a respondent from OUTSIDE the
+             * barangay — and there is no such respondent, because an order
+             * can only be issued against somebody who lives here.
+             */
+            'applicant_consent' => 'encrypted',
         ];
     }
 
@@ -122,6 +167,19 @@ class CaseFile extends Model
     public function survivor(): BelongsTo
     {
         return $this->belongsTo(Resident::class, 'survivor_id');
+    }
+
+    /**
+     * Who the complaint is against — always a resident of this barangay.
+     *
+     * Null only while the desk has not named anybody yet. It is never
+     * somebody from outside: a barangay protection order is issued by this
+     * barangay against one of its own, and the Punong Barangay has no power
+     * over a person who lives elsewhere. StoreCaseRequest refuses one.
+     */
+    public function respondent(): BelongsTo
+    {
+        return $this->belongsTo(Resident::class, 'respondent_id');
     }
 
     /**

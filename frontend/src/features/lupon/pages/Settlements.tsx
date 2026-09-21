@@ -1,4 +1,4 @@
-import { FiAlertTriangle, FiCheckCircle, FiClock, FiFileText } from "react-icons/fi";
+import { FiAlertTriangle, FiCheckCircle, FiClock } from "react-icons/fi";
 import StatTile from "../../../shared/ui/StatTile";
 import PageHeader from "../../../shared/ui/PageHeader";
 import RevealGroup from "../../../shared/ui/RevealGroup";
@@ -9,7 +9,7 @@ import { SettlementDetailModal } from "../components/settlements/SettlementDetai
 export default function Settlements() {
   const ctx = useSettlementDocket();
   const {
-    inWindow, overdue, complied, certificates,
+    inWindow, overdue, complied,
   } = ctx;
 
   return (
@@ -29,7 +29,6 @@ export default function Settlements() {
         <StatTile label="In repudiation window" value={inWindow} icon={FiClock} tone="warning" />
         <StatTile label="Compliance overdue" value={overdue} icon={FiAlertTriangle} tone="danger" />
         <StatTile label="Complied / executed" value={complied} icon={FiCheckCircle} tone="success" />
-        <StatTile label="CFA / CBA issued" value={certificates} icon={FiFileText} />
       </RevealGroup>
 
       <SettlementTable ctx={ctx} />

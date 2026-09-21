@@ -1,3 +1,4 @@
+import NeedsConnection, { useNeedsConnection } from "../../../shared/offline/NeedsConnection";
 import { useEffect, useState } from "react";
 import { FiAlertTriangle, FiClock, FiSend, FiShield } from "react-icons/fi";
 import { Link } from "react-router-dom";
@@ -24,6 +25,7 @@ interface VawcStats {
 }
 
 export default function VawcDashboard() {
+  const { offline, noteOffline } = useNeedsConnection();
   /*
    * Compared by VALUE, not by reference.
    *
@@ -49,6 +51,7 @@ export default function VawcDashboard() {
     vawcApi.statistics()
       .then((response) => setStats(response.data.data))
       .catch(() => undefined)
+      .catch(noteOffline)
       .finally(() => setReady(true));
   }, [tick]);
 
@@ -66,6 +69,10 @@ export default function VawcDashboard() {
           </Link>
         }
       />
+
+      {offline && (
+        <NeedsConnection what="the VAWC figures" why="The VAWC desk's records are never kept on this device: the server encrypts them with a key this browser never holds, which is what keeps a survivor's case off a laptop." />
+      )}
 
       <div className="mb-6 rounded-2xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-dark">
         <strong>Confidentiality:</strong> case records are visible to VAWC

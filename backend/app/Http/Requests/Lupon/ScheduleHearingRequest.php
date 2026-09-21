@@ -10,7 +10,7 @@ class ScheduleHearingRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'hearing_type' => 'required|in:Mediation,Conciliation,Arbitration',
+            'hearing_type' => 'required|in:Mediation,Conciliation',
             'scheduled_at' => 'required|date|after:' . ManilaTime::now(),
             'summons_issued' => 'boolean',
         ];

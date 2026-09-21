@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useAuth } from "../../../shared/auth/AuthContext";
+import { useNeedsConnection } from "../../../shared/offline/NeedsConnection";
 import { errorMessage } from "../../../shared/lib/api";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { usePulse } from "../../../shared/hooks/usePulse";
@@ -23,6 +24,8 @@ export function useAccountAdmin({
   kind?: "staff" | "resident";
 } = {}) {
   const { user, refresh } = useAuth();
+  /* Accounts are the server's to answer; this says when it could not be asked. */
+  const { offline, noteOffline } = useNeedsConnection();
   const [rows, setRows] = useState<User[]>([]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -73,6 +76,7 @@ export function useAccountAdmin({
         setTotal(r.data.data.total ?? 0);
         setCounts(r.data.data.counts);
       })
+      .catch(noteOffline)
       .finally(() => setLoading(false));
   };
 
@@ -225,6 +229,7 @@ export function useAccountAdmin({
   };
 
   return {
+    offline,
     user, refresh, rows, setRows, search, setSearch, page, setPage, lastPage, setLastPage,
     total, setTotal, loading, setLoading, counts, setCounts, selfOpen, setSelfOpen, selfName,
     setSelfName, selfEmail, setSelfEmail, currentPassword, setCurrentPassword, selfPassword,

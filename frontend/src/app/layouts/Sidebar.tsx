@@ -4,6 +4,7 @@ import { Link, NavLink } from "react-router-dom";
 import { homePathFor } from "../../shared/auth/AuthContext";
 import type { User } from "../../shared/types";
 import type { MenuSection } from "../../shared/navigation/menu";
+import { SidebarGroup } from "./SidebarGroup";
 import logo from "../../assets/logo/logo.svg";
 
 /**
@@ -64,6 +65,14 @@ export function Sidebar({ compact, user, sections, setSidebarOpen, badges, activ
             <ul className="space-y-1">
               {section.items.map((item) => (
                 <li key={item.to}>
+                  {item.children && !compact ? (
+                    <SidebarGroup
+                      item={item}
+                      badges={badges}
+                      activePath={activePath}
+                      setSidebarOpen={setSidebarOpen}
+                    />
+                  ) : (
                   <NavLink
                     to={item.to}
                     onClick={() => setSidebarOpen(false)}
@@ -109,6 +118,7 @@ export function Sidebar({ compact, user, sections, setSidebarOpen, badges, activ
                         </span>
                       ))}
                   </NavLink>
+                  )}
                 </li>
               ))}
             </ul>

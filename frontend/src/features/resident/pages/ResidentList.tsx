@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { FiEdit2, FiTrash2 } from "react-icons/fi";
+import { FiClipboard, FiDownload, FiEdit2, FiTrash2, FiUpload } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { errorMessage } from "../../../shared/lib/api";
 import { confirmAction } from "../../../shared/lib/confirm";
 import { toast } from "../../../shared/lib/toast";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { useAuth } from "../../../shared/auth/AuthContext";
+import { useZoneNames } from "../../population/lib/useZones";
 import Card from "../../../shared/ui/Card";
 import DataTable from "../../../shared/ui/DataTable";
 import TagCell from "../../../shared/ui/TagCell";
@@ -13,11 +14,14 @@ import PageHeader from "../../../shared/ui/PageHeader";
 import SearchInput from "../../../shared/ui/SearchInput";
 import type { Resident } from "../../../shared/types";
 import { residentApi } from "../api";
+import TransferModal from "../components/TransferModal";
 
 // SANA MALAMBING
 
-const PUROKS = ["Purok 1", "Purok 2", "Purok 3", "Purok 4", "Purok 5"];
-const GENDERS = ["Male", "Female", "Other"];
+
+/* Two, and only two. The register records sex as the birth certificate
+   states it, and "Other" was never chosen in 3,283 records. */
+const GENDERS = ["Male", "Female"];
 /* The lists this barangay keeps — the age brackets it works out, and the
    four statuses somebody has to grant, judge or register. */
 const SECTORS = [
@@ -37,6 +41,16 @@ const filterSelect =
 
 export default function ResidentList() {
   const { user } = useAuth();
+  /* The barangay's own zones, kept by the Population Office. */
+  const zones = useZoneNames();
+  /*
+   * Taking the register out, and bringing one in.
+   *
+   * These lived on the census list, which is gone — its table was the same
+   * households as the Household Registry. They belong with the register
+   * itself rather than with a form that described it.
+   */
+  const [transfer, setTransfer] = useState<"import" | "export" | null>(null);
   const [rows, setRows] = useState<Resident[]>([]);
   const [search, setSearch] = useState("");
   const [purok, setPurok] = useState("");
@@ -176,6 +190,44 @@ export default function ResidentList() {
       <PageHeader
         title="Residents & Households"
         subtitle="Master registry of Barangay Natumolan residents — registered through the RBIM census"
+        actions={
+          /*
+           * The census starts here, not from a menu entry of its own.
+           *
+           * "RBIM Census" was a third place to go: its list repeated the
+           * Households list and its form was reached from neither. The
+           * office is already on the register when a household walks in, so
+           * the button is where they already are — and the forms themselves
+           * are read in the Households table.
+           */
+          <div className="flex flex-wrap gap-2">
+            {/*
+              Separate, because they are separate errands and one of them
+              writes to the register. A clerk fetching a backup should not be
+              one mis-click from an upload.
+            */}
+            <button
+              type="button"
+              onClick={() => setTransfer("export")}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-gray bg-white px-4 py-2.5 text-sm font-semibold text-dark transition-colors hover:border-primary hover:text-primary"
+            >
+              <FiDownload className="h-4 w-4" aria-hidden="true" /> Export
+            </button>
+            <button
+              type="button"
+              onClick={() => setTransfer("import")}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-gray bg-white px-4 py-2.5 text-sm font-semibold text-dark transition-colors hover:border-primary hover:text-primary"
+            >
+              <FiUpload className="h-4 w-4" aria-hidden="true" /> Import
+            </button>
+            <Link
+              to="/population/rbim/new"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
+            >
+              <FiClipboard className="h-4 w-4" aria-hidden="true" /> New RBIM census
+            </Link>
+          </div>
+        }
       />
 
       <Card>
@@ -186,18 +238,18 @@ export default function ResidentList() {
               setSearch(value);
               setPage(1);
             }}
-            placeholder="Search name or resident number…"
+            placeholder="Search by name or resident number…"
             label="Search residents"
             className="max-w-sm flex-1"
           />
           <select
             value={purok}
             onChange={(e) => { setPurok(e.target.value); setPage(1); }}
-            aria-label="Filter by Purok"
+            aria-label="Filter by zone"
             className={filterSelect}
           >
-            <option value="">Purok: All</option>
-            {PUROKS.map((p) => <option key={p} value={p}>{p}</option>)}
+            <option value="">Zone: All</option>
+            {zones.map((z) => <option key={z} value={z}>{z}</option>)}
           </select>
           <select
             value={gender}
@@ -205,7 +257,7 @@ export default function ResidentList() {
             aria-label="Filter by gender"
             className={filterSelect}
           >
-            <option value="">Gender: All</option>
+            <option value="">Sex: All</option>
             {GENDERS.map((g) => <option key={g} value={g}>{g}</option>)}
           </select>
           <select
@@ -252,7 +304,7 @@ export default function ResidentList() {
             {
               header: "Resident #",
               render: (r: Resident) => (
-                <Link to={`/residents/${r.id}`} className="font-medium text-primary hover:underline">
+                <Link to={`/population/residents/${r.id}`} className="font-medium text-primary hover:underline">
                   {r.resident_number}
                 </Link>
               ),
@@ -289,7 +341,7 @@ export default function ResidentList() {
               ),
             },
             { header: "Purok", render: (r: Resident) => r.zone_purok ?? "—" },
-            { header: "Gender", render: (r: Resident) => r.gender ?? "—" },
+            { header: "Sex", render: (r: Resident) => r.gender ?? "—" },
             {
               header: "Sectors",
               /*
@@ -342,7 +394,7 @@ export default function ResidentList() {
               render: (r: Resident) => (
                 <span className="flex items-center gap-1.5">
                   <Link
-                    to={`/residents/${r.id}`}
+                    to={`/population/residents/${r.id}`}
                     title={canWrite ? "Edit information" : "View details"}
                     aria-label={canWrite ? "Edit information" : "View details"}
                     className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray text-gray-500 transition-colors hover:border-primary hover:text-primary"
@@ -380,6 +432,14 @@ export default function ResidentList() {
         />
       </Card>
 
+      <TransferModal
+        open={transfer !== null}
+        mode={transfer ?? "export"}
+        onClose={() => setTransfer(null)}
+        /* An import writes to the register, so the list has to read it
+           again — the fetch re-runs on `tick`. */
+        onImported={() => setTick((n) => n + 1)}
+      />
     </div>
   );
 }

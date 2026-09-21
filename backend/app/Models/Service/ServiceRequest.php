@@ -51,11 +51,6 @@ class ServiceRequest extends Model
         return $this->belongsTo(User::class, 'assigned_to');
     }
 
-    public function appointments(): HasMany
-    {
-        return $this->hasMany(Appointment::class);
-    }
-
     /**
      * The certificate this request produced.
      *

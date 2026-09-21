@@ -1,3 +1,4 @@
+import NeedsConnection, { useNeedsConnection } from "../../../shared/offline/NeedsConnection";
 import { useEffect, useState } from "react";
 import { FiUserX } from "react-icons/fi";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
@@ -38,6 +39,7 @@ interface NonResident {
 }
 
 export default function NonResidents() {
+  const { offline, noteOffline } = useNeedsConnection();
   const [rows, setRows] = useState<NonResident[]>([]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -55,6 +57,7 @@ export default function NonResidents() {
         setTotal(r.data.data.total ?? 0);
         setCounts(r.data.data.counts);
       })
+      .catch(noteOffline)
       .finally(() => setLoading(false));
   };
 
@@ -77,6 +80,10 @@ export default function NonResidents() {
         subtitle="People on the register who live elsewhere. They are added by the Population Office, and most have no portal account — they ask for appointments through the public site instead."
       />
 
+      {offline && (
+        <NeedsConnection what="the non-resident register" why="Who may do what is decided by the server every time it is asked, so accounts are never read from a copy held here." />
+      )}
+
       <Card>
         <div className="mb-4 flex flex-wrap items-center gap-3">
           {counts && (
@@ -94,7 +101,7 @@ export default function NonResidents() {
               setSearch(value);
               setPage(1);
             }}
-            placeholder="Search name or record number…"
+            placeholder="Search by name or record number…"
             label="Search non-residents"
             className="max-w-sm flex-1"
           />

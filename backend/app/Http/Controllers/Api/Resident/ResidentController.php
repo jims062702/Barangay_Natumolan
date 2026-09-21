@@ -265,7 +265,7 @@ class ResidentController extends BaseController
             'middle_name' => 'nullable|string|max:100',
             'last_name' => 'string|max:100',
             'suffix' => 'nullable|string|max:50',
-            'gender' => 'in:Male,Female,Other',
+            'gender' => 'in:Male,Female',
             'birthdate' => 'date',
             'civil_status' => 'nullable|string',
             /* The resident's own — see the note on store(). */

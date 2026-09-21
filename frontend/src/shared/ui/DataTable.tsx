@@ -1,3 +1,4 @@
+import { useIsOffline } from "../offline/useConnectivity";
 import { useMemo, useState, type ReactNode } from "react";
 import SearchInput from "./SearchInput";
 
@@ -86,6 +87,22 @@ interface DataTableProps<T> {
   numbered?: boolean;
   /** Show a search box that filters the loaded rows by `getSearchText`. */
   searchable?: boolean;
+  /**
+   * What the box says before anything is typed.
+   *
+   *     Search by <a>, <b> or <c>…
+   *
+   * ONE SHAPE, because these drifted into four — "Search X", "Search by X",
+   * "Start typing a X", "Type X" — and the office found "certificate #" on
+   * one screen and "certificate number" on the next.
+   *
+   *   · "Search by", always.
+   *   · NUMBER is spelt out. "#" is ambiguous at this size and a screen
+   *     reader says "number sign"; it was the pair somebody noticed.
+   *   · No Oxford comma.
+   *   · Three things at most — a fourth is one nobody reads to the end.
+   *   · One "…" character, never three dots.
+   */
   searchPlaceholder?: string;
   getSearchText?: (row: T) => string;
   /** Optional dropdown filters shown next to the search box. */
@@ -160,14 +177,27 @@ export default function DataTable<T>({
    * Suppressed while a client-side filter is on — the numbers would run
    * 3, 7, 12 against a filtered subset, which reads as missing rows.
    */
+  const offline = useIsOffline();
   const firstRowNumber = ((page ?? 1) - 1) * perPage + 1;
   const showNumbers = numbered && !filtering;
+
+  /*
+   * An empty list with no line is a different thing from an empty list.
+   *
+   * "No records found." is a statement about the barangay. With the line
+   * down and nothing for this list on the device, the truthful statement is
+   * about the device — otherwise a clerk reads "no hearings this week" off a
+   * page that simply could not ask.
+   */
+  const nothingHere = offline
+    ? "No connection, and this list has not been opened on this device yet — it will fill in when the line is back."
+    : emptyMessage;
 
   /** Loading / empty / no-match message, shared by the table and the cards. */
   const notice = loading && rows.length === 0
     ? "loading"
     : rows.length === 0
-      ? emptyMessage
+      ? nothingHere
       : visibleRows.length === 0
         ? "No matches for your search or filter."
         : null;
@@ -336,7 +366,7 @@ export default function DataTable<T>({
             {!loading && rows.length === 0 && (
               <tr>
                 <td colSpan={columns.length + (showNumbers ? 1 : 0)} className="px-4 py-10 text-center text-gray-400">
-                  {emptyMessage}
+                  {nothingHere}
                 </td>
               </tr>
             )}

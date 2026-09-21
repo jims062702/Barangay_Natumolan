@@ -22,7 +22,10 @@ final class ActivationCode
         $sent = true;
 
         try {
-            Mail::to($user->email)->send(new PortalActivationCode($user, $code));
+            /* To the address being PROVED, not to the one on record. When a
+               change is pending they are different, and sending to the old
+               one would confirm a mailbox nobody was asked about. */
+            Mail::to($user->otpDestination())->send(new PortalActivationCode($user, $code));
         } catch (\Throwable $e) {
             $sent = false;
             Log::warning('Activation code email failed', [

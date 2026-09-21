@@ -73,7 +73,7 @@ export function SectorBrowser({ ctx }: { ctx: SectorReportState }) {
             header: "Name",
             render: (r: Resident) => (
               <Link
-                to={`/residents/${r.id}`}
+                to={`/population/residents/${r.id}`}
                 className="font-medium text-primary hover:underline"
               >
                 {personName(r)}
@@ -127,7 +127,7 @@ export function SectorBrowser({ ctx }: { ctx: SectorReportState }) {
         onPageChange={setPage}
         loading={loading}
         searchable
-        searchPlaceholder="Search a name or resident number…"
+        searchPlaceholder="Search by name or resident number…"
         getSearchText={(r) =>
           [
             personName(r),

@@ -21,7 +21,7 @@ export function ResidentProfile({ ctx, resident, isOutside }: {
     <div className="grid gap-6 lg:grid-cols-3">
       <Card title="Personal information">
         <Row label="Full name" value={personName(resident)} />
-        <Row label="Gender" value={resident.gender} />
+        <Row label="Sex" value={resident.gender} />
         {/* A clerk about to copy this onto a certificate has to be able
             to see that it came from a census and not a birth certificate. */}
         <Row

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Vawc;
 
+use App\Models\Resident\Resident;
 use App\Models\Vawc\CaseFile;
 use App\Support\ManilaTime;
 use Illuminate\Foundation\Http\FormRequest;
@@ -22,7 +23,32 @@ class StoreCaseRequest extends FormRequest
             'reported_by_resident_id' => 'nullable|exists:residents,id',
             'reported_by_relationship' => 'nullable|string|max:100',
             'reported_by_contact' => 'nullable|string|max:50',
-            'violence_type' => 'required|in:Physical,Psychological,Economic,Sexual,Mixed',
+            /* Item 9: the circumstance of consent, when somebody applies on
+               the victim's behalf. */
+            'applicant_consent' => 'nullable|string|max:1000',
+            /*
+             * Item 4 of the protection-order application: who it is against.
+             *
+             * A REGISTER ID AND NOTHING ELSE, and it must belong to somebody
+             * who lives here. The residence rule is in withValidator() below,
+             * because `exists:residents,id` cannot express it: non-residents
+             * are rows in that same table, put there so families could be
+             * recorded whole.
+             *
+             * `different` from the survivor, because a protection order that
+             * restrains the person it is meant to protect is not an order
+             * anybody can serve — and the pickers on the form already exclude
+             * each other, so reaching here means something bypassed them.
+             *
+             * Not required: a complaint is sometimes taken before the desk has
+             * the respondent's details, and turning away a survivor at the
+             * counter over a missing field is the worse failure. The order
+             * itself cannot be drawn until it is filled in.
+             */
+            'respondent_id' => 'nullable|exists:residents,id|different:survivor_id',
+            /* The narrow list: what the desk takes in. An older kind can
+               still be read and edited on a case already filed. */
+            'violence_type' => 'required|in:' . implode(',', CaseFile::INTAKE_VIOLENCE_TYPES),
             'relationship_to_offender' => 'nullable|string',
             'children_involved' => 'boolean',
             'children_count' => 'integer|min:0',
@@ -66,11 +92,49 @@ class StoreCaseRequest extends FormRequest
         ];
     }
 
+    /**
+     * The respondent has to live in Barangay Natumolan.
+     *
+     * A barangay protection order is issued BY this barangay AGAINST one of
+     * its own. The Punong Barangay has no power over somebody who lives
+     * elsewhere, and an order naming them is one nobody can serve or enforce
+     * — so taking the case at all would be a promise the barangay cannot keep
+     * to the person standing at the counter.
+     *
+     * The APPLICANT is deliberately not checked, here or anywhere. A woman
+     * may apply whoever she is and wherever she lives; it is where the
+     * RESPONDENT lives that decides whether this barangay may act.
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $id = $this->input('respondent_id');
+
+            if (! $id) {
+                return;
+            }
+
+            $outsider = Resident::where('id', $id)
+                ->where('record_type', Resident::NON_RESIDENT)
+                ->value('first_name');
+
+            if ($outsider) {
+                $validator->errors()->add(
+                    'respondent_id',
+                    $outsider . ' is recorded as living outside Barangay Natumolan. '
+                        . 'A barangay protection order can only be issued against a '
+                        . 'resident of this barangay.'
+                );
+            }
+        });
+    }
+
     public function messages(): array
     {
         return [
             'report_date.before_or_equal' => 'The complaint cannot be reported in the future.',
             'occurred_at.before_or_equal' => 'The incident cannot have happened in the future.',
+            'respondent_id.different' => 'The respondent cannot be the same person as the victim.',
         ];
     }
 }

@@ -79,8 +79,7 @@ export function SettlementDetailModal({ ctx }: { ctx: SettlementDocketState }) {
             <div>
               <dt className="text-xs uppercase tracking-wide text-gray-400">Certificates</dt>
               <dd className="text-dark">
-                {viewing.cfa_issued ? `CFA ${asDate(viewing.cfa_issued_at)}` : "No CFA"} ·{" "}
-                {viewing.cba_issued ? `CBA ${asDate(viewing.cba_issued_at)}` : "No CBA"}
+                {/* Neither certificate is issued here any more. */}
               </dd>
             </div>
           </dl>

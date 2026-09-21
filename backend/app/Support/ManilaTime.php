@@ -14,7 +14,7 @@ namespace App\Support;
  *                        so a VAWC intake or a mediation could not be
  *                        recorded at all after 8am;
  *   after:now            accepted times up to 8 hours in the PAST, so a
- *                        hearing or appointment could be booked backwards.
+ *                        hearing could be booked backwards.
  *
  * Compare against Manila's clock instead, in the same naive frame the form
  * sent. Use these instead of the literal `now` / `today` in date rules.

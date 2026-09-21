@@ -1,4 +1,5 @@
 import { FiPlus } from "react-icons/fi";
+import NeedsConnection from "../../../shared/offline/NeedsConnection";
 import PageHeader from "../../../shared/ui/PageHeader";
 import PeriodFilter from "../../../shared/ui/PeriodFilter";
 import { useCaseRegistry } from "../hooks/useCaseRegistry";
@@ -9,7 +10,7 @@ import { EditCaseModal } from "../components/cases/EditCaseModal";
 export default function CaseList() {
   const ctx = useCaseRegistry();
   const {
-    period, windowLabel, years, periodCounts, total, setIntakeOpen, changePeriod,
+    period, windowLabel, years, periodCounts, total, setIntakeOpen, changePeriod, offline,
   } = ctx;
 
   return (
@@ -27,6 +28,10 @@ export default function CaseList() {
           </button>
         }
       />
+
+      {offline && (
+        <NeedsConnection what="the VAWC docket" why="The VAWC desk's records are never kept on this device: the server encrypts them with a key this browser never holds, which is what keeps a survivor's case off a laptop." />
+      )}
 
       <div className="mb-4 rounded-2xl border border-danger/20 bg-danger/5 px-4 py-3 text-sm text-dark">
         <strong>Reminder:</strong> VAWC cases are never mediated at the Lupon.

@@ -19,7 +19,9 @@ class RecordConciliationRequest extends FormRequest
             'conciliation_date' => 'required|date|before_or_equal:' . ManilaTime::now(),
             'pangkat_members' => 'required|array|size:3',
             'pangkat_members.*' => 'required|string|max:150',
-            'outcome' => 'required|in:Settlement,Arbitration,Dismissed',
+            /* No Arbitration: this Lupon mediates and conciliates. A matter it
+   cannot settle is dismissed, not arbitrated here. */
+            'outcome' => 'required|in:Settlement,Dismissed',
             'proceedings_notes' => 'nullable|string',
         ];
     }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "../../../shared/auth/AuthContext";
 import { cachedResident } from "../../../shared/offline/residentCache";
 import { allJobs, pendingFor } from "../../../shared/offline/writeQueue";
 import { setMeta } from "../../../shared/offline/offlineDb";
@@ -16,6 +17,8 @@ import type { CouncilMember } from "../lib/certificate/types";
  * The counter list: its rows, the catalogue and council it prints with, and keeping it fresh.
  */
 export function useCertificateRows() {
+  /* Whoever is at the counter: with no line they ARE the one who started it. */
+  const { user } = useAuth();
 
   const [rows, setRows] = useState<Certificate[]>([]);
   const [statusFilter, setStatusFilter] = useState("");
@@ -104,6 +107,16 @@ export function useCertificateRows() {
           released_at: body.released_at ?? null,
           certificate_type: body.certificate_type,
           purpose: body.purpose ?? null,
+          /*
+           * Started by the clerk who filed it, at the moment they did.
+           *
+           * The server records exactly this when the job is sent — the
+           * token it is sent with is theirs — so the detail said "Not
+           * started yet" about work the clerk had just done, and then
+           * filled itself in hours later when the line came back.
+           */
+          processor: user ? { id: user.id, name: user.name } : null,
+          processed_at: new Date(job.createdAt).toISOString(),
           fee_amount: body.fee_amount,
           /* The server sets the stamp when the job arrives; shown here the same
              way so the amount a clerk quotes offline is the amount recorded. */
@@ -179,8 +192,31 @@ export function useCertificateRows() {
           (a, b) => String(b.created_at).localeCompare(String(a.created_at)),
         );
 
-        setRows([...waiting, ...(await withPendingSteps(cached ?? []))]);
-        setTotal((cached?.length ?? 0) + waiting.length);
+        const held = [...waiting, ...(await withPendingSteps(cached ?? []))];
+
+        /*
+         * The chips have to work with no line as well.
+         *
+         * Counting and filtering are the server's job online, and offline
+         * they were nobody's: every chip read blank and pressing one left
+         * the same rows on screen, Released ones included. A clerk pressing
+         * "Ready to Claim" and being handed the whole list learns not to
+         * trust the chips at all — and the counter list is exactly where
+         * status has to be read at a glance.
+         *
+         * Counted across everything the device holds, never the filtered
+         * view, so the numbers stay put as the chips are pressed.
+         */
+        const offlineCounts: Record<string, number> = {};
+        for (const row of held) {
+          offlineCounts[row.status] = (offlineCounts[row.status] ?? 0) + 1;
+        }
+
+        const shown = statusFilter ? held.filter((row) => row.status === statusFilter) : held;
+
+        setRows(shown);
+        setCounts(offlineCounts);
+        setTotal(shown.length);
         setLastPage(1);
       })
       .finally(() => setLoading(false));

@@ -5,6 +5,7 @@ import { useAuth } from "../../shared/auth/AuthContext";
 import { useSignOut } from "../../shared/auth/useSignOut";
 import { PageBodySkeleton } from "../../shared/ui/Skeleton";
 import OfflineBanner from "../../shared/offline/OfflineBanner";
+import PortalOfflineBanner from "../../shared/offline/PortalOfflineBanner";
 import QueuePanel from "../../shared/offline/QueuePanel";
 import UpdateBanner from "../../shared/offline/UpdateBanner";
 import OfflineReadiness from "../../shared/offline/OfflineReadiness";
@@ -87,7 +88,9 @@ export default function DashboardLayout() {
    * it is the more specific of the two matches.
    */
   const activePath = sections
-    .flatMap((section) => section.items.map((item) => item.to))
+    .flatMap((section) => section.items.flatMap(
+      (item) => [item.to, ...(item.children ?? []).map((child) => child.to)],
+    ))
     .filter((to) => pathname === to || pathname.startsWith(to + "/"))
     .sort((a, b) => b.length - a.length)[0];
 
@@ -152,7 +155,9 @@ export default function DashboardLayout() {
         */}
         <UpdateBanner />
 
-        {user.role !== "Resident" && <OfflineBanner held={cache.held} syncing={cache.syncing} />}
+        {user.role !== "Resident"
+          ? <OfflineBanner held={cache.held} syncing={cache.syncing} />
+          : <PortalOfflineBanner />}
 
         {/* Topbar */}
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-gray bg-white/90 px-4 backdrop-blur-md sm:px-6">

@@ -39,6 +39,18 @@ export interface LuponCase {
   complaint?: LuponComplaint | null;
   hearings?: LuponHearing[];
   settlement?: LuponSettlement | null;
+  /* The fees on the case: the Lupon asks, the Clerk takes. */
+  payments?: {
+    id: number;
+    kind: "Filing";
+    label: string;
+    amount: string;
+    stamp_amount: string;
+    total: string;
+    status: "Requested" | "Paid" | "Cancelled";
+    paid_at: string | null;
+    receipt_no: string | null;
+  }[];
 }
 
 export interface LuponComplaint {
@@ -90,10 +102,6 @@ export interface LuponSettlement {
   status: string;
   compliance_deadline?: string | null;
   compliance_notes?: string | null;
-  cfa_issued: boolean;
-  cfa_issued_at?: string | null;
-  cba_issued: boolean;
-  cba_issued_at?: string | null;
   closed_at?: string | null;
   recorder?: Partial<User> | null;
   lupon_case?: Partial<LuponCase> | null;

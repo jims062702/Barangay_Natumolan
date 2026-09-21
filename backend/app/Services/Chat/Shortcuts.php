@@ -8,7 +8,7 @@ use App\Models\Service\Guide;
 /**
  * The answers the live desk keeps having to give, ready to insert.
  *
- * A resident asks what an indigency certificate needs and the Secretary types
+ * A resident asks what an indigency certificate needs and the Clerk types
  * the same four requirements they typed yesterday. Typed from memory they
  * come out slightly different every time — one visitor is told about the
  * cashier, the next is not — and every one of those answers is already
@@ -21,7 +21,7 @@ use App\Models\Service\Guide;
  * here is a second copy of anything.
  *
  * Expansions are inserted into the composer as ordinary text, not sent as
- * they are: the Secretary still reads them, and still adds the sentence that
+ * they are: the Clerk still reads them, and still adds the sentence that
  * belongs to this particular visitor.
  */
 class Shortcuts

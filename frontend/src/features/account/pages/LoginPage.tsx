@@ -1,6 +1,7 @@
 import { FiArrowLeft } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import logo from "../../../assets/logo/logo.svg";
+import { useIsOffline } from "../../../shared/offline/useConnectivity";
 import { useSignIn } from "../hooks/useSignIn";
 import { LoginHero } from "../components/signIn/LoginHero";
 import { ActivationForm } from "../components/signIn/ActivationForm";
@@ -14,6 +15,7 @@ export default function LoginPage() {
   const {
     error, notice, activation, forgot,
   } = ctx;
+  const offline = useIsOffline();
 
   return (
     <div className="flex min-h-screen bg-white">
@@ -56,6 +58,32 @@ export default function LoginPage() {
                 : "Sign in to your staff or resident account."}
             </p>
           </div>
+
+          {/*
+            With no line, who can get in is not the same for everyone, and
+            the sign-in error alone cannot say so: offline it is answered by
+            this device, which knows an email and a password but not whether
+            that email belongs to an office or to a resident.
+
+            So the rule is stated here, before anyone types. An office whose
+            laptop has signed in before is let through; the portal is not,
+            by design — everything on it is the barangay answering, and a
+            resident waiting for the signal to return is not stuck at a
+            counter with people in line.
+          */}
+          {offline && !activation && (
+            <div
+              role="status"
+              className="mt-6 rounded-xl border border-warning/40 bg-warning/5 px-4 py-3 text-xs leading-relaxed text-gray-600"
+            >
+              <p className="text-sm font-semibold text-dark">No connection</p>
+              <p className="mt-1">
+                Office accounts can still sign in on a computer that has signed in here before.
+                The resident portal needs the internet — your requests and certificates are safe,
+                and the portal will work again as soon as you are back online.
+              </p>
+            </div>
+          )}
 
           {error && (
             <div

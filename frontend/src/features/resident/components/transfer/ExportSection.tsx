@@ -1,7 +1,8 @@
 import { FiCheck, FiDownload } from "react-icons/fi";
 import SearchInput from "../../../../shared/ui/SearchInput";
 import { inputClasses } from "../../../../shared/ui/FormField";
-import { PUROKS, SECTORS } from "./options";
+import { SECTORS } from "./options";
+import { useZoneNames } from "../../../population/lib/useZones";
 import type { RegisterTransferState } from "../../hooks/useRegisterTransfer";
 
 /**
@@ -12,6 +13,7 @@ export function ExportSection({ ctx }: { ctx: RegisterTransferState }) {
     setWho, who, search, setSearch, purok, setPurok, sector, setSector, counting, matchCount,
     matches, setFormat, format, busy, runExport,
   } = ctx;
+  const zones = useZoneNames();
 
   return (
     <section className="space-y-4">
@@ -59,18 +61,18 @@ export function ExportSection({ ctx }: { ctx: RegisterTransferState }) {
         <SearchInput
           value={search}
           onChange={(value) => setSearch(value)}
-          placeholder="Search a name or number…"
+          placeholder="Search by name or resident number…"
           label="Search"
           className="max-w-sm flex-1"
         />
         <select
           value={purok}
           onChange={(e) => setPurok(e.target.value)}
-          aria-label="Purok"
+          aria-label="Zone"
           className={inputClasses}
         >
-          <option value="">Purok: All</option>
-          {PUROKS.map((p) => <option key={p} value={p}>{p}</option>)}
+          <option value="">Zone: All</option>
+          {zones.map((z) => <option key={z} value={z}>{z}</option>)}
         </select>
         <select
           value={sector}

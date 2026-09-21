@@ -322,7 +322,7 @@ export default function AddRelativeModal({ open, relation, resident, onClose, on
         }}
         renderLink={(n) => (
           <Link
-            to={`/residents/${n.id}`}
+            to={`/population/residents/${n.id}`}
             className="text-xs font-semibold text-primary hover:underline"
           >
             Open

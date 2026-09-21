@@ -28,6 +28,15 @@ class CaseController extends BaseController
             'complainant.household:id,household_number,street_address',
             'respondents:id,first_name,last_name',
             'settlement:id,lupon_case_id,status',
+            /*
+             * The fee, on the DOCKET and not only inside the case.
+             *
+             * The Lupon cannot issue a summons until the Clerk marks it
+             * settled, and the only place that showed was the case detail —
+             * so finding which cases were ready meant opening them one at a
+             * time. A column of badges answers it in one look.
+             */
+            'payments:id,lupon_case_id,kind,status',
         ]);
 
         if ($request->filled('current_stage')) {
@@ -173,39 +182,26 @@ class CaseController extends BaseController
             'respondents:id,first_name,last_name,zone_purok,contact_number',
             'hearings' => fn ($q) => $q->orderBy('scheduled_at', 'desc'),
             'settlement',
+            /* The fees on the case. The Lupon reads these to know whether the
+               Clerk has been paid — the summons is blocked until it has. */
+            'payments' => fn ($q) => $q->orderBy('requested_at'),
         ]);
 
         return $this->success($case, 'Lupon case retrieved');
     }
 
-    public function screenJurisdiction(CaseFile $case, JurisdictionScreen $screen)
-    {
-        if ($screen->mentionsVawc($case->case_title, $case->complaint->complaint_narrative ?? '')) {
-            $case->update([
-                'jurisdiction_status' => 'Rejected',
-                'rejection_reason' => 'VAWC/child-abuse case — must be routed to the VAWC Desk (KP mediation prohibited)',
-                'current_stage' => 'Referred',
-            ]);
-
-            return $this->success($case, 'Case rejected and flagged for VAWC referral');
-        }
-
-        /*
-         * Jurisdiction rests on the respondent living here — a complainant
-         * from another barangay is perfectly entitled to file against one of
-         * our residents. Only a missing/non-resident respondent defeats it.
-         */
-        if ($case->respondents()->count() === 0) {
-            $case->update([
-                'jurisdiction_status' => 'Rejected',
-                'rejection_reason' => 'No barangay-resident respondent on this case — file with the barangay where they reside',
-            ]);
-
-            return $this->success($case, 'Case rejected - jurisdiction requirement not met');
-        }
-
-        $case->update(['jurisdiction_status' => 'Accepted']);
-
-        return $this->success($case, 'Jurisdiction screening complete — case accepted');
-    }
+    /*
+     * There is no screenJurisdiction() any more, and deliberately so.
+     *
+     * The screen belongs to FILING, where store() above runs it: a matter that
+     * reads as VAWC is refused with a 422 and never becomes a case, and a
+     * respondent living outside the barangay is refused in the same breath.
+     * Re-running it on a case that already exists could only confirm what the
+     * case already said — nothing in the system edits a filed narrative or
+     * takes a respondent off a case, so neither input can have changed.
+     *
+     * Checked against the register before it went: no case on file would have
+     * come out differently. The screen itself (JurisdictionScreen) stays —
+     * store() is what calls it.
+     */
 }

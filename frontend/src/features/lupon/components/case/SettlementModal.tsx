@@ -34,7 +34,6 @@ export function SettlementModal({ ctx }: { ctx: LuponCaseState }) {
         <FormField label="Type" required>
           <select value={settlementType} onChange={(e) => setSettlementType(e.target.value)} className={inputClasses}>
             <option>Amicable Settlement</option>
-            <option>Arbitration Award</option>
           </select>
         </FormField>
         <FormField label="Terms & obligations" required>

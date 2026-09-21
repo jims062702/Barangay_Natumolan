@@ -225,7 +225,7 @@ export default function MergeDuplicates({ resident, onMerged }: Props) {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <Link
-                        to={`/residents/${candidate.id}`}
+                        to={`/population/residents/${candidate.id}`}
                         className="text-sm font-semibold text-primary hover:underline"
                       >
                         {fullName(candidate)}

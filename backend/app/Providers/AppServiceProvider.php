@@ -194,7 +194,6 @@ class AppServiceProvider extends ServiceProvider
             ],
             'certificates' => [\App\Models\Service\Certificate::class],
             'service_requests' => [\App\Models\Service\ServiceRequest::class],
-            'appointments' => [\App\Models\Service\Appointment::class],
 
             /* The desk watches the case, but a referral or a follow-up
                changes what the docket says about it just as much. */

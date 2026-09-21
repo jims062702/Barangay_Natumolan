@@ -15,7 +15,6 @@ use App\Models\Lupon\Settlement;
 use App\Models\Population\Event;
 use App\Models\Resident\Resident;
 use App\Models\Resident\Sector;
-use App\Models\Service\Appointment;
 use App\Models\Service\Certificate;
 use App\Models\Service\Guide;
 use App\Models\Service\ServiceRequest;
@@ -267,7 +266,6 @@ class DatabaseSeeder extends Seeder
             ['Main Office', 'Certificate of Indigency', 'For qualified low-income residents; used for medical, educational, and legal assistance.', 'Valid ID, interview', 'Free', 'Mon–Fri, 8AM–5PM', 'indigency,indigent,assistance,medical,scholarship,free'],
             ['Main Office', 'First-Time Jobseeker Certification', 'Fee exemption certificate under RA 11261 for first-time jobseekers.', 'Valid ID, oath', 'Free', 'Mon–Fri, 8AM–5PM', 'jobseeker,first time,job,work,ra 11261'],
             ['Main Office', 'Business Barangay Clearance', 'Required for new and renewing businesses in the barangay.', 'DTI/SEC registration, lease or land title, valid ID', '₱200.00', 'Mon–Fri, 8AM–5PM', 'business,permit,store,sari-sari,enterprise'],
-            ['Main Office', 'Blotter Report', 'Official recording of incidents for documentation and resolution.', 'Valid ID, incident details', 'Free', 'Daily, 24/7 on-duty tanod', 'blotter,incident,report,complaint'],
             ['Lupon', 'Katarungang Pambarangay (Dispute Settlement)', 'Community mediation and conciliation of disputes between residents.', 'Complaint statement, valid ID', 'Filing fee ₱20.00', 'Mon–Fri, 8AM–5PM', 'dispute,away,mediation,settlement,complaint,neighbor,utang,debt'],
             ['VAWC', 'VAWC Assistance', 'Confidential assistance and protection for women and children. Walk in any time — you will be assisted immediately and privately.', 'None — immediate assistance', 'Free', 'Daily, 24/7 hotline', 'vawc,violence,abuse,women,children,protection,bpo,help'],
             ['Health Station', 'Medical Consultation', 'Free basic consultation, vital signs, and health advice.', 'Barangay health record (or register on site)', 'Free', 'Mon–Fri, 8AM–4PM', 'checkup,consultation,sick,medicine,bp,sugar'],
@@ -417,18 +415,7 @@ class DatabaseSeeder extends Seeder
             'reference_number' => 'REF-DEMO0003',
         ]);
 
-        Appointment::create([
-            'appointment_number' => 'APT-2026-00001',
-            'service_request_id' => $r1->id,
-            'resident_id' => $residents[1]->id,
-            'office' => 'Main Office',
-            'scheduled_datetime' => now()->addDays(2)->setTime(9, 0),
-            'status' => 'Confirmed',
-            'notes' => 'Claim stub required',
-        ]);
-
         Notification::notifyResident($residents[1]->id, 'request_status', 'Request REQ-2026-000001 is now In Progress', 'Your Barangay Clearance request is being processed.', 'service_request', $r1->id);
-        Notification::notifyResident($residents[1]->id, 'appointment', 'Appointment confirmed', 'Your appointment on ' . now()->addDays(2)->format('M j, Y') . ' 9:00 AM at the Main Office is confirmed.', 'appointment', 1);
     }
 
     private function seedLupon(array $residents): void

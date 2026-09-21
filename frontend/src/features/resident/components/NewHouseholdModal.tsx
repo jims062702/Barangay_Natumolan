@@ -5,6 +5,7 @@ import Modal from "../../../shared/ui/Modal";
 import FormField, { inputClasses } from "../../../shared/ui/FormField";
 import type { Household } from "../../../shared/types";
 import { populationApi } from "../../population/api";
+import { useZoneNames } from "../../population/lib/useZones";
 
 /**
  * Registers a household without leaving the form that needed one.
@@ -27,6 +28,8 @@ interface Props {
 }
 
 export default function NewHouseholdModal({ open, onClose, onCreated, defaultPurok }: Props) {
+  /* The barangay's own zones, kept by the Health Station. */
+  const zones = useZoneNames();
   const [form, setForm] = useState(INITIAL);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -66,11 +69,12 @@ export default function NewHouseholdModal({ open, onClose, onCreated, defaultPur
         <FormField label="Household number" required>
           <input value={form.household_number} onChange={set("household_number")} required className={inputClasses} placeholder="e.g. HH-2026-0012" />
         </FormField>
-        <FormField label="Zone / Purok" required>
+        <FormField label="Zone" required>
           <select value={form.zone_purok} onChange={set("zone_purok")} required className={inputClasses}>
             <option value="">Select…</option>
-            {[1, 2, 3, 4, 5].map((n) => (
-              <option key={n}>Purok {n}</option>
+            {/* The barangay's own list — see useZones. */}
+            {zones.map((z) => (
+              <option key={z} value={z}>{z}</option>
             ))}
           </select>
         </FormField>

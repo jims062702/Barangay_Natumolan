@@ -1,4 +1,5 @@
 import { useState, useEffect, type FormEvent } from "react";
+import { useNeedsConnection } from "../../../shared/offline/NeedsConnection";
 import { type Period, ALL_TIME, periodParams } from "../../../shared/ui/PeriodFilter";
 import { errorMessage } from "../../../shared/lib/api";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
@@ -15,6 +16,8 @@ import type { VawcCase } from "../types";
  * The state and handlers of <CaseList>, so its sections can share them.
  */
 export function useCaseRegistry() {
+  /* Never held on this device — the page says so rather than reading empty. */
+  const { offline, noteOffline } = useNeedsConnection();
   const [rows, setRows] = useState<VawcCase[]>([]);
 
   /* Which stretch of time the docket is showing. */
@@ -83,8 +86,6 @@ export function useCaseRegistry() {
   // Recorded, not assumed: an intake encoded the next morning must carry the
   // hour the complaint was actually made.
   const [reportedAt, setReportedAt] = useState(localNow);
-  const [previousIncidents, setPreviousIncidents] = useState("0");
-  const [narrative, setNarrative] = useState("");
   const [notes, setNotes] = useState("");
 
   // Correcting an intake: the API already allowed it, the registry did not.
@@ -92,51 +93,42 @@ export function useCaseRegistry() {
   const [editSurvivor, setEditSurvivor] = useState<Resident | null>(null);
   const [editReportedByOther, setEditReportedByOther] = useState(false);
   const [editDependents, setEditDependents] = useState<Resident[]>([]);
-  /*
-   * The incident itself: when, where, and whether it is still happening.
-   *
-   * Everything else on this form is history. These are the only questions
-   * that say whether she is safe tonight.
-   */
+  /* The incident itself: when and where. */
   const [occurredAt, setOccurredAt] = useState("");
   const [incidentLocation, setIncidentLocation] = useState("");
+
   /*
-   * Three answers, and "unanswered" is a fourth state.
+   * The respondent — item 4 of the protection-order application.
    *
-   * These were boolean|null, with null doing double duty as "Not known" AND
-   * as "nobody has said" — so the form opened with "Not known" already
-   * ticked, and an officer who never reached the question left an answer on
-   * the record they had not given. Now null means only the second thing, and
-   * nothing is ticked until somebody chooses.
+   * ONE SHAPE, not two: a register id. A barangay protection order is issued
+   * against a resident of this barangay, because that is the only person the
+   * Punong Barangay has power over. A typed name for somebody from elsewhere
+   * was offered here briefly and was simply wrong — it produced a case whose
+   * order nobody could serve.
+   *
+   * Everything item 4 asks for is on their resident record, and the order is
+   * drawn from the record so it reaches where they live now.
    */
-  const [isOngoing, setIsOngoing] = useState<string | null>(null);
-  const [offenderNearby, setOffenderNearby] = useState<string | null>(null);
-  const [riskLevel, setRiskLevel] = useState("");
+  const [respondent, setRespondent] = useState<Resident | null>(null);
+  /* Item 9: on what authority somebody files for another person. */
+  const [applicantConsent, setApplicantConsent] = useState("");
   /* "Other" opens a box: the list cannot anticipate every household. */
   const [relationshipOther, setRelationshipOther] = useState("");
-  const [channel, setChannel] = useState("");
-  const [needs, setNeeds] = useState<string[]>([]);
-  const [needsOther, setNeedsOther] = useState("");
 
-  /**
-   * A yes/no/not-known answer, as the column holds it.
+  /*
+   * THE INTAKE FORM ASKS LESS THAN IT DID.
    *
-   * "Not known" is null, not false. Sending false would record "he is NOT
-   * near her" when what the officer said was that she could not tell — and
-   * on a risk assessment that is the difference between sending somebody
-   * tonight and not.
+   * Gone from it: how the complaint reached us (every case here is a
+   * walk-in), whether the incident is ongoing, whether the offender is
+   * nearby, the risk level, the count of previous incidents, immediate
+   * needs, and the incident narrative.
    *
-   * An unanswered question sends nothing at all, so the field is left as it
-   * was rather than overwritten with a guess.
+   * The COLUMNS all remain, and so do the case detail and edit screens that
+   * read and write them — cases already on the register keep everything
+   * they were taken down with, and an officer can still set a risk level on
+   * a case once it is open. What changed is what a clerk is asked at the
+   * counter while somebody is standing there.
    */
-  const yesNo = (answer: string | null): boolean | null | undefined => {
-    if (answer === null) return undefined;
-
-    return answer === "unknown" ? null : answer === "yes";
-  };
-
-  const toggleNeed = (need: string) =>
-    setNeeds((prev) => (prev.includes(need) ? prev.filter((n) => n !== need) : [...prev, need]));
 
   const [editForm, setEditForm] = useState({
     violence_type: VIOLENCE_TYPES[0],
@@ -172,6 +164,7 @@ export function useCaseRegistry() {
         setYears(r.data.data.years ?? []);
         setPeriodCounts(r.data.data.period_counts);
       })
+      .catch(noteOffline)
       .finally(() => setLoading(false));
   };
 
@@ -211,22 +204,18 @@ export function useCaseRegistry() {
     setReportedByRelationship("");
     setReportedByContact("");
     /*
-     * The new boxes clear too. An intake form that opens holding the last
-     * survivor's answers is how one person's incident ends up on another
-     * person's case.
+     * The incident boxes clear too. An intake form that opens holding the
+     * last applicant's answers is how one person's incident ends up on
+     * another person's case.
      */
-    setNeeds([]);
-    setNeedsOther("");
     setOccurredAt("");
     setIncidentLocation("");
-    setIsOngoing(null);
-    setOffenderNearby(null);
     setRelationshipOther("");
-    setRiskLevel("");
-    setChannel("");
-    setPreviousIncidents("0");
+    /* The respondent clears with everything else. Somebody left behind here
+       would be accused on the next case filed. */
+    setRespondent(null);
+    setApplicantConsent("");
     setReportedAt(localNow());
-    setNarrative("");
     setNotes("");
   };
 
@@ -258,8 +247,10 @@ export function useCaseRegistry() {
           reportedByOther && !reporterOffRegister ? reportedByResident?.id : undefined,
         reported_by_relationship: reportedByOther ? reportedByRelationship || undefined : undefined,
         reported_by_contact: reportedByOther ? reportedByContact || undefined : undefined,
-        immediate_needs: needs.length ? needs : undefined,
-        immediate_needs_other: needsOther || undefined,
+        /* Only asked, and only sent, when somebody files for another person. */
+        applicant_consent: reportedByOther ? applicantConsent.trim() || undefined : undefined,
+        /* An id, and only an id. The register holds the rest. */
+        respondent_id: respondent?.id,
         /*
          * A date, no clock. A survivor recalling last Tuesday does not
          * recall 14:35, and a box asking for one invites a number nobody
@@ -268,17 +259,12 @@ export function useCaseRegistry() {
         occurred_at: occurredAt ? occurredAt + " 00:00:00" : undefined,
         incident_location: incidentLocation || undefined,
         /*
-         * "Not known" is an answer and is sent as such — as null, which is
-         * what the column holds. Leaving the question unanswered sends
-         * nothing at all.
+         * Every case this desk files is taken at the counter, so the channel
+         * is stated here rather than asked. It was a dropdown with one true
+         * answer and six wrong ones.
          */
-        is_ongoing: yesNo(isOngoing),
-        offender_nearby: yesNo(offenderNearby),
-        risk_level: riskLevel || undefined,
-        reporting_channel: channel || undefined,
-        previous_incidents_count: Number(previousIncidents) || 0,
+        reporting_channel: "Walk-in",
         report_date: reportedAt ? reportedAt.replace("T", " ") + ":00" : undefined,
-        incident_narrative: narrative || undefined,
         confidential_notes: notes || undefined,
       });
       setIntakeOpen(false);
@@ -351,6 +337,7 @@ export function useCaseRegistry() {
     setEditForm((prev) => ({ ...prev, [key]: value }));
 
   return {
+    offline,
     rows, setRows, period, setPeriod, windowLabel, setWindowLabel, years, setYears,
     periodCounts, setPeriodCounts, page, setPage, lastPage, setLastPage, total, setTotal,
     loading, setLoading, intakeOpen, setIntakeOpen, survivor, setSurvivor, violenceType,
@@ -358,13 +345,14 @@ export function useCaseRegistry() {
     setReportedByOther, reportedByName, setReportedByName, reportedByResident,
     setReportedByResident, pickReporter, reporterOffRegister, setReporterOffRegister,
     fromRecord, reportedByRelationship, setReportedByRelationship, reportedByContact,
-    setReportedByContact, reportedAt, setReportedAt, previousIncidents, setPreviousIncidents,
-    narrative, setNarrative, notes, setNotes, editing, setEditing, editSurvivor,
+    setReportedByContact, reportedAt, setReportedAt,
+    notes, setNotes, editing, setEditing, editSurvivor,
     setEditSurvivor, editReportedByOther, setEditReportedByOther, editDependents,
     setEditDependents, occurredAt, setOccurredAt, incidentLocation, setIncidentLocation,
-    isOngoing, setIsOngoing, offenderNearby, setOffenderNearby, riskLevel, setRiskLevel,
-    relationshipOther, setRelationshipOther, channel, setChannel, needs, setNeeds, needsOther,
-    setNeedsOther, yesNo, toggleNeed, editForm, setEditForm, load, changePeriod, resetIntake,
+    relationshipOther, setRelationshipOther,
+    respondent, setRespondent,
+    applicantConsent, setApplicantConsent,
+    editForm, setEditForm, load, changePeriod, resetIntake,
     closeIntake, intake, openEdit, saveEdit, setEdit,
   };
 }

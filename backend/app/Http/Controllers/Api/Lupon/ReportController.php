@@ -84,24 +84,15 @@ class ReportController extends BaseController
                     'available' => $settlement?->settlement_type === 'Amicable Settlement',
                     'requires' => 'a recorded amicable settlement',
                 ],
-                [
-                    'code' => 'KP-18',
-                    'name' => 'Arbitration Award',
-                    'available' => $settlement?->settlement_type === 'Arbitration Award',
-                    'requires' => 'a recorded arbitration award',
-                ],
-                [
-                    'code' => 'KP-20',
-                    'name' => 'Certificate to File Action',
-                    'available' => (bool) $settlement?->cfa_issued,
-                    'requires' => 'a Certificate to File Action to have been issued',
-                ],
-                [
-                    'code' => 'KP-21',
-                    'name' => 'Certificate to Bar Action',
-                    'available' => (bool) $settlement?->cba_issued,
-                    'requires' => 'a Certificate to Bar Action to have been issued',
-                ],
+                /*
+                 * KP-18, KP-20 and KP-21 are not listed.
+                 *
+                 * The arbitration award, the Certificate to File Action and
+                 * the Certificate to Bar Action are no longer part of this
+                 * barangay's process, and the columns behind them are gone.
+                 * Listing a form as "not available" would keep suggesting it
+                 * is a document somebody could eventually get.
+                 */
             ],
         ], 'KP form data generated');
     }

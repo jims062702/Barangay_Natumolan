@@ -19,6 +19,15 @@ Route::post('auth/login', [AuthController::class, 'login']);
 */
 Route::post('auth/activate', [AuthController::class, 'activate'])->middleware('throttle:10,1');
 Route::post('auth/resend-activation', [AuthController::class, 'resendActivationCode'])->middleware('throttle:3,1');
+/*
+ * "The email on my account is wrong and I cannot read the code."
+ *
+ * The one case resending cannot solve. Unauthenticated because an account
+ * that has never been activated has no token; the PASSWORD stands in for the
+ * session. Throttled like the resend beside it — this one sends mail too.
+ */
+Route::post('auth/change-email', [AuthController::class, 'changeEmailBeforeActivation'])
+    ->middleware('throttle:3,1');
 
 /*
 | A forgotten password, answered by the person's own inbox.

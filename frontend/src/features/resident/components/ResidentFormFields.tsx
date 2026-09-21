@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import FormField, { inputClasses } from "../../../shared/ui/FormField";
 import PhoneInput from "../../../shared/ui/PhoneInput";
 import HouseholdPicker from "./HouseholdPicker";
+import { useZoneNames } from "../../population/lib/useZones";
 import { MANUAL_SECTORS } from "../lib/sectors";
 import {
   ageFrom,
@@ -178,6 +179,7 @@ export default function ResidentFormFields({
   householdHint,
   showHousehold = true,
 }: Props) {
+  const zones = useZoneNames();
   const set =
     (key: keyof ResidentForm) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -207,12 +209,11 @@ export default function ResidentFormFields({
       <FormField label="Suffix">
         <input value={form.suffix} onChange={set("suffix")} className={inputClasses} placeholder="Jr., Sr., III" />
       </FormField>
-      <FormField label="Gender" required>
+      <FormField label="Sex" required>
         <select value={form.gender} onChange={set("gender")} required className={inputClasses}>
           <option value="">Select…</option>
           <option>Male</option>
           <option>Female</option>
-          <option>Other</option>
         </select>
       </FormField>
       {/*
@@ -311,9 +312,9 @@ export default function ResidentFormFields({
         in Purok 1.
       */}
       <FormField
-        label="Zone / Purok"
+        label="Zone"
         required
-        hint={purokFromHousehold ? "From the chosen household — a purok belongs to the house." : undefined}
+        hint={purokFromHousehold ? "From the chosen household — a zone belongs to the house." : undefined}
       >
         <select
           value={form.zone_purok}
@@ -323,9 +324,22 @@ export default function ResidentFormFields({
           className={`${inputClasses} ${purokFromHousehold ? "bg-secondary text-gray-500" : ""}`}
         >
           <option value="">Select…</option>
-          {[1, 2, 3, 4, 5].map((n) => (
-            <option key={n}>Purok {n}</option>
+          {/*
+            From the Population Office's own list. This used to be "Purok 1"
+            to "Purok 5", written out here in the form — five choices for a
+            barangay that has twenty-five zones, none of them named that. A
+            resident could not be filed where they actually live.
+
+            What is already on the record stays choosable even if the zone
+            has since been switched off, so opening an old record and saving
+            it does not silently move somebody.
+          */}
+          {zones.map((z) => (
+            <option key={z} value={z}>{z}</option>
           ))}
+          {form.zone_purok && !zones.includes(form.zone_purok) && (
+            <option value={form.zone_purok}>{form.zone_purok} (no longer in use)</option>
+          )}
         </select>
       </FormField>
       <FormField label="Residency status" required>

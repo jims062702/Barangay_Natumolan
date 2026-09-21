@@ -6,7 +6,6 @@ import {
   FaHandHoldingHeart,
   FaBriefcase,
   FaFileSignature,
-  FaBook,
   FaComments,
   FaConciergeBell,
 } from "react-icons/fa";
@@ -60,13 +59,6 @@ export const services: Service[] = [
     description:
       "Permits for events, construction, and other activities conducted within the barangay.",
     icon: FaFileSignature,
-  },
-  {
-    id: 7,
-    name: "Blotter Report",
-    description:
-      "Official recording of incidents and disputes for documentation and proper resolution.",
-    icon: FaBook,
   },
   {
     id: 8,

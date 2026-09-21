@@ -96,10 +96,14 @@ export function useRecordArchive() {
     };
     try {
       if (editing) {
-        await recordsApi.updateRecord(editing.id, payload);
+        await recordsApi.updateRecord(editing.id, payload, {
+          offline: { label: `${draft.document_number}` },
+        });
         toast(`${draft.document_number} updated.`);
       } else {
-        await recordsApi.createRecord(payload);
+        await recordsApi.createRecord(payload, {
+          offline: { label: `${draft.document_number}` },
+        });
         toast(`${draft.document_number} filed.`);
       }
       setFormOpen(false);

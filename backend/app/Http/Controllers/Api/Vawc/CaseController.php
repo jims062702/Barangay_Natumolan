@@ -122,7 +122,16 @@ class CaseController extends BaseController
     public function show(CaseFile $case)
     {
         $case->load(['survivor:id,first_name,last_name,zone_purok,contact_number',
-            'reporter:id,resident_number,first_name,middle_name,last_name,suffix,record_type', 'dependents:id,first_name,middle_name,last_name,resident_number', 'officer:id,name', 'incidents', 'referrals', 'followups.recorder:id,name', 'documents.uploader:id,name']);
+            'reporter:id,resident_number,first_name,middle_name,last_name,suffix,record_type',
+            /*
+             * Enough of the respondent to draw a protection order against
+             * them: item 4 of the application asks for the birth date, sex,
+             * address, telephone, occupation and civil status, and reading
+             * them from the register rather than from a copy taken at intake
+             * means the order is served on where they live NOW.
+             */
+            'respondent:id,resident_number,first_name,middle_name,last_name,suffix,gender,birthdate,civil_status,occupation,zone_purok,address,contact_number,record_type',
+            'dependents:id,first_name,middle_name,last_name,resident_number', 'officer:id,name', 'incidents', 'referrals', 'followups.recorder:id,name', 'documents.uploader:id,name']);
 
         AccessLog::record($case->id, 'viewed', 'Full case viewed');
 

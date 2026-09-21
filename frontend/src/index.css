@@ -449,3 +449,75 @@ section[id] {
   -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 25%, #000 100%);
   mask-image: linear-gradient(to bottom, transparent 0%, #000 25%, #000 100%);
 }
+
+/*
+ * Printing a report.
+ *
+ * WHAT GOES ON PAPER IS THE TABLE, not the chart. A bar chart printed on a
+ * barangay's mono laser is a row of identical grey blocks — the colour that
+ * carried the meaning is gone, and the figures that were labels on screen
+ * are too small to read. The office files these reports; a filed page has to
+ * be readable a year later by somebody who was not there.
+ *
+ * So each chart card carries a table of the same numbers, hidden on screen
+ * and shown on paper, and the chart is hidden on paper. Same information,
+ * the form each medium can actually carry.
+ */
+.print-only {
+  display: none;
+}
+
+@media print {
+  /* The shell is navigation. Paper has none. */
+  aside,
+  nav,
+  header button,
+  .print-hide {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  table.print-only {
+    display: table !important;
+  }
+
+  /* Ink, not screen: white ground, black text, hairline rules. */
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 11pt;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  /* A card is a box on screen; on paper it is just a section. */
+  .print-plain {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+
+  /* A table split across a page break is a table nobody can add up. */
+  table {
+    page-break-inside: auto;
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  tr {
+    page-break-inside: avoid;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  @page {
+    margin: 14mm;
+  }
+}

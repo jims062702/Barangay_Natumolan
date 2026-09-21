@@ -11,6 +11,7 @@ import type { Resident, ServiceRequest } from "../../../shared/types";
 import { fromRegister, toCertType, AFTER_PURPOSE, FIELD_LABELS, FIELD_HINTS } from "../lib/certificateFields";
 import { serviceApi } from "../api";
 import { mintLocalNumber, mintReference } from "../lib/certificateNumbers";
+import { feeFor as priceOf } from "../lib/certificateFees";
 import type { CertificateRowsState } from "./useCertificateRows";
 
 /**
@@ -34,18 +35,8 @@ export function useCertificateFiling(ctx: CertificateRowsState) {
   const [exemptReason, setExemptReason] = useState("");
   const [saving, setSaving] = useState(false);
   /** What this type charges, given the answer that decides it. */
-  const feeFor = (type: string, purposeText: string, answers: Record<string, string>) => {
-    const spec = catalogue?.types.find((t) => t.name === type);
-
-    if (!spec) return 0;
-    if (spec.fee !== null) return spec.fee;
-
-    const choice = spec.fee_field === "purpose" ? purposeText : answers[spec.fee_field ?? ""];
-    const table =
-      spec.fee_from === "clearance" ? catalogue?.clearance_purposes : catalogue?.business_kinds;
-
-    return table?.[choice ?? ""] ?? catalogue?.other_certification_fee ?? 0;
-  };
+  const feeFor = (type: string, purposeText: string, answers: Record<string, string>) =>
+    priceOf(catalogue, type, purposeText, answers);
   const resetCreateForm = () => {
     setCertResident(null);
     setResidentRequests([]);

@@ -33,7 +33,7 @@ class ResidentChatController extends BaseController
     /**
      * Opens a conversation with the live desk.
      *
-     * Registered residents only, and signed in. The desk is one Secretary
+     * Registered residents only, and signed in. The desk is one Clerk
      * answering one person at a time, and an anonymous form on a public page
      * is an invitation to fill that queue with people the barangay has no way
      * to identify, reach afterwards, or hold to anything. Signing in also
@@ -47,7 +47,7 @@ class ResidentChatController extends BaseController
         if (!$resident) {
             return $this->forbidden(
                 'The live desk is for registered residents. Sign in to your portal account '
-                    . 'and the Secretary will see who they are talking to.'
+                    . 'and the Clerk will see who they are talking to.'
             );
         }
 
@@ -88,7 +88,7 @@ class ResidentChatController extends BaseController
 
         $conversation->addMessage(
             'system',
-            'Conversation started. Waiting for the Barangay Secretary to join.'
+            'Conversation started. Waiting for the Barangay Clerk to join.'
         );
         $conversation->addMessage('visitor', $validated['message']);
 
@@ -97,7 +97,7 @@ class ResidentChatController extends BaseController
         return $this->success([
             'session_token' => $conversation->session_token,
             'conversation' => $this->views->visitor($conversation->fresh()),
-        ], 'You are in the queue — the Barangay Secretary will be with you shortly', 201);
+        ], 'You are in the queue — the Barangay Clerk will be with you shortly', 201);
     }
 
     /**
@@ -105,7 +105,7 @@ class ResidentChatController extends BaseController
      *
      * The token lives in one browser's storage. Signing in on a phone after
      * starting on a laptop, or simply clearing site data, used to lose the
-     * thread — and with it whatever the Secretary had already answered. The
+     * thread — and with it whatever the Clerk had already answered. The
      * account is the durable handle now; the token is just the message key.
      */
     public function mine()
@@ -152,7 +152,7 @@ class ResidentChatController extends BaseController
      *
      * Resolving one does not delete anything — `close` writes a system line
      * and flips the status — but `mine` only ever returned an OPEN one, so
-     * the moment the Secretary marked a conversation resolved it vanished
+     * the moment the Clerk marked a conversation resolved it vanished
      * from the resident's side. The answer they had been given went with it.
      *
      * That is the wrong way round. The resident is the one who has to act on

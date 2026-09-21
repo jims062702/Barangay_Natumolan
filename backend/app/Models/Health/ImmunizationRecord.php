@@ -13,6 +13,11 @@ class ImmunizationRecord extends Model
         'child_id',
         'vaccine_name',
         'vaccination_date',
+        /* What the child measured when the dose was given. A dose is judged
+           against size, and a fever is why one gets deferred. */
+        'height_cm',
+        'weight_kg',
+        'temperature',
         'scheduled_date',
         'lot_number',
         'administered_by',

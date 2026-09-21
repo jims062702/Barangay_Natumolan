@@ -26,19 +26,18 @@ const NewsDetail = lazyRoute(() => import("../features/public/pages/NewsDetail")
 
 // Office dashboards
 const Dashboard = lazyRoute(() => import("../features/dashboard/pages/Dashboard"));
+const ConsolidatedReport = lazyRoute(() => import("../features/dashboard/pages/ConsolidatedReport"));
 
 // Resident portal
 const PortalDashboard = lazyRoute(() => import("../features/portal/pages/Dashboard"));
 const PortalRequests = lazyRoute(() => import("../features/portal/pages/Requests"));
-const PortalAppointments = lazyRoute(() => import("../features/portal/pages/Appointments"));
 const PortalAnnouncements = lazyRoute(() => import("../features/portal/pages/Announcements"));
-const PortalAssistant = lazyRoute(() => import("../features/portal/pages/Assistant"));
 const PortalProfile = lazyRoute(() => import("../features/portal/pages/Profile"));
 
 // Shared core (staff)
-const PortalCases = lazyRoute(() => import("../features/portal/pages/Cases"));
+const LuponRecords = lazyRoute(() => import("../features/portal/pages/LuponRecords"));
+const PortalHealthRecords = lazyRoute(() => import("../features/portal/pages/HealthRecords"));
 const ResidentList = lazyRoute(() => import("../features/resident/pages/ResidentList"));
-const NonResidentList = lazyRoute(() => import("../features/resident/pages/NonResidentList"));
 const ResidentCreate = lazyRoute(() => import("../features/resident/pages/ResidentCreate"));
 const ResidentDetail = lazyRoute(() => import("../features/resident/pages/ResidentDetail"));
 const ResidentEdit = lazyRoute(() => import("../features/resident/pages/ResidentEdit"));
@@ -46,14 +45,11 @@ const ServiceRequestList = lazyRoute(() => import("../features/service/pages/Ser
 const CertificateList = lazyRoute(() => import("../features/service/pages/CertificateList"));
 const CertificateReport = lazyRoute(() => import("../features/service/pages/CertificateReport"));
 const LiveChat = lazyRoute(() => import("../features/chat/pages/LiveChat"));
-const AppointmentScheduler = lazyRoute(() => import("../features/service/pages/AppointmentScheduler"));
 const Sessions = lazyRoute(() => import("../features/council/pages/Sessions"));
 
 // VAWC Office
 const VawcCasesList = lazyRoute(() => import("../features/vawc/pages/CaseList"));
 const VawcCaseDetail = lazyRoute(() => import("../features/vawc/pages/CaseDetail"));
-const VawcReferrals = lazyRoute(() => import("../features/vawc/pages/Referrals"));
-const VawcFollowups = lazyRoute(() => import("../features/vawc/pages/Followups"));
 const VawcDocuments = lazyRoute(() => import("../features/vawc/pages/Documents"));
 const VawcReports = lazyRoute(() => import("../features/vawc/pages/Reports"));
 
@@ -66,11 +62,10 @@ const LuponReports = lazyRoute(() => import("../features/lupon/pages/Reports"));
 
 // Population Office
 const HouseholdList = lazyRoute(() => import("../features/population/pages/HouseholdList"));
-const CensusList = lazyRoute(() => import("../features/rbim/pages/CensusList"));
 const CensusForm = lazyRoute(() => import("../features/rbim/pages/CensusForm"));
 const RecordsVerification = lazyRoute(() => import("../features/population/pages/RecordsVerification"));
-const Events = lazyRoute(() => import("../features/population/pages/Events"));
 const SectorLists = lazyRoute(() => import("../features/population/pages/SectorLists"));
+const Zones = lazyRoute(() => import("../features/population/pages/Zones"));
 const ResidentAccounts = lazyRoute(() => import("../features/population/pages/ResidentAccounts"));
 
 // Health Station
@@ -149,10 +144,9 @@ export default function App() {
           <Route path="/verify" element={<VerifyCertificate />} />
 
           {/* Resident portal */}
-          <Route path="/portal" element={<Guarded residentOnly />}>
+          <Route path="/resident" element={<Guarded residentOnly />}>
             <Route index element={<PortalDashboard />} />
             <Route path="requests" element={<PortalRequests />} />
-            <Route path="appointments" element={<PortalAppointments />} />
             {/*
               The old certificates page, folded into requests.
 
@@ -160,12 +154,27 @@ export default function App() {
               emails already sent, and a resident following one should land
               on the list that now holds their certificate, not on nothing.
             */}
-            <Route path="certificates" element={<Navigate to="/portal/requests" replace />} />
-            <Route path="cases" element={<PortalCases />} />
+            <Route path="certificates" element={<Navigate to="/resident/requests" replace />} />
+            {/* Two entries in the sidebar, because they are two different
+                pieces of news. The bare path still shows both, for an old
+                link. */}
+            {/*
+              One page, five addresses. The view is read from the path so each
+              sidebar child lands somewhere real — and a resident can bookmark
+              "cases against me" rather than a tab state.
+            */}
+            <Route path="lupon" element={<LuponRecords />} />
+            <Route path="lupon/filed" element={<LuponRecords />} />
+            <Route path="lupon/against-me" element={<LuponRecords />} />
+            <Route path="lupon/hearings" element={<LuponRecords />} />
+            <Route path="lupon/history" element={<LuponRecords />} />
+            {/* The address the old single list lived at. */}
+            <Route path="lupon/cases" element={<Navigate to="/resident/lupon/filed" replace />} />
+            {/* Read only — the page says so, and the API offers no writer. */}
+            <Route path="health" element={<PortalHealthRecords />} />
             <Route path="announcements" element={<PortalAnnouncements />} />
-            <Route path="assistant" element={<PortalAssistant />} />
             {/* Folded into the profile page; keep the old address working. */}
-            <Route path="family" element={<Navigate to="/portal/profile" replace />} />
+            <Route path="family" element={<Navigate to="/resident/profile" replace />} />
             <Route path="profile" element={<PortalProfile />} />
           </Route>
 
@@ -180,11 +189,21 @@ export default function App() {
               that browses the registry. Every other office attaches a resident
               through the picker, which returns identity fields only. */}
           <Route element={<Guarded staffOnly allowedOffices={["Population"]} />}>
-            <Route path="/residents" element={<ResidentList />} />
+            {/*
+              The register moved under /population, where the office's other
+              pages live — and away from /resident, the portal, which it was
+              one letter from.
+
+              The old addresses still resolve: staff have these bookmarked,
+              and a bookmark that 404s teaches people the system is
+              unreliable. `*` carries the rest of the path across, so a link
+              to a particular person still lands on that person.
+            */}
+            <Route path="/residents/*" element={<Navigate to="/population/residents" replace />} />
+            <Route path="/population/residents" element={<ResidentList />} />
             {/* Their own list: relatives who live elsewhere are on the
                 register but are not constituents, and mixing them into
                 the purok roll makes both lists unusable. */}
-            <Route path="/residents/non-residents" element={<NonResidentList />} />
             {/*
               The SAME pages, at an address that says what the record is.
               /residents/911 could not tell the sidebar, the breadcrumb or a
@@ -193,11 +212,11 @@ export default function App() {
               whichever of the two it belongs on, so however you arrive, the
               address ends up true.
             */}
-            <Route path="/residents/non-residents/:id" element={<ResidentDetail />} />
-            <Route path="/residents/non-residents/:id/edit" element={<ResidentEdit />} />
-            <Route path="/residents/create" element={<ResidentCreate />} />
-            <Route path="/residents/:id" element={<ResidentDetail />} />
-            <Route path="/residents/:id/edit" element={<ResidentEdit />} />
+            <Route path="/population/residents/non-residents/:id" element={<ResidentDetail />} />
+            <Route path="/population/residents/non-residents/:id/edit" element={<ResidentEdit />} />
+            <Route path="/population/residents/create" element={<ResidentCreate />} />
+            <Route path="/population/residents/:id" element={<ResidentDetail />} />
+            <Route path="/population/residents/:id/edit" element={<ResidentEdit />} />
           </Route>
 
           {/* Counter verification — "is this person registered, and do they
@@ -208,17 +227,46 @@ export default function App() {
           </Route>
 
           {/* Front desk — request intake and the window queue. Main Office
-              only: the Lupon works its docket, not the service counter. */}
-          <Route element={<Guarded staffOnly allowedOffices={["Main Office"]} allowedRoles={["Punong Barangay"]} />}>
+              only: the Lupon works its docket, not the service counter.
+
+              Not the Secretary, mirroring deny_role:Secretary on the route.
+              The guard used to let them in and the server then refused, so
+              the page opened, asked, and showed a 403 it could not explain —
+              and with no line, an error with nothing behind it at all. */}
+          <Route element={<Guarded staffOnly allowedOffices={["Main Office"]} allowedRoles={["Punong Barangay"]} deniedRoles={["Secretary"]} />}>
             <Route path="/services" element={<ServiceRequestList />} />
           </Route>
 
           {/* Appointments sit behind the front desk but not with the Clerk,
               whose remit is requests & certificates (mirrors deny_role:Clerk). */}
           <Route element={<Guarded staffOnly allowedOffices={["Main Office"]} allowedRoles={["Punong Barangay"]} deniedRoles={["Clerk"]} />}>
-            <Route path="/appointments" element={<AppointmentScheduler />} />
             {/* The secretary's own record, which the PB reads and adopts. */}
             <Route path="/sessions" element={<Sessions />} />
+          </Route>
+
+          {/*
+            The consolidated return, SEGREGATED BY DEPARTMENT.
+
+            Its own guard because it is not the Main Office's alone any more:
+            each desk reads its OWN section, and the VAWC desk in particular
+            has a return to file that it was transcribing off its screens by
+            hand. WHICH section a desk gets is decided by the server from the
+            office it signed in as — widening this gate widens nothing else.
+
+            The Clerk stays out: certificates are their work, and a
+            consolidated return is not a document for the counter.
+          */}
+          <Route
+            element={
+              <Guarded
+                staffOnly
+                allowedOffices={["Main Office", "VAWC", "Lupon", "Health Station"]}
+                allowedRoles={["Punong Barangay"]}
+                deniedRoles={["Clerk"]}
+              />
+            }
+          >
+            <Route path="/reports/consolidated" element={<ConsolidatedReport />} />
           </Route>
 
           {/* Certificates & clearances — the clerk runs the counter end to
@@ -226,11 +274,14 @@ export default function App() {
           <Route element={<Guarded staffOnly allowedOffices={["Main Office"]} allowedRoles={["Punong Barangay"]} />}>
             <Route path="/certificates" element={<CertificateList />} />
             <Route path="/certificates/report" element={<CertificateReport />} />
+            {/* Lupon fees, taken at the Clerk's counter. The Lupon asks;
+                the Main Office collects and writes the receipt. */}
           </Route>
 
-          {/* Live chat desk — the Secretary answers the website's chat widget.
-              The Clerk is excluded: their remit is the service counter. */}
-          <Route element={<Guarded staffOnly allowedOffices={["Main Office"]} allowedRoles={["Punong Barangay"]} deniedRoles={["Clerk"]} />}>
+          {/* Live chat desk — the CLERK answers the website's chat widget now.
+              The person asked "how do I get a clearance?" should be the one
+              who issues it. Mirrors deny_role:Secretary on the API. */}
+          <Route element={<Guarded staffOnly allowedOffices={["Main Office"]} allowedRoles={["Punong Barangay"]} deniedRoles={["Secretary"]} />}>
             <Route path="/chat" element={<LiveChat />} />
           </Route>
 
@@ -238,8 +289,6 @@ export default function App() {
           <Route element={<Guarded staffOnly allowedOffices={["VAWC"]} />}>
             <Route path="/vawc/cases" element={<VawcCasesList />} />
             <Route path="/vawc/cases/:id" element={<VawcCaseDetail />} />
-            <Route path="/vawc/referrals" element={<VawcReferrals />} />
-            <Route path="/vawc/followups" element={<VawcFollowups />} />
             <Route path="/vawc/documents" element={<VawcDocuments />} />
             <Route path="/vawc/reports" element={<VawcReports />} />
           </Route>
@@ -266,10 +315,12 @@ export default function App() {
           {/* Population Office */}
           <Route element={<Guarded staffOnly allowedOffices={["Population"]} />}>
             <Route path="/population/households" element={<HouseholdList />} />
-            <Route path="/population/rbim" element={<CensusList />} />
+            {/* The census list lives on the Households page now. The old
+                address still works, so a bookmark or an old link lands
+                where the list actually is. */}
+            <Route path="/population/rbim" element={<Navigate to="/population/households" replace />} />
             <Route path="/population/rbim/new" element={<CensusForm />} />
             <Route path="/population/rbim/:id" element={<CensusForm />} />
-            <Route path="/population/events" element={<Events />} />
             <Route path="/population/sectors" element={<SectorLists />} />
             <Route path="/population/accounts" element={<ResidentAccounts />} />
           </Route>
@@ -279,6 +330,10 @@ export default function App() {
             <Route path="/health/visits" element={<PatientVisits />} />
             <Route path="/health/immunization" element={<Immunization />} />
             <Route path="/health/maternal-child" element={<MaternalChild />} />
+            {/* The barangay's zones and the BHW covering each. The station's
+                own staff are the BHWs, so the station keeps the list; every
+                office still READS it through /zones. */}
+            <Route path="/health/zones" element={<Zones />} />
           </Route>
 
           {/* Sangguniang Kabataan — manages public landing content */}

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { FiPlus } from "react-icons/fi";
+import { FiPlus, FiPrinter } from "react-icons/fi";
 import { errorMessage } from "../../../shared/lib/api";
 import { toast } from "../../../shared/lib/toast";
 import { confirmAction } from "../../../shared/lib/confirm";
@@ -8,12 +8,13 @@ import { usePulse } from "../../../shared/hooks/usePulse";
 import Card from "../../../shared/ui/Card";
 import DataTable from "../../../shared/ui/DataTable";
 import Modal from "../../../shared/ui/Modal";
+import { inputClasses } from "../../../shared/ui/FormField";
 import PageHeader from "../../../shared/ui/PageHeader";
-import FormField, { inputClasses } from "../../../shared/ui/FormField";
 import { announceWrite } from "../../../shared/lib/announceWrite";
 import type { Resident } from "../../../shared/types";
-import ResidentPicker from "../../resident/components/ResidentPicker";
 import { healthApi } from "../api";
+import { ItrConsultationForm } from "../components/ItrConsultationForm";
+import { blankItr, itrPayload, type ItrDraft } from "../lib/itr";
 import type { HealthVisit } from "../types";
 
 export default function PatientVisits() {
@@ -27,14 +28,18 @@ export default function PatientVisits() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [patient, setPatient] = useState<Resident | null>(null);
-  const [reason, setReason] = useState("");
-  const [temperature, setTemperature] = useState("");
-  const [bp, setBp] = useState("");
-  const [heartRate, setHeartRate] = useState("");
-  const [symptoms, setSymptoms] = useState("");
-  const [advice, setAdvice] = useState("");
-  const [referral, setReferral] = useState(false);
-  const [referralDest, setReferralDest] = useState("");
+  /*
+   * ONE DRAFT, not twenty useStates.
+   *
+   * The ITR block has nineteen fields. Each as its own pair of hooks would
+   * be forty lines of ceremony at the top of this file, and a reset that
+   * has to name every one of them — which is how a form comes to open
+   * holding the last patient's readings.
+   */
+  const [draft, setDraft] = useState<ItrDraft>(blankItr);
+
+  const set = <K extends keyof ItrDraft>(key: K, value: ItrDraft[K]) =>
+    setDraft((was) => ({ ...was, [key]: value }));
 
   /*
    * `silent` is for the background timer.
@@ -74,21 +79,15 @@ export default function PatientVisits() {
     event.preventDefault();
     if (!(await confirmAction({ title: "Record this patient visit?", confirmText: "Yes, record" }))) return;
     try {
-      const saved = await healthApi.recordVisit({
-        patient_id: patient?.id,
-        visit_date: new Date().toISOString().slice(0, 10),
-        visit_reason: reason,
-        temperature: temperature || undefined,
-        blood_pressure: bp || undefined,
-        heart_rate: heartRate || undefined,
-        symptoms: symptoms || undefined,
-        treatment_advice: advice || undefined,
-        referral_recommended: referral,
-        referral_destination: referral ? referralDest : undefined,
-      }, { offline: { label: `Patient visit — ${patient ? patient.first_name + " " + patient.last_name : "unnamed patient"}` } });
+      const saved = await healthApi.recordVisit(
+        itrPayload(draft, patient?.id),
+        { offline: { label: `Patient visit — ${patient ? patient.first_name + " " + patient.last_name : "unnamed patient"}` } },
+      );
       setCreateOpen(false);
+      /* Cleared together. A form that opens holding the last patient's
+         readings is how one person's blood pressure lands on another. */
       setPatient(null);
-      setReason("");
+      setDraft(blankItr());
       announceWrite(saved, "Visit recorded.");
       load();
     } catch (err) {
@@ -102,18 +101,43 @@ export default function PatientVisits() {
         title="Patient Visits & Triage"
         subtitle="Consultations, vital signs, and referrals at the Barangay Health Station"
         actions={
-          <button
-            type="button"
-            onClick={() => setCreateOpen(true)}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
-          >
-            <FiPlus className="h-4 w-4" aria-hidden="true" /> Record visit
-          </button>
+          <div className="flex gap-2 print-hide">
+            {/*
+              A station keeps paper. The day's consultations get printed and
+              filed in the family folder alongside the ITR itself, and until
+              now the only way to get them onto paper was to write them out
+              again. Prints WHAT IS ON SCREEN, so the date filter above is
+              also the thing that chooses what comes out.
+            */}
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-gray px-5 py-2.5 text-sm font-semibold text-dark transition-colors hover:border-primary hover:text-primary"
+            >
+              <FiPrinter className="h-4 w-4" aria-hidden="true" /> Print
+            </button>
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
+            >
+              <FiPlus className="h-4 w-4" aria-hidden="true" /> Record visit
+            </button>
+          </div>
         }
       />
 
-      <Card>
-        <div className="mb-4 flex items-center gap-3">
+      {/* Only on paper: a sheet in a family folder has to say what it is
+          and which day it covers, which the screen says in its header. */}
+      <div className="print-only mb-4 hidden">
+        <p className="text-base font-bold">Barangay Natumolan Health Station</p>
+        <p className="text-sm">
+          Patient consultations{date ? ` — ${new Date(date).toLocaleDateString("en-PH")}` : ""}
+        </p>
+      </div>
+
+      <Card className="print-plain">
+        <div className="mb-4 flex print-hide items-center gap-3">
           <input
             type="date"
             value={date}
@@ -167,51 +191,35 @@ export default function PatientVisits() {
         />
       </Card>
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Record Patient Visit" wide>
-        <form onSubmit={create} className="grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <FormField label="Patient" required plain>
-              <ResidentPicker value={patient} onChange={setPatient} />
-            </FormField>
-          </div>
-          <div className="sm:col-span-2">
-            <FormField label="Reason for visit" required>
-              <input value={reason} onChange={(e) => setReason(e.target.value)} required className={inputClasses} />
-            </FormField>
-          </div>
-          <FormField label="Temperature (°C)">
-            <input type="number" step="0.1" value={temperature} onChange={(e) => setTemperature(e.target.value)} className={inputClasses} />
-          </FormField>
-          <FormField label="Blood pressure">
-            <input value={bp} onChange={(e) => setBp(e.target.value)} className={inputClasses} placeholder="120/80" />
-          </FormField>
-          <FormField label="Heart rate (bpm)">
-            <input type="number" value={heartRate} onChange={(e) => setHeartRate(e.target.value)} className={inputClasses} />
-          </FormField>
-          <FormField label="Symptoms">
-            <input value={symptoms} onChange={(e) => setSymptoms(e.target.value)} className={inputClasses} />
-          </FormField>
-          <div className="sm:col-span-2">
-            <FormField label="Treatment / advice">
-              <textarea value={advice} onChange={(e) => setAdvice(e.target.value)} rows={2} className={`${inputClasses} resize-none`} />
-            </FormField>
-          </div>
-          <FormField label="Refer to higher facility?">
-            <label className="flex h-[42px] cursor-pointer items-center gap-2 text-sm">
-              <input type="checkbox" checked={referral} onChange={(e) => setReferral(e.target.checked)} className="h-4 w-4 accent-primary" />
-              Yes
-            </label>
-          </FormField>
-          <FormField label="Referral destination">
-            <input value={referralDest} onChange={(e) => setReferralDest(e.target.value)} disabled={!referral} className={inputClasses} placeholder="RHU / Hospital" />
-          </FormField>
-          <div className="sm:col-span-2">
+      {/*
+        The consultation block of the ITR, in the paper's own order.
+
+        It asked for three vital signs; the form asks for eleven. A midwife
+        recording a prenatal check had nowhere to put the fundal height, the
+        fetal heart tone, the age of gestation or the presentation — which,
+        for that patient, are the whole examination.
+      */}
+      <Modal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="Individual Treatment Record — consultation"
+        size="xl"
+      >
+        <form onSubmit={create} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ItrConsultationForm
+            draft={draft}
+            set={set}
+            patient={patient}
+            onPatient={setPatient}
+          />
+
+          <div className="sm:col-span-2 lg:col-span-3">
             <button
               type="submit"
               disabled={!patient}
               className="w-full cursor-pointer rounded-full bg-primary py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark disabled:opacity-50"
             >
-              Save visit
+              Record consultation
             </button>
           </div>
         </form>

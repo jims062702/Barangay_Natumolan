@@ -1,3 +1,4 @@
+import NeedsConnection from "../../../shared/offline/NeedsConnection";
 import { FiEdit2, FiPlus } from "react-icons/fi";
 import Card from "../../../shared/ui/Card";
 import Modal from "../../../shared/ui/Modal";
@@ -22,6 +23,7 @@ export default function UserManagement({
   const {
     user, createOpen, setCreateOpen, name, setName, email, setEmail, password, setPassword,
     role, setRole, openSelf, create,
+  offline,
   } = ctx;
 
   return (
@@ -47,6 +49,10 @@ export default function UserManagement({
           ) : undefined
         }
       />
+
+      {offline && (
+        <NeedsConnection what="the account list" why="Who may do what is decided by the server every time it is asked, so accounts are never read from a copy held here." />
+      )}
 
       {/*
         Your own account, on the staff register only.

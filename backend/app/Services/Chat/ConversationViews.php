@@ -67,7 +67,7 @@ final class ConversationViews
             'sender' => $message->sender,
             // Staff messages are signed, so the resident knows who answered.
             'sender_name' => $message->sender === 'agent'
-                ? ($message->user?->name ?? 'Barangay Secretary')
+                ? ($message->user?->name ?? 'Barangay Clerk')
                 : null,
             'body' => $message->body,
             'created_at' => $message->created_at,
@@ -77,7 +77,7 @@ final class ConversationViews
     /**
      * Where this person stands in the line.
      *
-     * One Secretary answers one person at a time, so anybody who is not first
+     * One Clerk answers one person at a time, so anybody who is not first
      * is waiting behind somebody — and a wait with no number attached feels
      * like being ignored. Telling them they are third is the difference
      * between waiting and wondering whether the thing is broken at all.

@@ -1,10 +1,11 @@
 import Modal from "../../../../shared/ui/Modal";
 import FormField, { inputClasses } from "../../../../shared/ui/FormField";
 import PhoneInput from "../../../../shared/ui/PhoneInput";
-import ChoiceGroup from "../../../../shared/ui/ChoiceGroup";
 import { Band } from "../Band";
 import ResidentPicker from "../../../resident/components/ResidentPicker";
-import { REPORTING_CHANNELS, VIOLENCE_TYPES, localNow, RISK_LEVELS, OFFENDER_RELATIONSHIPS, IMMEDIATE_NEEDS } from "../../lib/caseOptions";
+import {
+  VIOLENCE_TYPES, localNow, OFFENDER_RELATIONSHIPS, REPORTER_RELATIONSHIPS,
+} from "../../lib/caseOptions";
 import ResidentMultiPicker from "../../../resident/components/ResidentMultiPicker";
 import type { CaseRegistryState } from "../../hooks/useCaseRegistry";
 
@@ -17,27 +18,33 @@ export function IntakeModal({ ctx }: { ctx: CaseRegistryState }) {
     setReportedByOther, reporterOffRegister, reportedByName, setReportedByName,
     reportedByResident, pickReporter, setReporterOffRegister, setReportedByResident,
     setReportedByContact, reportedByRelationship, setReportedByRelationship, fromRecord,
-    reportedByContact, channel, setChannel, violenceType, setViolenceType, occurredAt,
-    setOccurredAt, incidentLocation, setIncidentLocation, isOngoing, setIsOngoing,
-    offenderNearby, setOffenderNearby, riskLevel, setRiskLevel, relationship, setRelationship,
+    reportedByContact, violenceType, setViolenceType, occurredAt,
+    setOccurredAt, incidentLocation, setIncidentLocation, relationship, setRelationship,
     relationshipOther, setRelationshipOther, reportedAt, setReportedAt, setDependents,
-    previousIncidents, setPreviousIncidents, needs, toggleNeed, needsOther, setNeedsOther,
-    narrative, setNarrative, notes, setNotes,
+    notes, setNotes,
+    respondent, setRespondent,
+    applicantConsent, setApplicantConsent,
   } = ctx;
 
   return (
     <Modal open={intakeOpen} onClose={closeIntake} title="Confidential Client Intake" size="xl">
       <form onSubmit={intake} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Band
-          title="A. Survivor and reporter"
+          title="A. Applicant and reporter"
           hint="Who this case is about, and who brought it in."
         />
         <div className="sm:col-span-2 lg:col-span-3">
-          <FormField label="Survivor (resident record)" required plain>
+          <FormField label="Applicant" required plain>
+            {/* The respondent is excluded here as well as the other way
+                round. The rule is one rule, and a form that enforces it in
+                only one direction is passed by picking in the other order. */}
             <ResidentPicker
               value={survivor}
               onChange={setSurvivor}
-              excludeIds={dependents.map((d) => d.id)}
+              excludeIds={[
+                ...dependents.map((d) => d.id),
+                ...(respondent ? [respondent.id] : []),
+              ]}
             />
           </FormField>
         </div>
@@ -50,9 +57,17 @@ export function IntakeModal({ ctx }: { ctx: CaseRegistryState }) {
               onChange={(e) => setReportedByOther(e.target.checked)}
               className="h-4 w-4 cursor-pointer accent-primary"
             />
-            Reported by someone other than the survivor
+            Reported by someone other than the applicant
           </label>
-          <div className="grid gap-4 sm:grid-cols-3">
+          {/*
+            Hidden until the box is ticked, not merely disabled.
+
+            Three greyed-out boxes sat under this checkbox on every intake,
+            and most intakes are the applicant themselves — so the commonest
+            case was the one that showed the most dead controls. A field that
+            cannot apply should not be on the form at all.
+          */}
+          <div className="grid gap-4 sm:grid-cols-3" hidden={!reportedByOther}>
             <FormField label="Name" plain>
               {reporterOffRegister ? (
                 <input
@@ -68,7 +83,10 @@ export function IntakeModal({ ctx }: { ctx: CaseRegistryState }) {
                 <ResidentPicker
                   value={reportedByResident}
                   onChange={pickReporter}
-                  excludeIds={survivor ? [survivor.id] : []}
+                  excludeIds={[
+                    ...(survivor ? [survivor.id] : []),
+                    ...(respondent ? [respondent.id] : []),
+                  ]}
                 />
               )}
 
@@ -90,13 +108,15 @@ export function IntakeModal({ ctx }: { ctx: CaseRegistryState }) {
                 </button>
               )}
             </FormField>
-            <FormField label="Relationship to survivor">
-              <input
+            <FormField label="Relationship to applicant">
+              <select
                 value={reportedByRelationship}
-                disabled={!reportedByOther}
                 onChange={(e) => setReportedByRelationship(e.target.value)}
                 className={inputClasses}
-              />
+              >
+                <option value="">Not recorded</option>
+                {REPORTER_RELATIONSHIPS.map((r) => <option key={r}>{r}</option>)}
+              </select>
             </FormField>
             {/*
               Three situations, and the field says which one it is in.
@@ -124,22 +144,89 @@ export function IntakeModal({ ctx }: { ctx: CaseRegistryState }) {
               <PhoneInput
                 value={reportedByContact}
                 onChange={setReportedByContact}
-                disabled={!reportedByOther || fromRecord}
+                disabled={fromRecord}
               />
             </FormField>
+            {/*
+              Item 9 of the application: "if applicant is not the victim,
+              state the circumstance of consent".
+
+              It sits inside this block and nowhere else, because outside it
+              the question does not arise — when the applicant IS the victim
+              there is no consent to account for. RA 9262 lets a parent,
+              ascendant or relative apply on her behalf; the circumstance is
+              what shows the application is one of those.
+            */}
+            <div className="sm:col-span-3">
+              <FormField
+                label="Circumstance of consent"
+                hint="Why this person may apply on the victim's behalf. Stored encrypted."
+              >
+                <textarea
+                  value={applicantConsent}
+                  onChange={(e) => setApplicantConsent(e.target.value)}
+                  rows={2}
+                  maxLength={1000}
+                  className={`${inputClasses} resize-none`}
+                  placeholder="Victim is a minor in the applicant's care; victim consented verbally at the counter…"
+                />
+              </FormField>
+            </div>
           </div>
         </div>
 
-        <FormField label="How the complaint reached us">
-          <select value={channel} onChange={(e) => setChannel(e.target.value)} className={inputClasses}>
-            <option value="">Not recorded</option>
-            {REPORTING_CHANNELS.map((c) => <option key={c}>{c}</option>)}
-          </select>
-        </FormField>
+        {/*
+          "How the complaint reached us" is gone: every case here is taken at
+          the counter, so the question had one true answer and six wrong ones.
+        */}
+
+        {/*
+          Item 4 of the Application for Barangay Protection Order.
+
+          THE RESPONDENT MUST LIVE IN THIS BARANGAY. A barangay protection
+          order is issued by this barangay against one of its own; the Punong
+          Barangay has no power over somebody who lives elsewhere, and an
+          order naming them is one nobody can serve or enforce. So there is no
+          "type the details" path here and no typed name — only the register,
+          and only the part of it that lives here.
+
+          The APPLICANT above is deliberately unrestricted. A woman may apply
+          whoever she is and wherever she lives; it is where the RESPONDENT
+          lives that decides whether this barangay may act at all.
+
+          Everything else item 4 asks for — birth date, sex, address,
+          telephone, occupation, civil status — is already on their resident
+          record, and the order is drawn from the record rather than from a
+          copy taken here, so it reaches where they live now.
+        */}
+        <Band
+          title="B. The respondent"
+          hint="Who the complaint is against. Must live in this barangay — that is what lets the Punong Barangay issue an order against them."
+        />
+
+        <div className="sm:col-span-2 lg:col-span-3">
+          <FormField label="Respondent" plain>
+            {/*
+              The applicant and the children cannot be picked here: an order
+              restraining the person it protects is not one anybody can serve.
+              Two people share a name often enough that the picker shows age
+              and purok under each, and keeps showing them after the pick.
+            */}
+            <ResidentPicker
+              value={respondent}
+              onChange={setRespondent}
+              residentsOnly
+              excludeIds={[
+                ...(survivor ? [survivor.id] : []),
+                ...dependents.map((d) => d.id),
+              ]}
+            />
+          </FormField>
+        </div>
 
         <Band
-          title="B. The incident, and how dangerous it is now"
-          hint="Everything above is who. This is what happened — and whether it is still happening."
+          title="C. The incident"
+          hint="Everything above is who. This is what happened."
         />
 
         {/*
@@ -192,67 +279,7 @@ export function IntakeModal({ ctx }: { ctx: CaseRegistryState }) {
           />
         </FormField>
 
-        {/*
-          The two questions the old form never asked, and the only two that
-          are about tonight. An officer reading this decides whether to go
-          now or to schedule a visit.
-        */}
-        {/*
-          The two questions that are about tonight.
-
-          ChoiceGroup rather than hand-rolled buttons, so the chosen answer
-          carries a TICK and not only a shade of colour — and so that
-          nothing is ticked until somebody actually chooses. "Not known" is
-          an answer here, not the absence of one.
-        */}
-        <div className="sm:col-span-2 lg:col-span-3 grid gap-4 sm:grid-cols-2">
-          <ChoiceGroup
-            label="Is the incident still going on?"
-            value={isOngoing}
-            onChange={setIsOngoing}
-            clearable
-            onClear={() => setIsOngoing(null)}
-            options={[
-              { value: "yes", label: "Yes" },
-              { value: "no", label: "No" },
-              { value: "unknown", label: "Not known" },
-            ]}
-          />
-
-          <ChoiceGroup
-            label="Is the alleged offender with or near her now?"
-            value={offenderNearby}
-            onChange={setOffenderNearby}
-            clearable
-            onClear={() => setOffenderNearby(null)}
-            options={[
-              { value: "yes", label: "Yes", hint: "Treat this as immediate danger." },
-              { value: "no", label: "No" },
-              { value: "unknown", label: "Not known" },
-            ]}
-          />
-        </div>
-
-        {/*
-          The officer's own judgement, in words rather than colours. It is
-          the first assessment, not the last: every follow-up re-states it,
-          so the docket shows what was last seen and not what was first
-          assumed.
-        */}
-        <FormField
-          label="Risk level"
-          hint="Your assessment now. Each follow-up updates it."
-        >
-          <select
-            value={riskLevel}
-            onChange={(e) => setRiskLevel(e.target.value)}
-            className={inputClasses}
-          >
-            <option value="">Not assessed yet</option>
-            {RISK_LEVELS.map((level) => <option key={level}>{level}</option>)}
-          </select>
-        </FormField>
-        <FormField label="Relationship to alleged offender">
+        <FormField label="Relationship of the victim to the respondent">
           <select
             value={relationship}
             onChange={(e) => setRelationship(e.target.value)}
@@ -292,79 +319,24 @@ export function IntakeModal({ ctx }: { ctx: CaseRegistryState }) {
             <ResidentMultiPicker
               value={dependents}
               onChange={setDependents}
-              excludeIds={survivor ? [survivor.id] : []}
+              excludeIds={[
+                ...(survivor ? [survivor.id] : []),
+                ...(respondent ? [respondent.id] : []),
+              ]}
             />
           </FormField>
         </div>
-        <FormField label="Previous incidents">
-          <input
-            type="number"
-            min="0"
-            value={previousIncidents}
-            onChange={(e) => setPreviousIncidents(e.target.value)}
-            className={inputClasses}
-          />
-        </FormField>
-
-        {/*
-          Needs as a list rather than a paragraph.
-
-          Free text could not be counted, so nobody could answer "how many
-          survivors this quarter needed shelter?" — which is the question a
-          barangay budget is built on. "Other" stays, because the need
-          nobody anticipated is exactly the one worth reading.
-        */}
-        <div className="sm:col-span-2 lg:col-span-3">
-          <FormField plain label="Immediate needs" hint="Stored encrypted. Tick all that apply.">
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {IMMEDIATE_NEEDS.map((need) => (
-                <label
-                  key={need}
-                  className="flex cursor-pointer items-center gap-2 rounded-xl border border-gray px-3 py-2 text-sm text-dark transition-colors hover:border-primary"
-                >
-                  <input
-                    type="checkbox"
-                    checked={needs.includes(need)}
-                    onChange={() => toggleNeed(need)}
-                    className="h-4 w-4 cursor-pointer accent-primary"
-                  />
-                  {need}
-                </label>
-              ))}
-            </div>
-          </FormField>
-
-          <div className="mt-2">
-            <FormField label="Anything else she needs">
-              <input
-                value={needsOther}
-                onChange={(e) => setNeedsOther(e.target.value)}
-                className={inputClasses}
-                placeholder="Not on the list above"
-              />
-            </FormField>
-          </div>
-        </div>
-
         <Band
-          title="C. Confidential case notes"
+          title="D. Confidential case notes"
           hint="Encrypted, and visible to VAWC personnel only."
         />
 
-        <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2 lg:col-span-3">
-          <FormField label="Incident narrative" hint="Stored encrypted">
-            <textarea
-              value={narrative}
-              onChange={(e) => setNarrative(e.target.value)}
-              rows={2}
-              className={`${inputClasses} resize-none`}
-            />
-          </FormField>
+        <div className="grid gap-4 sm:col-span-2 lg:col-span-3">
           <FormField label="Confidential interview notes" hint="Visible to VAWC personnel only">
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              rows={2}
+              rows={3}
               className={`${inputClasses} resize-none`}
             />
           </FormField>

@@ -6,7 +6,6 @@ import { toast } from "../../../shared/lib/toast";
 import { confirmAction } from "../../../shared/lib/confirm";
 import type { Resident, FamilyMember } from "../../../shared/types";
 import { MANUAL_SECTORS } from "../lib/sectors";
-import { defaultPortalPassword } from "../lib/portalPassword";
 import { memberName } from "../components/family/memberFormat";
 import { residentApi } from "../api";
 import { populationApi } from "../../population/api";
@@ -34,8 +33,6 @@ export function useResidentRecord() {
   const [sectorValidUntil, setSectorValidUntil] = useState("");
   const [accountOpen, setAccountOpen] = useState(false);
   const [accountEmail, setAccountEmail] = useState("");
-  const [passOpen, setPassOpen] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
   // Which of Add parent / Add child / Add spouse is open, if any.
   const [relation, setRelation] = useState<Relation | null>(null);
   /*
@@ -200,38 +197,14 @@ export function useResidentRecord() {
   };
 
   // Open the change-password modal with the default password pre-filled.
-  const openChangePassword = () => {
-    if (!resident) return;
-    setNewPassword(defaultPortalPassword(resident.last_name, resident.birthdate));
-    setPassOpen(true);
-  };
-
-  const changePassword = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (
-      !(await confirmAction({
-        title: "Change this account's password?",
-        confirmText: "Yes, change",
-      }))
-    )
-      return;
-    try {
-      await populationApi.setResidentPassword(id, { password: newPassword });
-      setPassOpen(false);
-      toast("Portal account password updated. Share the new password securely.");
-    } catch (err) {
-      toast(errorMessage(err), "error");
-    }
-  };
 
   return {
     id, navigate, pathname, user, resident, setResident, loadError, setLoadError, sectorOpen,
     setSectorOpen, sectorType, setSectorType, sectorRef, setSectorRef, sectorIssued,
     setSectorIssued, sectorValidUntil, setSectorValidUntil, accountOpen, setAccountOpen,
-    accountEmail, setAccountEmail, passOpen, setPassOpen, newPassword, setNewPassword,
+    accountEmail, setAccountEmail,
     relation, setRelation, endingGuardian, setEndingGuardian, isBpo, canEdit, load, addSector,
-    removeSector, unlinkRelative, issueAccount, resendActivation, openChangePassword,
-    changePassword,
+    removeSector, unlinkRelative, issueAccount, resendActivation,
   };
 }
 

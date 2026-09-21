@@ -27,9 +27,7 @@ Route::prefix('population')->middleware('office:Population')->group(function () 
     Route::get('analytics', [AnalyticsController::class, 'index']);
     Route::get('reports/sectoral', [SectorController::class, 'report']);
     Route::post('residents/{resident}/create-account', [ResidentAccountController::class, 'store']);
-    Route::post('residents/{resident}/change-password', [ResidentAccountController::class, 'changePassword']);
     Route::get('accounts', [ResidentAccountController::class, 'index']);
-    Route::post('accounts/{user}/toggle', [ResidentAccountController::class, 'toggle']);
     // "I never got the email" — sends a fresh activation code.
     Route::post('accounts/{user}/resend-activation', [ResidentAccountController::class, 'resendActivation']);
 
@@ -38,5 +36,4 @@ Route::prefix('population')->middleware('office:Population')->group(function () 
     | their email. Residents only — enforced in the controller, not
     | here, because a route file is not where that belongs.
     */
-    Route::post('accounts/{user}/reset-password', [ResidentAccountController::class, 'resetPassword']);
 });

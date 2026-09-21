@@ -1,5 +1,5 @@
 /**
- * Requests, certificates and appointments — used by the counter, the
+ * Requests and certificates — used by the counter, the
  * portal and the dashboards alike.
  */
 
@@ -21,7 +21,6 @@ export interface ServiceRequest {
   resident?: Resident | null;
   assigned_user?: User | null;
   certificate?: Certificate | null;
-  appointments?: Appointment[];
 }
 
 export interface Certificate {
@@ -76,43 +75,4 @@ export interface Certificate {
   processor?: Partial<User> | null;
   signer?: Partial<User> | null;
   releaser?: Partial<User> | null;
-}
-
-export interface Appointment {
-  id: number;
-  appointment_number: string;
-  service_request_id?: number | null;
-  resident_id: number;
-  office: string;
-  scheduled_datetime: string;
-  status: string;
-  notes?: string | null;
-  cancellation_reason?: string | null;
-  resident?: Resident | null;
-
-  /*
-   * What actually happened, as against what was booked.
-   *
-   * Separate from `status`: an appointment can be Completed with nobody
-   * present — the office did its part and the resident did not come — and
-   * one field cannot say both. Written by the secretary, so every one of
-   * these is absent until they have.
-   */
-  attendance?: "Awaiting" | "Present" | "Absent" | "Late" | null;
-  /** Times on the booked day, "HH:mm" or "HH:mm:ss" depending on the driver. */
-  started_at?: string | null;
-  ended_at?: string | null;
-  minutes?: string | null;
-  minuted_at?: string | null;
-
-  /*
-   * A visitor the register has never heard of.
-   *
-   * One of `resident` or `guest_name` is always set. A guest has no record to
-   * look a phone number up in, which is why theirs travels with the row.
-   */
-  guest_name?: string | null;
-  guest_email?: string | null;
-  guest_contact?: string | null;
-  purpose?: string | null;
 }

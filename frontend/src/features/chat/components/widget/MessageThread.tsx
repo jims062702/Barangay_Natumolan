@@ -1,7 +1,7 @@
 import type { ChatWidgetState } from "../../hooks/useChatWidget";
 
 /**
- * The conversation itself — with the assistant, or with the Secretary.
+ * The conversation itself — with the assistant, or with the Clerk.
  */
 export function MessageThread({ ctx }: { ctx: ChatWidgetState }) {
   const {
@@ -15,7 +15,7 @@ export function MessageThread({ ctx }: { ctx: ChatWidgetState }) {
 <>
 {liveStatus === "Waiting" && (
 <p className="rounded-2xl bg-warning/15 px-4 py-2.5 text-xs leading-relaxed text-dark">
-You are in the queue. The Barangay Secretary will join shortly — you can keep
+You are in the queue. The Barangay Clerk will join shortly — you can keep
 typing in the meantime, and everything you send will be waiting for them.
 </p>
 )}

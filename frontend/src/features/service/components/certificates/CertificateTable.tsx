@@ -33,8 +33,11 @@ export function CertificateTable({ ctx }: { ctx: CertificateDeskState }) {
             }`}
           >
             {status || "All"}
-            {status && counts[status] ? (
-              <span className="ml-1.5 opacity-70">{counts[status]}</span>
+            {/* "All" counts the same list the chips divide, so the numbers add up on sight. */}
+            {(status ? counts[status] : Object.values(counts).reduce((sum, n) => sum + n, 0)) ? (
+              <span className="ml-1.5 opacity-70">
+                {status ? counts[status] : Object.values(counts).reduce((sum, n) => sum + n, 0)}
+              </span>
             ) : null}
           </button>
         ))}
@@ -101,7 +104,7 @@ export function CertificateTable({ ctx }: { ctx: CertificateDeskState }) {
             render: (c: Certificate) =>
               c.service_request?.request_type ? (
                 <span
-                  className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                  className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold ${
                     c.service_request.request_type === "Online"
                       ? "bg-primary/10 text-primary"
                       : "bg-secondary text-gray-600"
@@ -173,7 +176,7 @@ export function CertificateTable({ ctx }: { ctx: CertificateDeskState }) {
         numbered
         total={total}
         searchable
-        searchPlaceholder="Search by name, certificate #, or reference…"
+        searchPlaceholder="Search by name, certificate number or reference…"
         /*
           The purok and the number are searchable too, so a clerk ringing
           round the ones ready to claim can pull up a whole purok at once

@@ -1,10 +1,11 @@
 import axios, { type InternalAxiosRequestConfig } from "axios";
 import { isOffline, noteReachable, noteUnreachable } from "../offline/connectivity";
+import { cacheable, rememberRead, rememberedRead } from "../offline/readCache";
 
 /**
  * What a call site passes to let a write wait for the line.
  *
- *   api.post("/appointments", body, { offline: { label: "Appointment — Juan" } })
+ *   api.post("/certificates", body, { offline: { label: "Clearance — Juan" } })
  *
  * OPT-IN, deliberately. Nothing is queued unless the call asks, so every
  * write that has not been looked at keeps behaving exactly as it did. That
@@ -22,6 +23,13 @@ export interface OfflineOption {
 declare module "axios" {
   interface AxiosRequestConfig {
     offline?: OfflineOption;
+  }
+
+  interface AxiosResponse {
+    /** True when this answer came off the device rather than the server. */
+    fromCache?: boolean;
+    /** When the server last gave it. */
+    cachedAt?: string;
   }
 }
 
@@ -111,6 +119,16 @@ api.interceptors.response.use(
     /* It came back, so the line is up. */
     noteReachable();
 
+    /*
+     * Kept for the next time there is no line.
+     *
+     * Not awaited: the page has its answer and must not wait on a write to
+     * IndexedDB to render it.
+     */
+    if (cacheable(response.config)) {
+      void rememberRead(response.config, response.data);
+    }
+
     return response;
   },
   (error) => {
@@ -122,6 +140,37 @@ api.interceptors.response.use(
      */
     if (!error.response) {
       noteUnreachable();
+
+      /*
+       * No line, but the device has read this screen before.
+       *
+       * Answered from that copy rather than rejected, so every office keeps
+       * working the way the counter does — the health station's visit list,
+       * the Lupon's docket, the session record. The answer is MARKED, so a
+       * page that wants to say "these are the last figures the office could
+       * see" can, and so nothing downstream mistakes it for live.
+       *
+       * What is never kept this way — the VAWC desk, accounts, the chat desk,
+       * the resident portal — is listed in readCache.ts, with the reason for
+       * each.
+       */
+      if (error.config && cacheable(error.config)) {
+        return rememberedRead(error.config).then((held) => {
+          if (!held) {
+            return Promise.reject(error);
+          }
+
+          return {
+            data: held.data,
+            status: 200,
+            statusText: "OK (from this device)",
+            headers: {},
+            config: error.config,
+            fromCache: true,
+            cachedAt: held.at,
+          };
+        });
+      }
 
       return Promise.reject(error);
     }

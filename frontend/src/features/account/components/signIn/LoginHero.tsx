@@ -71,7 +71,7 @@ export function LoginHero() {
           {/* white/90, not /75: measured at 4.3:1 over the photo, which is under
               AA. The flat illustration this replaced was darker here. */}
           <p className="mt-6 max-w-sm text-sm leading-relaxed text-white/90">
-            One system for certificates, requests, appointments, and barangay
+            One system for certificates, requests, and barangay
             services — serving every Natumolanon with transparency, unity,
             and excellence.
           </p>

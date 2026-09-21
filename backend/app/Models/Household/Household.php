@@ -4,6 +4,7 @@ namespace App\Models\Household;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Models\Resident\Resident;
 
@@ -30,6 +31,19 @@ class Household extends Model
     }
 
     /** Every hand-over this house has been through, newest first. */
+    /**
+     * The RBIM census sheet this household came from, if it came from one.
+     *
+     * hasOne rather than hasMany: a household is censused once and the sheet
+     * is re-submitted as the household changes, so there is one form per
+     * house. It is read on the Household Registry so the office does not
+     * have to look the same household up in two lists.
+     */
+    public function census(): HasOne
+    {
+        return $this->hasOne(\App\Models\Rbim\Census::class);
+    }
+
     public function ownerChanges(): HasMany
     {
         return $this->hasMany(OwnerChange::class)->orderByDesc('id');

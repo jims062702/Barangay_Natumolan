@@ -3,7 +3,6 @@ import { FaFacebookF, FaFacebookMessenger, FaEnvelope } from "react-icons/fa";
 import { FiMapPin, FiPhone, FiMail, FiClock } from "react-icons/fi";
 import SectionTitle from "../components/SectionTitle";
 import ContactForm from "../components/ContactForm";
-import AppointmentRequestForm from "../components/AppointmentRequestForm";
 import Reveal from "../../../shared/ui/Reveal";
 
 interface InfoItem {
@@ -117,14 +116,14 @@ export default function Contact() {
           chat button. Given the whole width it reads as one short form
           instead of a long one.
         */}
-        <Reveal delay={0.05} className="mt-12">
-          <div
-            id="appointment"
-            className="rounded-3xl border border-primary/15 bg-white p-6 shadow-lg shadow-primary/5 sm:p-8 lg:p-10"
-          >
-            <AppointmentRequestForm />
-          </div>
-        </Reveal>
+        {/*
+          The appointment request form is gone from the public site.
+
+          It took a booking from anybody who could type an email, with no
+          record to attach it to — and the barangay no longer books
+          appointments through the portal either. Somebody who needs one
+          comes to the hall or rings the number above.
+        */}
 
         {/* Map */}
         <Reveal delay={0.1} className="mt-14">

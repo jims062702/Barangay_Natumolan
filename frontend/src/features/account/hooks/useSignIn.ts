@@ -23,6 +23,19 @@ export function useSignIn() {
   const [code, setCode] = useState("");
 
   /*
+   * "The email on my account is wrong and I cannot read the code."
+   *
+   * The dead end this opens: the office registered the account against an
+   * address the resident cannot reach, so the code goes somewhere they
+   * cannot look and resending it forever changes nothing. Typing a readable
+   * address here sends the code THERE, and entering it both moves the
+   * address across and activates the account.
+   *
+   * Null while the panel is closed; a string while they are typing.
+   */
+  const [newEmail, setNewEmail] = useState<string | null>(null);
+
+  /*
    * The forgotten-password detour.
    *
    * "ask" collects the address, "code" collects what was emailed plus the new
@@ -93,9 +106,38 @@ export function useSignIn() {
     }
   };
 
+  /** Points the account at an address they can actually read. */
+  const submitNewEmail = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setNotice("");
+    setLoading(true);
+    try {
+      const response = await authApi.changeEmailBeforeActivation({
+        email,
+        password,
+        new_email: newEmail,
+      });
+      setNotice(response.data.message);
+      /*
+       * The panel closes and the code box is cleared, but `activation.email`
+       * deliberately still names the ORIGINAL address: that is what the
+       * account is called until the code proves the new one, and it is what
+       * the activation call has to send.
+       */
+      setNewEmail(null);
+      setCode("");
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const cancelActivation = () => {
     setActivation(null);
     setCode("");
+    setNewEmail(null);
     setError("");
     setNotice("");
   };
@@ -194,6 +236,7 @@ export function useSignIn() {
     setForgot, resetCode, setResetCode, newPassword, setNewPassword, newPasswordAgain,
     setNewPasswordAgain, login, activate, navigate, handleSubmit, submitCode, resend,
     cancelActivation, askForCode, checkCode, useCode, leaveForgot,
+    newEmail, setNewEmail, submitNewEmail,
   };
 }
 

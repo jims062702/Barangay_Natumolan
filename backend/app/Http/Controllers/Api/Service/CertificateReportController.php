@@ -43,6 +43,15 @@ class CertificateReportController extends BaseController
             ->all();
 
         /*
+         * "All time" carries a figure too.
+         *
+         * The strip reads as a ladder — today inside this week inside this
+         * month — and the top rung had no number, so the one chip that says
+         * how many there are altogether was the one that said nothing.
+         */
+        $counts['all'] = Certificate::count();
+
+        /*
          * The breakdown follows whichever window the clerk picked, so "what
          * are people asking for this month" and "what did they ask for all
          * year" are the same screen.

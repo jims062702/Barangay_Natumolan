@@ -24,3 +24,26 @@ export function formatWallClock(
   const date = parseWallClock(value);
   return date ? date.toLocaleString("en-PH", options) : "—";
 }
+
+/**
+ * The OTHER kind: a true UTC instant, shown in the viewer's own zone.
+ *
+ * The note above names both kinds but only ever gave one of them a function,
+ * so every instant had to be hand-written as `new Date(x).toLocaleString(...)`
+ * at its call site — and `formatWallClock` sat one import away, spelled almost
+ * the same, doing the opposite thing. A VAWC report taken at 12:41 PM was
+ * stored correctly as 04:41Z and then displayed as 4:41 AM, because the
+ * wall-clock parser strips the Z and reads 04:41 as a local hour.
+ *
+ * Use this for anything the SERVER timestamped — report_date, created_at,
+ * approved_at. Use formatWallClock for anything a person typed into a date or
+ * time box and expects to read back exactly as typed.
+ */
+export function formatInstant(
+  value: string | null | undefined,
+  options: Intl.DateTimeFormatOptions = { dateStyle: "medium", timeStyle: "short" }
+): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("en-PH", options);
+}

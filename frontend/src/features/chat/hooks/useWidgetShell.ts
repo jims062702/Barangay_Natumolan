@@ -16,7 +16,7 @@ export function useWidgetShell() {
   /*
    * The live desk is for registered residents. The BOT above it is not — a
    * stranger asking what an indigency certificate needs still gets an answer,
-   * they just cannot take up the Secretary's only chair to ask it.
+   * they just cannot take up the Clerk's only chair to ask it.
    */
   const { user, loading: sessionLoading } = useAuth();
   // Not yet known is not the same as "not a resident". Deciding while the
