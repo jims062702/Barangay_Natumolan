@@ -185,7 +185,9 @@ class LifeStatusController extends BaseController
             'email.unique' => 'This email is already registered to another resident.',
         ]);
 
-        $sectors = collect($validated['sectors'] ?? [])->filter()->unique()->values();
+        /* Age brackets are the register's to work out (reconcileAgeData below). */
+        $sectors = collect($validated['sectors'] ?? [])->filter()->unique()
+            ->reject(fn ($s) => in_array($s, Resident::AGE_SECTORS, true))->values();
         unset($validated['sectors']);
 
         $validated['record_type'] = 'Resident';
@@ -215,6 +217,8 @@ class LifeStatusController extends BaseController
                 ['enrolled_date' => now()->toDateString()]
             );
         }
+
+        $resident->reconcileAgeData();
 
         // Now that they live here, they get what every resident gets.
         $account = PortalAccount::provision($resident, auth()->id());

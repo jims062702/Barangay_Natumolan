@@ -7,6 +7,7 @@ use App\Http\Requests\Content\ReorderAnnouncementsRequest;
 use App\Http\Requests\Content\StoreAnnouncementRequest;
 use App\Http\Requests\Content\UpdateAnnouncementRequest;
 use App\Models\Content\Announcement;
+use App\Services\Content\AnnouncementNotice;
 use App\Services\Content\LandingCache;
 use App\Support\PublicUpload;
 use Illuminate\Http\Request;
@@ -62,7 +63,7 @@ class AnnouncementController extends BaseController
         return $this->success(null, 'Order updated');
     }
 
-    public function store(StoreAnnouncementRequest $request)
+    public function store(StoreAnnouncementRequest $request, AnnouncementNotice $notice)
     {
         $validated = $request->validated();
 
@@ -79,10 +80,17 @@ class AnnouncementController extends BaseController
         );
         LandingCache::clearAnnouncements();
 
-        return $this->success($announcement, 'Post created', 201);
+        /* Published straight away: it goes to every resident's bell now. */
+        $told = $announcement->published_at ? $notice->toResidents($announcement) : 0;
+
+        return $this->success(
+            $announcement,
+            $told > 0 ? "Post published — sent to {$told} resident account(s)." : 'Post created',
+            201
+        );
     }
 
-    public function update(UpdateAnnouncementRequest $request, Announcement $announcement)
+    public function update(UpdateAnnouncementRequest $request, Announcement $announcement, AnnouncementNotice $notice)
     {
         $validated = $request->validated();
 
@@ -98,19 +106,29 @@ class AnnouncementController extends BaseController
          * again. It is the date on the post, and a correction two months
          * later does not make it new.
          */
-        if (($validated['status'] ?? null) === 'Published' && ! $announcement->published_at) {
+        $firstRelease = ($validated['status'] ?? null) === 'Published' && ! $announcement->published_at;
+
+        if ($firstRelease) {
             $validated['published_at'] = now();
         }
 
         $announcement->update($validated);
         LandingCache::clearAnnouncements();
 
-        return $this->success($announcement->fresh(), 'Post updated');
+        /* The first time it goes out, and only then, it reaches the bells. */
+        $told = $firstRelease ? $notice->toResidents($announcement->fresh()) : 0;
+
+        return $this->success(
+            $announcement->fresh(),
+            $told > 0 ? "Post published — sent to {$told} resident account(s)." : 'Post updated'
+        );
     }
 
-    public function destroy(Announcement $announcement)
+    public function destroy(Announcement $announcement, AnnouncementNotice $notice)
     {
         PublicUpload::delete($announcement->image_path);
+
+        $notice->withdraw($announcement);
 
         $announcement->delete();
         LandingCache::clearAnnouncements();

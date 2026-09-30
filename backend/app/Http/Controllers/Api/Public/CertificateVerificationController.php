@@ -31,7 +31,9 @@ class CertificateVerificationController extends BaseController
             'valid' => in_array($certificate->status, ['Ready to Claim', 'Released'], true),
             'certificate_number' => $certificate->certificate_number,
             'certificate_type' => $certificate->certificate_type,
-            'holder' => $certificate->resident?->full_name,
+            /* The resident — or the person typed at the counter before the
+               register listed them. */
+            'holder' => $certificate->holderName(),
             'status' => $certificate->status,
             'issued_at' => $certificate->released_at ?? $certificate->signed_at,
         ], 'Verification complete');

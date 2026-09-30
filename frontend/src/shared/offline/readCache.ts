@@ -27,6 +27,12 @@ import { meta, setMeta, remove, STORE_META } from "./offlineDb";
  *             page saying the desk cannot be reached.
  *   pulse     "has anything changed?" answered from a cache is a lie by
  *             construction.
+ *   resident-id, residents/{id}/card
+ *             a Resident ID's code is what makes the card verify; it is not
+ *             written to a laptop's disk.
+ *   assistant/allowance
+ *             how many chatbot messages are left today — a count read from
+ *             an old copy is a wrong count.
  *   certificates, residents/offline-sync, population/verify-resident
  *             these have their own offline answers, which are better than a
  *             cached one: the counter list merges in what was filed while the
@@ -40,6 +46,10 @@ const NEVER_CACHE = [
   /^\/?portal(\/|$)/,
   /^\/?chat(\/|$)/,
   /^\/?pulse(\/|$)/,
+  /^\/?assistant\/allowance(\/|$)/,
+  /^\/?resident-id(\/|$)/,
+  /^\/?residents\/[^/]+\/card(\/|$)/,
+  /^\/?resident-cards(\/|$)/,
   /^\/?verify(\/|$)/,
   /^\/?certificates(\/|$)/,
   /^\/?residents\/offline-sync(\/|$)/,

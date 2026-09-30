@@ -7,6 +7,9 @@ export const serviceApi = {
     api.get("/certificates", ...args),
   createCertificate: (...args: BodyArgs) =>
     api.post("/certificates", ...args),
+  /* Several for one resident in one visit — filed all together or not at all. */
+  createCertificates: (...args: BodyArgs) =>
+    api.post("/certificates/batch", ...args),
   certificate: (certificateId: PathParam, ...args: QueryArgs) =>
     api.get(`/certificates/${certificateId}`, ...args),
   updateCertificate: (certificateId: PathParam, ...args: BodyArgs) =>
@@ -19,6 +22,9 @@ export const serviceApi = {
     api.post(`/certificates/${certificateId}/photo`, ...args),
   certificateReport: (...args: QueryArgs) =>
     api.get("/certificates/report", ...args),
+  /* The First-Time Jobseeker Monthly Summary of Availees/Beneficiaries. */
+  jobseekerSummary: (...args: QueryArgs) =>
+    api.get("/certificates/jobseeker-summary", ...args),
   serviceRequests: (...args: QueryArgs) =>
     api.get("/service-requests", ...args),
   serviceRequest: (requestId: PathParam, ...args: QueryArgs) =>

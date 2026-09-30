@@ -3,7 +3,7 @@ import { FiArrowLeft, FiCheckCircle, FiXCircle } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { errorMessage } from "../../../shared/lib/api";
 import { inputClasses } from "../../../shared/ui/FormField";
-import logo from "../../../assets/logo/logo.svg";
+import logo from "../../../assets/logo/barangay-logo.png";
 import { publicApi } from "../api";
 
 interface VerifyResult {

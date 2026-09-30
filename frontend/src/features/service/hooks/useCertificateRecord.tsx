@@ -2,6 +2,7 @@ import { useState } from "react";
 import { confirmAction } from "../../../shared/lib/confirm";
 import { toast } from "../../../shared/lib/toast";
 import { errorMessage } from "../../../shared/lib/api";
+import { useModalDraft } from "../../../shared/lib/useModalDraft";
 import { updateJobBody, enqueue } from "../../../shared/offline/writeQueue";
 import { isOffline } from "../../../shared/offline/connectivity";
 import { useUpload } from "../../../shared/hooks/useUpload";
@@ -11,7 +12,31 @@ import { serviceApi } from "../api";
 import { feeFor } from "../lib/certificateFees";
 import { mintLocalNumber, mintReference } from "../lib/certificateNumbers";
 import { openPrintView } from "../lib/printView";
+import { missingToPrint } from "../lib/printReady";
 import type { CertificateRowsState } from "./useCertificateRows";
+
+/**
+ * The server's answer laid over what the window already shows.
+ *
+ * A key MISSING from the answer means "not loaded", not "gone" — Laravel
+ * leaves an unloaded relation out entirely, and sends `null` for one that
+ * really is empty. Replacing the record wholesale treated the first as the
+ * second: attach a photograph and the answer came back without `resident`,
+ * so the holder's name, purok and contact went blank until the window was
+ * closed and opened again. The server now sends the whole record; this is
+ * so that one endpoint forgetting a relation can never blank the window
+ * again.
+ */
+function keepKnown(shown: Certificate | null, answer: Certificate): Certificate {
+  if (!shown || shown.id !== answer.id) return answer;
+
+  const merged = { ...shown } as Record<string, unknown>;
+  Object.entries(answer).forEach(([key, value]) => {
+    if (value !== undefined) merged[key] = value;
+  });
+
+  return merged as unknown as Certificate;
+}
 
 /**
  * One certificate once it exists: correcting it, and moving it on — accept, photograph, print, release.
@@ -26,6 +51,8 @@ export function useCertificateRecord(ctx: CertificateRowsState) {
   const [editingDetail, setEditingDetail] = useState(false);
   const [detailType, setDetailType] = useState("");
   const [detailPurpose, setDetailPurpose] = useState("");
+  /* The other certificates of the same visit, when it asked for several. */
+  const [siblings, setSiblings] = useState<Certificate[]>([]);
   /* Whether this type's printed form carries a purpose at all. */
   const asksPurpose = (type: string) =>
     catalogue?.types.find((t) => t.name === type)?.asks_purpose !== false;
@@ -34,6 +61,26 @@ export function useCertificateRecord(ctx: CertificateRowsState) {
     setDetailPurpose(certificate.purpose ?? "");
     setEditingDetail(true);
   };
+  /* A correction being typed, kept per certificate until it is saved. What
+     the certificate said when it was opened is the draft's version. */
+  const detailBase = { type: detail?.certificate_type ?? "", purpose: detail?.purpose ?? "" };
+  const detailDraft = useModalDraft(
+    detail ? `correct-certificate:${detail.id}` : null,
+    detail !== null && editingDetail,
+    { type: detailType, purpose: detailPurpose },
+    (kept) => {
+      setDetailType(kept.type ?? detailBase.type);
+      setDetailPurpose(kept.purpose ?? "");
+    },
+    {
+      blank: detailBase,
+      reset: () => {
+        setDetailType(detailBase.type);
+        setDetailPurpose(detailBase.purpose);
+      },
+      version: JSON.stringify(detailBase),
+    },
+  );
   const saveDetailEdit = async () => {
     if (!detail) return;
     if (
@@ -77,6 +124,7 @@ export function useCertificateRecord(ctx: CertificateRowsState) {
     if (jobId) {
       /* Still in the queue: correct the job, so what is sent is right. */
       await updateJobBody(jobId, { ...changes, fee_amount: repriced });
+      detailDraft.clear();
       setDetail({ ...detail, ...changes, fee_amount: repriced });
       setEditingDetail(false);
       toast("Corrected on this device. It will be sent as corrected.", "success");
@@ -92,6 +140,7 @@ export function useCertificateRecord(ctx: CertificateRowsState) {
         changes,
         `Correction — ${detail.certificate_number}`,
       );
+      detailDraft.clear();
       setDetail({ ...detail, ...changes, fee_amount: repriced });
       setEditingDetail(false);
       toast("Corrected on this device. It will be sent when the connection returns.", "info");
@@ -102,9 +151,64 @@ export function useCertificateRecord(ctx: CertificateRowsState) {
 
     try {
       const response = await serviceApi.updateCertificate(detail.id, changes);
-      setDetail(response.data.data);
+      detailDraft.clear();
+      setDetail((shown) => keepKnown(shown, response.data.data));
       setEditingDetail(false);
       toast(response.data.message);
+      load();
+    } catch (err) {
+      toast(errorMessage(err), "error");
+    }
+  };
+  /**
+   * The certificate's own lines — OR number, the kagawad on duty, the
+   * business — saved onto its record before it prints.
+   *
+   * With or without a line, as a correction is: the resident is at the
+   * counter now, and a certificate that cannot be completed offline is one
+   * that cannot be printed offline.
+   */
+  const saveDetailFields = async (answers: Record<string, string>) => {
+    if (!detail) return;
+
+    const template_fields = { ...(detail.template_fields ?? {}), ...answers };
+    /* A business clearance is priced by the kind of business — one of these. */
+    const repriced = detail.is_exempt
+      ? Number(detail.fee_amount)
+      : feeFor(catalogue, detail.certificate_type, detail.purpose ?? "", template_fields);
+    const jobId = (detail as unknown as { _jobId?: string })._jobId;
+
+    if (jobId) {
+      await updateJobBody(jobId, { template_fields, fee_amount: repriced });
+      setDetail({ ...detail, template_fields, fee_amount: repriced });
+      toast("Saved on this device. It will print as filled in.", "success");
+      load();
+
+      return;
+    }
+
+    if (isOffline()) {
+      await enqueue(
+        "put",
+        `/certificates/${detail.id}`,
+        { template_fields },
+        `Details — ${detail.certificate_number}`,
+      );
+      setDetail({ ...detail, template_fields, fee_amount: repriced });
+      toast("Saved on this device. It will be sent when the connection returns.", "info");
+      load();
+
+      return;
+    }
+
+    try {
+      const response = await serviceApi.updateCertificate(detail.id, { template_fields });
+      const saved = response.data.data as Certificate;
+
+      /* Only what changed: the reply carries the certificate without the
+         people around it, and the record on screen should keep them. */
+      setDetail({ ...detail, template_fields: saved.template_fields, fee_amount: saved.fee_amount });
+      toast("Details saved. They will print on the certificate.");
       load();
     } catch (err) {
       toast(errorMessage(err), "error");
@@ -115,7 +219,7 @@ export function useCertificateRecord(ctx: CertificateRowsState) {
    * happened" confirmation — none of them is a decision about whether the
    * resident may have their certificate.
    */
-  type Action = "accept" | "release" | "reprint";
+  type Action = "accept" | "release";
   const PROMPTS: Record<Action, { title: string; text?: string; confirmText: string }> = {
     accept: {
       title: "Start this request?",
@@ -127,7 +231,6 @@ export function useCertificateRecord(ctx: CertificateRowsState) {
       text: "Confirm only once they have it in hand.",
       confirmText: "Yes, released",
     },
-    reprint: { title: "Log a reprint for this certificate?", confirmText: "Yes, log reprint" },
   };
   const act = async (certificate: Certificate, action: Action) => {
     if (!(await confirmAction(PROMPTS[action]))) return;
@@ -151,7 +254,7 @@ export function useCertificateRecord(ctx: CertificateRowsState) {
       return;
     }
 
-    /* Accept, release and reprint are all a note that something happened at
+    /* Accept and release are both a note that something happened at
        the counter. None of them needs an answer to be true, so with no line
        they go in the queue rather than failing. */
     if (isOffline() && certificate.id > 0) {
@@ -253,7 +356,7 @@ export function useCertificateRecord(ctx: CertificateRowsState) {
       );
 
       photoUpload.finish();
-      setDetail(response.data.data);
+      setDetail((shown) => keepKnown(shown, response.data.data));
       toast(response.data.message);
       load(true);
     } catch (err) {
@@ -284,6 +387,21 @@ export function useCertificateRecord(ctx: CertificateRowsState) {
         "This certificate prints the resident's photograph. Take it at the counter first, then print.",
         "error",
       );
+
+      return;
+    }
+
+    /*
+     * Nor without its own lines. A certificate from the portal or the
+     * chatbot printed with the OR number, the kagawad on duty and even the
+     * business left blank — nothing had asked for them. The press opens the
+     * record where they are asked, and says which.
+     */
+    const missing = missingToPrint(certificate, spec);
+
+    if (missing.length > 0) {
+      openDetail(certificate);
+      toast(`Fill in before printing: ${missing.join(", ")}. They print on the certificate.`, "error");
 
       return;
     }
@@ -387,6 +505,19 @@ export function useCertificateRecord(ctx: CertificateRowsState) {
   const openDetail = async (certificate: Certificate) => {
     setDetail(certificate); // show list data immediately
     setEditingDetail(false);
+    setSiblings([]);
+
+    /* The rest of the visit, when it asked for several — each is its own
+       certificate, but the resident is one person at one counter. */
+    const code = certificate.service_request?.transaction_code;
+    if (code && certificate.id > 0 && !isOffline()) {
+      serviceApi.certificates({ params: { transaction_code: code } })
+        .then((r) => {
+          const others = ((r.data.data.data ?? []) as Certificate[]).filter((c) => c.id !== certificate.id);
+          setSiblings(others);
+        })
+        .catch(() => setSiblings([]));
+    }
 
     /* Nothing to fetch: a certificate still in the queue is not on the server
        yet, and with no line there is nothing to ask. The row is the record. */
@@ -396,7 +527,15 @@ export function useCertificateRecord(ctx: CertificateRowsState) {
 
     try {
       const response = await serviceApi.certificate(certificate.id);
-      setDetail(response.data.data);
+      /*
+       * Only onto the window it was fetched FOR.
+       *
+       * The answer can arrive after the clerk has closed this one, or moved
+       * on to another. Laid down regardless, it reopened a closed window by
+       * itself, or put the first holder's details under the second
+       * certificate's number.
+       */
+      setDetail((shown) => (shown && shown.id === certificate.id ? keepKnown(shown, response.data.data) : shown));
     } catch {
       // keep the list-row data if the detail fetch fails
     }
@@ -439,14 +578,6 @@ export function useCertificateRecord(ctx: CertificateRowsState) {
             <button type="button" onClick={() => openPrintView(c, council, catalogue)} className={outline}>
               Print
             </button>
-            <button
-              type="button"
-              onClick={() => act(c, "reprint")}
-              className={quiet}
-              title={`Reprints: ${c.reprint_count}`}
-            >
-              Log reprint
-            </button>
           </>
         )}
         {/*
@@ -463,6 +594,7 @@ export function useCertificateRecord(ctx: CertificateRowsState) {
     detail, setDetail, editingDetail, setEditingDetail, detailType, setDetailType,
     detailPurpose, setDetailPurpose, asksPurpose, openDetailEdit, saveDetailEdit, PROMPTS, act,
     photoFile, setPhotoFile, photoUpload, attachPhoto, printAndFinish, openDetail, actionsFor,
+    saveDetailFields, detailDraft, siblings,
   };
 }
 

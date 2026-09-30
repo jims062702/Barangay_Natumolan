@@ -4,10 +4,11 @@ import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { usePulse } from "../../../shared/hooks/usePulse";
 import { confirmAction } from "../../../shared/lib/confirm";
 import { toast } from "../../../shared/lib/toast";
+import { useModalDraft } from "../../../shared/lib/useModalDraft";
 import { announceWrite } from "../../../shared/lib/announceWrite";
-import { daysUntil } from "../lib/settlements";
 import { luponApi } from "../api";
 import type { LuponSettlement } from "../types";
+import { usePageLoad } from "../../../shared/ui/PageLoad";
 
 /**
  * The state and handlers of <Settlements>, so its sections can share them.
@@ -19,11 +20,11 @@ export function useSettlementDocket() {
   // So the footer can say WHICH rows are on screen, not only the page.
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [dueOnly, setDueOnly] = useState(false);
+  /* The page's skeleton until the first answer — see PageLoad. */
+  const pageLoad = usePageLoad();
 
   const [viewing, setViewing] = useState<LuponSettlement | null>(null);
   const [notes, setNotes] = useState("");
-  const [deadline, setDeadline] = useState("");
 
   /*
    * `silent` is for the background timer.
@@ -34,19 +35,21 @@ export function useSettlementDocket() {
    */
   const load = (silent = false) => {
     if (!silent) setLoading(true);
-    luponApi.settlements({ params: { page, due: dueOnly ? 1 : undefined } })
+    luponApi.settlements({ params: { page } })
       .then((r) => {
         setRows(r.data.data.data ?? []);
         setLastPage(r.data.data.last_page ?? 1);
         setTotal(r.data.data.total ?? 0);
       })
+      .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
+      .catch(() => undefined)
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, dueOnly]);
+  }, [page]);
 
   useAutoRefresh(() => load(true), REFRESH.staff);
 
@@ -61,8 +64,22 @@ export function useSettlementDocket() {
   const open = (settlement: LuponSettlement) => {
     setViewing(settlement);
     setNotes(settlement.compliance_notes ?? "");
-    setDeadline(settlement.compliance_deadline?.slice(0, 10) ?? "");
   };
+
+  /* The note being written, kept per settlement until it is saved. The note
+     on record when it was opened is the version: one saved elsewhere since
+     is not overwritten by old typing. */
+  const notesDraft = useModalDraft(
+    viewing ? `settlement-notes:${viewing.id}` : null,
+    viewing !== null,
+    { notes },
+    (kept) => setNotes(kept.notes ?? ""),
+    {
+      blank: { notes: viewing?.compliance_notes ?? "" },
+      reset: () => setNotes(viewing?.compliance_notes ?? ""),
+      version: viewing ? JSON.stringify(viewing.compliance_notes ?? "") : null,
+    },
+  );
 
   const run = async (settlement: LuponSettlement, action: string, label: string) => {
     if (
@@ -77,8 +94,8 @@ export function useSettlementDocket() {
       const response = await luponApi.settlementAction(settlement.id, {
         action,
         notes: notes || null,
-        compliance_deadline: deadline || null,
       });
+      notesDraft.clear();
       setViewing(null);
       toast(response.data.message);
       load();
@@ -87,18 +104,19 @@ export function useSettlementDocket() {
     }
   };
 
-  const saveDeadline = async (event: FormEvent<HTMLFormElement>) => {
+  const saveNotes = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!viewing) return;
     try {
-      // No `action` — this records the terms only and never advances the
-      // status, so a settlement still inside its repudiation window stays there.
+      // No `action` — this records what has been done about the settlement
+      // and never advances the status, so one still inside its repudiation
+      // window stays there.
       const saved = await luponApi.settlementAction(viewing.id, {
         notes: notes || null,
-        compliance_deadline: deadline || null,
-      }, { offline: { label: "Compliance terms" } });
+      }, { offline: { label: "Settlement notes" } });
+      notesDraft.clear();
       setViewing(null);
-      announceWrite(saved, "Compliance terms updated.");
+      announceWrite(saved, "Notes saved.");
       load();
     } catch (err) {
       toast(errorMessage(err), "error");
@@ -106,18 +124,20 @@ export function useSettlementDocket() {
   };
 
   const inWindow = rows.filter((s) => s.status === "Within Repudiation Period").length;
-  const overdue = rows.filter(
-    (s) =>
-      ["Final", "Not Complied"].includes(s.status) &&
-      s.compliance_deadline &&
-      (daysUntil(s.compliance_deadline) ?? 0) < 0
-  ).length;
+  /*
+   * NO "OVERDUE" COUNT, because there is no due date any more.
+   *
+   * The register kept a compliance deadline nobody at this barangay set:
+   * the terms say when the money is handed over, and the office learns it
+   * was not from the complainant coming back — not from a date passing.
+   */
   const complied = rows.filter((s) => ["Complied", "Executed"].includes(s.status)).length;
 
   return {
+    pageLoad,
     rows, setRows, page, setPage, lastPage, setLastPage, total, setTotal, loading, setLoading,
-    dueOnly, setDueOnly, viewing, setViewing, notes, setNotes, deadline, setDeadline, load,
-    open, run, saveDeadline, inWindow, overdue, complied,
+    viewing, setViewing, notes, setNotes, load, notesDraft,
+    open, run, saveNotes, inWindow, complied,
   };
 }
 

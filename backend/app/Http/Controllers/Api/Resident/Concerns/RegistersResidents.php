@@ -37,6 +37,8 @@ trait RegistersResidents
             'gender' => 'required|in:Male,Female',
             'birthdate' => 'required|date',
             'birth_place' => 'nullable|string|max:150',
+            /* Q7: "Filipino", or the nationality written after a 2. */
+            'nationality' => 'nullable|string|max:100',
             'civil_status' => 'nullable|string',
             /*
              * Not here. A resident sets their own occupation from the portal;
@@ -52,6 +54,7 @@ trait RegistersResidents
             'residency_status' => 'required|in:Permanent,Temporary,Migrant',
             'length_of_residence_years' => 'nullable|integer',
             'educational_attainment' => 'nullable|string',
+            'registered_voter_in' => 'nullable|string|max:150',
             'demographic_classification' => 'nullable|in:Senior Citizen,PWD,Solo Parent,Youth,Child,Adult,Others',
             // Sector tags chosen on the form (age-based + manual toggles).
             'sectors' => 'nullable|array',
@@ -226,7 +229,10 @@ trait RegistersResidents
     /** Writes the registry record and its sector tags. */
     private function createResident(array $validated): Resident
     {
-        $sectors = collect($validated['sectors'] ?? [])->filter()->unique()->values();
+        /* The age bracket is the register's to work out from the birthdate
+           (below) — never taken from the form, which could disagree. */
+        $sectors = collect($validated['sectors'] ?? [])->filter()->unique()
+            ->reject(fn ($s) => in_array($s, Resident::AGE_SECTORS, true))->values();
         unset($validated['sectors'], $validated['confirm_namesake']);
 
         // Generate the record number, prefixed NR- for somebody who lives
@@ -244,8 +250,10 @@ trait RegistersResidents
             ]);
         }
 
+        $resident->reconcileAgeData();
+
         LandingCache::clearStats(); // refresh the public "at a glance" count
-        $resident->load('sectors');
+        $resident->load(['sectors' => fn ($q) => $q->where('is_active', true)]);
 
         return $resident;
     }
@@ -262,7 +270,7 @@ trait RegistersResidents
                 'created' => $account['created'],
                 'email' => $account['user']?->email,
                 // Shown once so the clerk can tell the resident at the counter;
-                // it is the standard Lastname + MMDDYY default either way.
+                // it is the standard Lastname + birth year default either way.
                 'password' => $account['password'],
                 'reason' => $account['reason'],
             ],

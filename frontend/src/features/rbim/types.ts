@@ -30,6 +30,8 @@ export interface HouseCheck {
     last_name: string;
     gender?: string | null;
     birthdate?: string | null;
+    /* A date made from a month and a year — not to be copied as exact. */
+    birthdate_is_estimated?: boolean | null;
   }[];
   resident_count?: number;
   censuses?: {

@@ -249,7 +249,7 @@ export function IdentificationSection({ ctx }: { ctx: CensusFormState }) {
           creates resident records.
         */}
         <Choice
-          label="Zone"
+          label="Zone / Purok"
           neededToRegister
           hint="Not on the paper form — the register needs one."
           options={zones.map((z) => ({ value: z, label: z }))}

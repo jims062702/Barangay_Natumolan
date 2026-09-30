@@ -29,7 +29,8 @@
  * out a senior citizen's entitlement — or a youth programme's cut-off — early.
  *
  * That day is machinery, not a fact about the person. It is never shown and
- * never offered for editing: see `formatBirthdate` and `birthMonthValue`.
+ * never offered for editing: see `formatBirthdate`, and the date boxes that
+ * start empty for such a record (ResidentFormFields, ResidentEdit).
  */
 
 const LONG: Intl.DateTimeFormatOptions = { dateStyle: "long" };
@@ -80,7 +81,7 @@ export function formatBirthdate(
  * chase; a profile row saying it would only be noise.
  */
 export function birthdateNote(estimated?: boolean | null): string {
-  return estimated ? "Month and year only — the census did not record a day." : "";
+  return estimated ? "Only the month and year are on record — the full date has not been entered yet." : "";
 }
 
 /**
@@ -118,34 +119,4 @@ export function ageFrom(value: string | null | undefined): number | null {
   }
 
   return age >= 0 ? age : null;
-}
-
-/**
- * The stored date as a month input wants it — `2002-06`.
- *
- * An estimated birthdate is edited as a month, never as a day, so the day
- * the system picked is never put in front of a clerk as something they
- * chose, or could change.
- */
-export function birthMonthValue(value: string | null | undefined): string {
-  return value ? value.slice(0, 7) : "";
-}
-
-/**
- * A `YYYY-MM` from a month input, back to the date the column stores.
- *
- * The last day of that month — the same rule the census registration uses
- * on the server, kept here in one place so the two can never drift apart.
- */
-export function birthMonthToDate(month: string): string {
-  const [year, monthNumber] = month.slice(0, 7).split("-").map(Number);
-
-  if (!year || !monthNumber) {
-    return "";
-  }
-
-  /* Day 0 of the next month is the last day of this one. */
-  const lastDay = new Date(year, monthNumber, 0).getDate();
-
-  return `${year}-${String(monthNumber).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 }

@@ -3,10 +3,11 @@
 namespace App\Http\Controllers\Api\Chat;
 
 use App\Http\Controllers\Api\BaseController;
-use App\Http\Requests\Chat\ChatMessageRequest;
+use App\Http\Requests\Chat\ResidentChatMessageRequest;
 use App\Models\Chat\Conversation;
 use App\Services\Chat\ConversationViews;
 use App\Services\Chat\DeskNotifier;
+use App\Services\Chat\IdleConversations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -33,10 +34,10 @@ class ResidentChatController extends BaseController
     /**
      * Opens a conversation with the live desk.
      *
-     * Registered residents only, and signed in. The desk is one Clerk
-     * answering one person at a time, and an anonymous form on a public page
-     * is an invitation to fill that queue with people the barangay has no way
-     * to identify, reach afterwards, or hold to anything. Signing in also
+     * Registered residents only, and signed in. The desk is the Clerk, taking
+     * people in turn, and an anonymous form on a public page is an invitation
+     * to fill that queue with people the barangay has no way to identify,
+     * reach afterwards, or hold to anything. Signing in also
      * means the name, email and number are already on the record — so the
      * form that used to ask for them is gone.
      */
@@ -53,7 +54,8 @@ class ResidentChatController extends BaseController
 
         $validated = $request->validate([
             'topic' => 'nullable|string|max:120',
-            'message' => 'required|string|max:2000',
+            /* The widget stops at 1,000; so does the server. */
+            'message' => 'required|string|max:' . ResidentChatMessageRequest::MAX_CHARS,
         ]);
 
         /*
@@ -115,6 +117,9 @@ class ResidentChatController extends BaseController
         if (!$resident) {
             return $this->forbidden('The live desk is for registered residents.');
         }
+
+        /* A conversation left unanswered for a day is closed before it is shown. */
+        IdleConversations::sweep();
 
         $conversation = Conversation::where('resident_id', $resident)
             ->whereIn('status', ['Waiting', 'Active'])
@@ -203,6 +208,8 @@ class ResidentChatController extends BaseController
     /** The visitor's own view of the thread, newest last. */
     public function thread(string $token)
     {
+        IdleConversations::sweep();
+
         $conversation = $this->ownedConversation($token);
 
         if (!$conversation) {
@@ -218,7 +225,7 @@ class ResidentChatController extends BaseController
         ], 'Conversation retrieved');
     }
 
-    public function sendMessage(ChatMessageRequest $request, string $token)
+    public function sendMessage(ResidentChatMessageRequest $request, string $token)
     {
         $validated = $request->validated();
 
@@ -255,7 +262,7 @@ class ResidentChatController extends BaseController
      * agent may be off duty, and a follow-up sitting in one person's queue
      * until they next log in is slower than the new conversation it replaces.
      */
-    public function followUp(ChatMessageRequest $request, string $token)
+    public function followUp(ResidentChatMessageRequest $request, string $token)
     {
         $validated = $request->validated();
 

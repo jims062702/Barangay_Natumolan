@@ -1,4 +1,5 @@
 import type { ChatWidgetState } from "../../hooks/useChatWidget";
+import { CHAT_CONFIG } from "../../lib/chatConfig";
 
 /**
  * Who are you, and what do you need — before the Clerk is asked to join.
@@ -31,6 +32,7 @@ export function LiveAgentForm({ ctx }: { ctx: ChatWidgetState }) {
           onChange={(e) => setFirstMessage(e.target.value)}
           required
           rows={3}
+          maxLength={CHAT_CONFIG.maxMessageLength}
           placeholder="Describe what you need…"
           className="w-full rounded-xl border border-gray bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/25"
         />

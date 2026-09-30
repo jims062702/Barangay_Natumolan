@@ -338,10 +338,11 @@ export function useResidentIntake() {
         />
         <Line label="Civil status" value={person.civil_status} />
         <Line label="Place of birth" value={person.birth_place} />
+        <Line label="Nationality" value={person.nationality} />
         <Line label="Occupation" value={person.occupation} />
-        <Line label="Contact" value={person.contact_number} />
+        <Line label="Contact Number" value={person.contact_number} />
         <Line label="Email" value={person.email} />
-        <Line label="Purok" value={person.zone_purok} />
+        <Line label="Zone / Purok" value={person.zone_purok} />
         <Line label="Residency" value={person.residency_status} />
         <Line label="Education" value={person.educational_attainment} />
         <Line label="Sectors" value={sectors.join(", ")} />

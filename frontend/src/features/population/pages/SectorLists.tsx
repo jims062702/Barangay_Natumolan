@@ -4,14 +4,19 @@ import { SectorTotals } from "../components/sectors/SectorTotals";
 import { SectorGrowthChart } from "../components/sectors/SectorGrowthChart";
 import { SectorSizeChart } from "../components/sectors/SectorSizeChart";
 import { SectorBrowser } from "../components/sectors/SectorBrowser";
+import { PageLoading } from "../../../shared/ui/PageLoad";
 
 export default function SectorLists() {
   const ctx = useSectorReport();
 
+  if (ctx.pageLoad.state !== "ready") {
+    return <PageLoading load={ctx.pageLoad} onRetry={() => ctx.setTick((t) => t + 1)} />;
+  }
+
   return (
     <div>
       <PageHeader
-        title="Sectoral Profiling & Master Lists"
+        title="Sector Lists"
         subtitle="Validated lists for priority sectors — children, seniors, PWD, solo parents, and more"
       />
 

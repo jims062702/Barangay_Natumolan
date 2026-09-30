@@ -1,6 +1,6 @@
-import { FiAward, FiCheckCircle, FiClock, FiCreditCard } from "react-icons/fi";
+import { FiAward, FiCheckCircle, FiClock } from "react-icons/fi";
 import { Link } from "react-router-dom";
-import { DashboardBodySkeleton } from "../../../shared/ui/Skeleton";
+import { PageLoading } from "../../../shared/ui/PageLoad";
 import Card from "../../../shared/ui/Card";
 import StatTile from "../../../shared/ui/StatTile";
 import StatusBadge from "../../../shared/ui/StatusBadge";
@@ -10,7 +10,6 @@ import { asOf } from "../../../shared/offline/lastSeen";
 import { useFrontDeskDashboard, type RecentCertificate } from "../hooks/useFrontDeskDashboard";
 import { ExecutiveView } from "./mainOffice/ExecutiveView";
 import { RequestedServicesCard } from "./mainOffice/RequestedServicesCard";
-import LuponFeesCard from "./mainOffice/LuponFeesCard";
 import type { MainOfficeDashboardProps } from "./mainOffice/types";
 
 /**
@@ -23,7 +22,7 @@ import type { MainOfficeDashboardProps } from "./mainOffice/types";
 export default function MainOfficeDashboard({ executive = false }: MainOfficeDashboardProps) {
   const ctx = useFrontDeskDashboard({ executive });
   const {
-    stats, recent, ready, countedAt, requested,
+    stats, recent, pageLoad, firstLoad, countedAt, requested,
   } = ctx;
 
   if (executive) {
@@ -31,6 +30,8 @@ export default function MainOfficeDashboard({ executive = false }: MainOfficeDas
       <ExecutiveView ctx={ctx} />
     );
   }
+
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={firstLoad} />;
 
   return (
     <div>
@@ -41,24 +42,20 @@ export default function MainOfficeDashboard({ executive = false }: MainOfficeDas
 
       {/* The two certificate tiles are the clerk's own worklist: requests
           nobody has started, and signed documents waiting to be collected. */}
-      {!ready ? (
-        <DashboardBodySkeleton tiles={4} tileColumns={4} cards={2} cardColumns={2} />
-      ) : (
-      <>
       {/*
-        FOUR TILES, and each is a different question.
+        THREE TILES, and each is a different question.
 
         It was five, two of which counted service requests — and a request
         raises its certificate the moment it is made, so both were "work
-        waiting" under an earlier name, pointing at a queue that is no longer
-        on this menu. In their place is the one piece of the Clerk's work that
-        had no figure anywhere: the Lupon fees waiting at this counter.
+        waiting" under an earlier name. A fourth counted Lupon fees waiting
+        at this counter; the Lupon confirms those itself now, so the Clerk
+        has none to wait on.
 
         Four columns, not five: at five "Certificates This Month" came out as
         "CERTIFICATES THIS MON…", and a label that cannot finish is a label
         that has to be guessed.
       */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-3">
         {/*
           Short labels, because the tile truncates rather than wraps.
           "Certificates this month" came out "CERTIFICATES THIS MONT…", and a
@@ -67,15 +64,6 @@ export default function MainOfficeDashboard({ executive = false }: MainOfficeDas
         */}
         <StatTile label="To start" value={stats.pending_certificates ?? 0} icon={FiClock} tone="danger" hint="Filed, not begun" />
         <StatTile label="Ready to claim" value={stats.ready_to_claim ?? 0} icon={FiCheckCircle} tone="success" hint="Not yet collected" />
-        {/* Amber only when somebody is actually waiting on it. A warning
-            colour over a zero teaches people to ignore the colour. */}
-        <StatTile
-          label="Lupon fees"
-          value={stats.lupon_fees_waiting ?? 0}
-          icon={FiCreditCard}
-          tone={(stats.lupon_fees_waiting ?? 0) > 0 ? "warning" : undefined}
-          hint="Waiting to collect"
-        />
         <StatTile label="This month" value={stats.monthly_certificates ?? 0} icon={FiAward} hint="Certificates issued" />
       </div>
 
@@ -153,13 +141,6 @@ export default function MainOfficeDashboard({ executive = false }: MainOfficeDas
         <RequestedServicesCard rows={requested} />
       </div>
 
-      {/* The Clerk's other job: confirming a Lupon complainant has paid.
-          A short list cleared in the morning, not a module. */}
-      <div className="mt-6">
-        <LuponFeesCard />
-      </div>
-      </>
-      )}
     </div>
   );
 }

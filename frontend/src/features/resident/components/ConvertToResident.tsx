@@ -4,7 +4,9 @@ import { errorMessage, fieldErrors } from "../../../shared/lib/api";
 import { showServerFieldErrors } from "../../../shared/lib/formErrors";
 import { confirmAction } from "../../../shared/lib/confirm";
 import { toast } from "../../../shared/lib/toast";
+import { useModalDraft } from "../../../shared/lib/useModalDraft";
 import Card from "../../../shared/ui/Card";
+import DraftNotice from "../../../shared/ui/DraftNotice";
 import Modal from "../../../shared/ui/Modal";
 import type { Household, Resident } from "../../../shared/types";
 import NewHouseholdModal from "./NewHouseholdModal";
@@ -32,6 +34,27 @@ interface Props {
   onConverted: () => void;
 }
 
+interface ConvertDraft {
+  form: ResidentForm;
+  manualSectors: string[];
+  autoLength: boolean;
+  household: Household | null;
+}
+
+/** What the short record already holds, carried over so nothing is retyped. */
+const carriedOver = (resident: Resident): ResidentForm => ({
+  ...RESIDENT_FORM_INITIAL,
+  first_name: resident.first_name ?? "",
+  middle_name: resident.middle_name ?? "",
+  last_name: resident.last_name ?? "",
+  suffix: resident.suffix ?? "",
+  contact_number: resident.contact_number ?? "",
+  email: resident.email ?? "",
+  gender: resident.gender ?? "",
+  birthdate: resident.birthdate ? resident.birthdate.slice(0, 10) : "",
+  civil_status: resident.civil_status ?? "",
+});
+
 export default function ConvertToResident({ resident, onConverted }: Props) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<ResidentForm>(RESIDENT_FORM_INITIAL);
@@ -43,27 +66,36 @@ export default function ConvertToResident({ resident, onConverted }: Props) {
   const [saving, setSaving] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
-  // Carry over what the short record already holds, so nothing is retyped.
-  useEffect(() => {
-    if (!open) return;
-    setError("");
+  const resetForm = () => {
     setManualSectors([]);
     setAutoLength(false);
     setSelectedHousehold(null);
-    setForm({
-      ...RESIDENT_FORM_INITIAL,
-      first_name: resident.first_name ?? "",
-      middle_name: resident.middle_name ?? "",
-      last_name: resident.last_name ?? "",
-      suffix: resident.suffix ?? "",
-      contact_number: resident.contact_number ?? "",
-      email: resident.email ?? "",
-      gender: resident.gender ?? "",
-      birthdate: resident.birthdate ? resident.birthdate.slice(0, 10) : "",
-      civil_status: resident.civil_status ?? "",
-    });
+    setForm(carriedOver(resident));
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    setError("");
+    resetForm();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, resident.id]);
+
+  /* Typed and not yet saved: kept per resident until it is saved or discarded. */
+  const draft = useModalDraft<ConvertDraft>(
+    resident.record_type === "Non-resident" ? `convert-resident:${resident.id}` : null,
+    open,
+    { form, manualSectors, autoLength, household: selectedHousehold },
+    (kept) => {
+      setForm({ ...carriedOver(resident), ...kept.form });
+      setManualSectors(kept.manualSectors ?? []);
+      setAutoLength(Boolean(kept.autoLength));
+      setSelectedHousehold(kept.household ?? null);
+    },
+    {
+      blank: { form: carriedOver(resident), manualSectors: [], autoLength: false, household: null },
+      reset: resetForm,
+    },
+  );
 
   if (resident.record_type !== "Non-resident") return null;
 
@@ -106,6 +138,7 @@ export default function ConvertToResident({ resident, onConverted }: Props) {
           ? `${response.data.message} Temporary password: ${account.password}`
           : response.data.message
       );
+      draft.clear();
       onConverted();
       setOpen(false);
     } catch (err) {
@@ -181,7 +214,8 @@ export default function ConvertToResident({ resident, onConverted }: Props) {
             onAddNewHousehold={() => setHhOpen(true)}
           />
 
-          <div className="sm:col-span-2 lg:col-span-3">
+          <div className="space-y-2 sm:col-span-2 lg:col-span-3">
+            <DraftNotice draft={draft} />
             <button
               type="submit"
               disabled={saving}

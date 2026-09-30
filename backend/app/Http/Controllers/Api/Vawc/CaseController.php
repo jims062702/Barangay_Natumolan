@@ -25,8 +25,23 @@ class CaseController extends BaseController
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
+        /*
+         * Filtering on the LIST, not the one-word column.
+         *
+         * A case that is two kinds stores "Mixed" in that column, so asking
+         * for Physical returned every case that was ONLY physical and hid
+         * the ones where a beating came with threats — exactly the cases a
+         * desk filtering for physical violence most needs to see.
+         */
         if ($request->filled('violence_type')) {
-            $query->where('violence_type', $request->violence_type);
+            $kind = $request->violence_type;
+            $query->where(fn ($q) => $q
+                ->whereJsonContains('violence_types', $kind)
+                ->orWhere(fn ($old) => $old
+                    ->where('violence_type', $kind)
+                    ->where(fn ($none) => $none
+                        ->whereNull('violence_types')
+                        ->orWhereJsonLength('violence_types', 0))));
         }
         if ($request->filled('risk_level')) {
             $query->where('risk_level', $request->risk_level);
@@ -131,7 +146,14 @@ class CaseController extends BaseController
              * means the order is served on where they live NOW.
              */
             'respondent:id,resident_number,first_name,middle_name,last_name,suffix,gender,birthdate,civil_status,occupation,zone_purok,address,contact_number,record_type',
-            'dependents:id,first_name,middle_name,last_name,resident_number', 'officer:id,name', 'incidents', 'referrals', 'followups.recorder:id,name', 'documents.uploader:id,name']);
+            'dependents:id,first_name,middle_name,last_name,resident_number,birthdate,gender', 'officer:id,name', 'incidents',
+            'referrals.referrer:id,name', 'followups.recorder:id,name', 'documents.uploader:id,name',
+            /* Every BPO, newest first — each renewal is its own row. */
+            'protectionOrders.recorder:id,name',
+            'assessment.recorder:id,name',
+            'childWelfare.recorder:id,name',
+            /* The one dialogue, when there was one. */
+            'agreement.recorder:id,name']);
 
         AccessLog::record($case->id, 'viewed', 'Full case viewed');
 
@@ -152,6 +174,32 @@ class CaseController extends BaseController
             $validated['closed_at'] = now();
         }
 
+        /* She reported it herself: nobody else's details stay on the case. */
+        if (($validated['reported_by_type'] ?? null) === 'Victim-Survivor') {
+            foreach (['reported_by_name', 'reported_by_resident_id', 'reported_by_relationship',
+                'reported_by_contact', 'applicant_consent'] as $field) {
+                $validated[$field] = null;
+            }
+        }
+
+        /*
+         * The immediate safety assessment, updated.
+         *
+         * In danger right now is Critical, whatever level was chosen. Any
+         * level set here is dated, so a stale one is visibly stale.
+         */
+        $safety = array_intersect_key($validated, array_flip(['currently_in_danger', 'protection_needed', 'risk_level']));
+
+        if ($safety !== []) {
+            if ($level = CaseFile::riskFromDanger($validated['currently_in_danger'] ?? $case->currently_in_danger)) {
+                $validated['risk_level'] = $level;
+            }
+
+            if (array_key_exists('risk_level', $validated)) {
+                $validated['risk_assessed_at'] = now();
+            }
+        }
+
         if (array_key_exists('dependent_ids', $validated)) {
             $dependentIds = collect($validated['dependent_ids'] ?? [])->unique()->values();
             $case->dependents()->sync($dependentIds);
@@ -162,7 +210,13 @@ class CaseController extends BaseController
 
         $case->update($validated);
 
-        AccessLog::record($case->id, 'updated', 'Case fields updated');
+        AccessLog::record(
+            $case->id,
+            $safety !== [] ? 'safety_assessed' : 'updated',
+            $safety !== []
+                ? 'In danger: ' . ($case->currently_in_danger ?? '—') . ' · Protection needed: ' . ($case->protection_needed ?? '—')
+                : 'Case fields updated'
+        );
 
         return $this->success($case->load('dependents:id,first_name,middle_name,last_name,resident_number'), 'VAWC case updated');
     }

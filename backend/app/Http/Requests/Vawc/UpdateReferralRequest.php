@@ -2,23 +2,30 @@
 
 namespace App\Http\Requests\Vawc;
 
+use App\Models\Vawc\Referral;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /**
- * A referral's response state: acknowledged, what came of it, and whether it is done.
+ * Where a referral stands: its status, what came of it, the notes.
  */
 class UpdateReferralRequest extends FormRequest
 {
     /** Also checked on the per-case route, after it confirms the referral is the case's. */
-    public const RULES = [
-        'acknowledgment_date' => 'nullable|date',
-        'outcome' => 'nullable|string',
-        'followup_schedule' => 'nullable|date',
-        'is_completed' => 'boolean',
-    ];
+    public static function rulesFor(): array
+    {
+        return [
+            'referral_status' => ['sometimes', Rule::in(Referral::STATUSES)],
+            'urgency' => ['sometimes', Rule::in(Referral::URGENCIES)],
+            'acknowledgment_date' => ['nullable', 'date'],
+            'outcome' => ['nullable', 'string', 'max:5000'],
+            'notes' => ['nullable', 'string', 'max:5000'],
+            'followup_schedule' => ['nullable', 'date'],
+        ];
+    }
 
     public function rules(): array
     {
-        return self::RULES;
+        return self::rulesFor();
     }
 }

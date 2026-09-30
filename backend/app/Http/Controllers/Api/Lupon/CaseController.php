@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\Api\Lupon;
 
+use App\Services\Lupon\FilingFeeDeadlines;
 use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\Lupon\StoreCaseRequest;
 use App\Models\Lupon\CaseFile;
 use App\Models\Resident\Resident;
 use App\Services\Lupon\JurisdictionScreen;
 use App\Support\DateWindow;
+use App\Support\ManilaTime;
 use Illuminate\Http\Request;
 
 /**
@@ -38,6 +40,38 @@ class CaseController extends BaseController
              */
             'payments:id,lupon_case_id,kind,status',
         ]);
+
+        /*
+         * Finding a case by what somebody actually has in their hand.
+         *
+         * The docket could be filtered by stage and period and not SEARCHED —
+         * so a complainant at the counter holding a slip that says
+         * "KP-2026-0003" meant paging through the list to find it. The case
+         * number is the first thing searched, then the title, then either
+         * side's name, because those are the three things a person asking
+         * "where is my case?" can say.
+         *
+         * Grouped in one where(), so it narrows the stage and period filters
+         * rather than escaping them: an orWhere at the top level would return
+         * every case matching the name regardless of the chosen stage.
+         */
+        if ($request->filled('search')) {
+            $term = '%' . trim($request->search) . '%';
+
+            $query->where(function ($q) use ($term) {
+                $q->where('case_number', 'like', $term)
+                    ->orWhere('case_title', 'like', $term)
+                    /* The Nature of the Case — the docket's column (a case's title follows it). */
+                    ->orWhere('case_classification', 'like', $term)
+                    ->orWhere('complainant_name', 'like', $term)
+                    ->orWhereHas('complainant', fn ($r) => $r
+                        ->where('first_name', 'like', $term)
+                        ->orWhere('last_name', 'like', $term))
+                    ->orWhereHas('respondents', fn ($r) => $r
+                        ->where('first_name', 'like', $term)
+                        ->orWhere('last_name', 'like', $term));
+            });
+        }
 
         if ($request->filled('current_stage')) {
             $query->where('current_stage', $request->current_stage);
@@ -141,15 +175,22 @@ class CaseController extends BaseController
             );
         }
 
+        /*
+         * Manila's date, not the server's. The date is part of the case
+         * number now, and a complaint taken at 7 in the morning was being
+         * filed — and numbered — on the day before, in UTC.
+         */
+        $filedOn = ManilaTime::today();
+
         $case = CaseFile::create([
-            'case_number' => CaseFile::nextCaseNumber(),
+            'case_number' => CaseFile::nextCaseNumber($filedOn),
             'case_title' => $validated['case_title'],
             'case_classification' => $validated['case_classification'],
             'complainant_id' => $validated['complainant_id'],
             'complainant_name' => $validated['complainant_name'] ?? null,
             'complainant_address' => $validated['complainant_address'] ?? null,
             'complainant_contact' => $validated['complainant_contact'] ?? null,
-            'date_filed' => now()->toDateString(),
+            'date_filed' => $filedOn,
             'assigned_lupon_secretary' => auth()->id(),
         ]);
 
@@ -163,7 +204,12 @@ class CaseController extends BaseController
             'complaint_received_date' => now()->toDateString(),
         ]);
 
-        return $this->success($case->load(['complaint', 'respondents:id,first_name,last_name']), 'Lupon case filed', 201);
+        return $this->success(
+            $case->load(['complaint', 'respondents:id,first_name,last_name']),
+            'Lupon case filed. The filing fee must be paid by ' . FilingFeeDeadlines::dueWords($case->payment_due_at)
+                . ' (end of day) — ' . FilingFeeDeadlines::DAYS . ' calendar days — or the case closes unpaid.',
+            201
+        );
     }
 
     public function show(CaseFile $case)
@@ -184,7 +230,7 @@ class CaseController extends BaseController
             'settlement',
             /* The fees on the case. The Lupon reads these to know whether the
                Clerk has been paid — the summons is blocked until it has. */
-            'payments' => fn ($q) => $q->orderBy('requested_at'),
+            'payments' => fn ($q) => $q->orderBy('requested_at')->with('paidBy:id,name'),
         ]);
 
         return $this->success($case, 'Lupon case retrieved');
@@ -204,4 +250,53 @@ class CaseController extends BaseController
      * come out differently. The screen itself (JurisdictionScreen) stays —
      * store() is what calls it.
      */
+
+    /**
+     * The respondent, named on a case that has NONE — a case accepted from an
+     * online complaint before the respondent was required there (2026-09-29).
+     *
+     * Only while it has none: a case that names its respondent keeps them,
+     * because parties are not swapped on a filed case. The same checks as
+     * filing: on the register, not the complainant, and living here (KP
+     * jurisdiction follows the respondent).
+     */
+    public function nameRespondents(Request $request, CaseFile $case)
+    {
+        if ($case->respondents()->exists()) {
+            return $this->error('This case already names its respondent. Parties are not changed on a filed case.', 409);
+        }
+
+        $validated = $request->validate([
+            'respondent_ids' => 'required|array|min:1',
+            'respondent_ids.*' => 'integer|exists:residents,id',
+        ], [
+            'respondent_ids.required' => 'Choose the respondent on the register.',
+            'respondent_ids.min' => 'Choose the respondent on the register.',
+        ]);
+
+        $ids = collect($validated['respondent_ids'])->map(fn ($id) => (int) $id)->unique()->values();
+
+        if ($case->complainant_id && $ids->contains((int) $case->complainant_id)) {
+            return $this->error('The complainant cannot also be the respondent.', 422,
+                ['respondent_ids' => ['The complainant cannot also be the respondent.']]);
+        }
+
+        $outsiders = Resident::whereIn('id', $ids)->where('record_type', Resident::NON_RESIDENT)->pluck('first_name')->all();
+        if ($outsiders !== []) {
+            return $this->error(
+                implode(', ', $outsiders) . ' ' . (count($outsiders) === 1 ? 'is' : 'are')
+                    . ' recorded as living outside Barangay Natumolan. The Lupon can only hear a case whose '
+                    . 'respondent lives here.',
+                422,
+                ['respondent_ids' => ['Each respondent must be a barangay resident.']]
+            );
+        }
+
+        $case->respondents()->sync($ids->all());
+        $names = Resident::whereIn('id', $ids)->get()->map->full_name->implode(', ');
+        FilingFeeDeadlines::record($case, 'respondent_named', 'Respondent named on the register: ' . $names . '.');
+        \App\Support\ChangeLog::bump('lupon_cases');
+
+        return $this->success($case->fresh(), 'Respondent set: ' . $names . '.');
+    }
 }

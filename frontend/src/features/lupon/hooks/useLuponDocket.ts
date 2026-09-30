@@ -6,6 +6,7 @@ import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { usePulse } from "../../../shared/hooks/usePulse";
 import { confirmAction } from "../../../shared/lib/confirm";
 import { toast } from "../../../shared/lib/toast";
+import { useModalDraft } from "../../../shared/lib/useModalDraft";
 import { isOffline } from "../../../shared/offline/connectivity";
 import { enqueue, pendingFor } from "../../../shared/offline/writeQueue";
 import type { Resident } from "../../../shared/types";
@@ -13,6 +14,7 @@ import { CLASSIFICATIONS } from "../lib/docket";
 import { screenComplaint } from "../lib/jurisdictionScreen";
 import { luponApi } from "../api";
 import type { LuponCase } from "../types";
+import { usePageLoad } from "../../../shared/ui/PageLoad";
 
 /** A name for a record only this device knows about yet. */
 function newLocalName(): string {
@@ -68,7 +70,17 @@ export function useLuponDocket() {
   // So the footer can say WHICH rows are on screen, not only the page.
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  /* The page's skeleton until the first answer — see PageLoad. */
+  const pageLoad = usePageLoad();
   const [blocked, setBlocked] = useState("");
+  /*
+   * What the clerk typed into the docket's search box.
+   *
+   * A complainant at the counter holds a slip with "KP-2026-0003" on it;
+   * the docket could be filtered by stage and period but not searched, so
+   * that number found nothing and the list had to be paged through.
+   */
+  const [search, setSearch] = useState("");
 
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [complainant, setComplainant] = useState<Resident | null>(null);
@@ -95,7 +107,7 @@ export function useLuponDocket() {
    */
   const load = (silent = false) => {
     if (!silent) setLoading(true);
-    luponApi.cases({ params: { page, ...periodParams(period) } })
+    luponApi.cases({ params: { page, search: search.trim() || undefined, ...periodParams(period) } })
       .then(async (r) => {
         const served = (r.data.data.data ?? []) as LuponCase[];
         /*
@@ -118,13 +130,19 @@ export function useLuponDocket() {
            this device has filed, which is not nothing. */
         setRows(await queuedCases());
       })
+      .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
+      .catch(() => undefined)
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
-    load();
+    /* Debounced: typing "KP-2026-0003" is twelve keystrokes, and twelve
+       requests racing each other can land out of order and show the
+       results for "KP-20" last. */
+    const timer = setTimeout(() => load(), search ? 300 : 0);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, period]);
+  }, [page, period, search]);
 
   /* A narrower window almost never has as many pages, and page 4 of a
      one-page result is an empty docket that looks like no cases at all. */
@@ -144,8 +162,28 @@ export function useLuponDocket() {
    */
   usePulse("lupon_cases", () => load(true));
 
-  /** Clears the intake draft. Used on cancel and after a successful file. */
-  const resetIntake = () => {
+  /*
+   * THE INTAKE IS KEPT AS IT IS TYPED.
+   *
+   * Closing the modal used to throw everything away. A narrative half-written
+   * when somebody else walks up to the counter, or a tab refreshed by
+   * accident, cost the clerk the whole complaint — and the complainant had
+   * to tell it again.
+   *
+   * Kept per SIGNED-IN ACCOUNT, because this is a shared office computer: a
+   * draft left by one Lupon secretary must not open in front of the next
+   * person who signs in. Cleared on a successful file, and on Discard.
+   *
+   * Lupon only. A VAWC intake is never stored on the device — see the offline
+   * policy — and nothing here reaches it.
+   */
+  const blankIntake = {
+    complainant: null as Resident | null, outsideComplainant: false, outsideName: "", outsideAddress: "",
+    outsideContact: "", respondents: [] as Resident[], classification: CLASSIFICATIONS[0] as string,
+    narrative: "", occurrenceDate: "", place: "", relationship: "",
+  };
+
+  const resetFields = () => {
     setNarrative("");
     setClassification(CLASSIFICATIONS[0]);
     setComplainant(null);
@@ -159,9 +197,63 @@ export function useLuponDocket() {
     setRelationship("");
   };
 
-  const closeIntake = () => {
+  /* Per signed-in account (formDraft's owner), and gone at logout. */
+  const intakeDraft = useModalDraft(
+    "lupon-intake",
+    intakeOpen,
+    {
+      complainant, outsideComplainant, outsideName, outsideAddress, outsideContact,
+      respondents, classification, narrative, occurrenceDate, place, relationship,
+    },
+    (kept) => {
+      const d = { ...blankIntake, ...kept };
+      setComplainant(d.complainant);
+      setOutsideComplainant(Boolean(d.outsideComplainant));
+      setOutsideName(d.outsideName);
+      setOutsideAddress(d.outsideAddress);
+      setOutsideContact(d.outsideContact);
+      setRespondents(d.respondents ?? []);
+      setClassification(d.classification);
+      setNarrative(d.narrative);
+      setOccurrenceDate(d.occurrenceDate);
+      setPlace(d.place);
+      setRelationship(d.relationship);
+    },
+    { blank: blankIntake, reset: resetFields },
+  );
+
+  /** The complaint is filed: the form and its draft start over. */
+  const resetIntake = () => {
+    intakeDraft.clear();
+    resetFields();
+  };
+
+  /*
+   * A matter the Lupon may not hear because it is VAWC: its details are not
+   * kept on this device, even as a draft. It goes to the VAWC desk, whose
+   * records never touch the disk.
+   */
+  const dropVawcMatter = () => {
+    intakeDraft.clear();
+    resetFields();
+  };
+
+  /*
+   * Closing KEEPS the draft. That is the point of it: the clerk steps away,
+   * closes the form, and comes back to the complaint as they left it.
+   * Throwing it away is `discardIntake`, and it asks first.
+   */
+  const closeIntake = () => setIntakeOpen(false);
+
+  const discardIntake = async () => {
+    if (!(await confirmAction({
+      title: "Discard this complaint?",
+      text: "Everything typed into the form will be cleared.",
+      confirmText: "Yes, discard",
+      danger: true,
+    }))) return;
+    intakeDraft.discard();
     setIntakeOpen(false);
-    resetIntake();
   };
 
   const intake = async (event: FormEvent<HTMLFormElement>) => {
@@ -208,6 +300,7 @@ export function useLuponDocket() {
 
       if (screened.refusal) {
         if (screened.vawc) {
+          dropVawcMatter();
           setIntakeOpen(false);
           setBlocked(screened.refusal);
         } else {
@@ -252,6 +345,16 @@ export function useLuponDocket() {
       const response = await luponApi.fileComplaint(body);
       setIntakeOpen(false);
       resetIntake();
+      /*
+       * The number, said out loud.
+       *
+       * It jumped straight to the case, and the case number sat in a page
+       * header nobody was reading yet. It is the one thing the complainant
+       * leaves the counter holding — written on their slip, used to ask
+       * about the case later, and typed into the search box above to find
+       * it again.
+       */
+      toast(`Filed as ${response.data.data.case_number}. Give this number to the complainant.`);
       // Land the clerk on the case itself — jurisdiction screening, hearings,
       // mediation and settlement all happen there, and a case left sitting in
       // the docket is a case nobody is working.
@@ -259,6 +362,7 @@ export function useLuponDocket() {
     } catch (err) {
       const message = errorMessage(err);
       if (message.toLowerCase().includes("vawc")) {
+        dropVawcMatter();
         setIntakeOpen(false);
         setBlocked(message);
       } else {
@@ -268,14 +372,16 @@ export function useLuponDocket() {
   };
 
   return {
+    pageLoad,
     navigate, rows, setRows, period, setPeriod, windowLabel, setWindowLabel, years, setYears,
     periodCounts, setPeriodCounts, page, setPage, lastPage, setLastPage, total, setTotal,
     loading, setLoading, blocked, setBlocked, intakeOpen, setIntakeOpen, complainant,
+    search, setSearch, discardIntake,
     setComplainant, outsideComplainant, setOutsideComplainant, outsideName, setOutsideName,
     outsideAddress, setOutsideAddress, outsideContact, setOutsideContact, respondents,
     setRespondents, classification, setClassification, narrative,
     setNarrative, occurrenceDate, setOccurrenceDate, place, setPlace, relationship,
-    setRelationship, load, changePeriod, resetIntake, closeIntake, intake,
+    setRelationship, load, changePeriod, resetIntake, closeIntake, intake, intakeDraft,
   };
 }
 

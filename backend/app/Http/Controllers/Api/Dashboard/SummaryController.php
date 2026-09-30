@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api\Dashboard;
 use App\Http\Controllers\Api\BaseController;
 use App\Models\Health\Visit;
 use App\Models\Lupon;
-use App\Models\Lupon\Payment as LuponPayment;
 use App\Models\Service\Certificate;
 use App\Models\Service\ServiceRequest;
 use App\Models\Vawc;
@@ -95,22 +94,8 @@ class SummaryController extends BaseController
                 ->count();
         }
 
-        /*
-         * Lupon fees waiting at this counter.
-         *
-         * The Clerk collects them now — ₱20 to file a case, ₱230 to certify a
-         * failed conciliation to court — and each one sitting here is a Lupon
-         * case standing still: the summons cannot be issued until it is paid.
-         * It was the one piece of the Clerk's work with no figure anywhere.
-         *
-         * It replaces two tiles that both counted service requests. A request
-         * raises its certificate the moment it is made, so they were the same
-         * work as "certificates to start", under an earlier name, linking to
-         * a queue that is no longer on the menu.
-         */
-        if ($user->office === 'Main Office' || $user->role === 'Punong Barangay') {
-            $pending['lupon_fees_waiting'] = LuponPayment::where('status', 'Requested')->count();
-        }
+        /* No Lupon fees here: the Lupon confirms the receipt itself now, and
+           the Clerk's counter takes no part in it. */
 
         return $this->success($pending, 'Pending items retrieved');
     }
@@ -155,13 +140,13 @@ class SummaryController extends BaseController
             ])
             ->orderByDesc('created_at')
             ->limit(5)
-            ->get(['id', 'certificate_number', 'certificate_type', 'status', 'resident_id', 'created_at'])
+            ->get(['id', 'certificate_number', 'certificate_type', 'status', 'resident_id', 'unlisted_person', 'created_at'])
             ->map(fn ($c) => [
                 'id' => $c->id,
                 'certificate_number' => $c->certificate_number,
                 'certificate_type' => $c->certificate_type,
                 'status' => $c->status,
-                'resident' => $c->resident?->full_name,
+                'resident' => $c->holderName(),
                 'created_at' => $c->created_at,
             ]);
 

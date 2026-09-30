@@ -5,3 +5,10 @@ let nextId = 1;
 export function nextLineId(): number {
   return nextId++;
 }
+
+/** Past the lines read back from the device (lib/chatLog), so no new one shares an id with them. */
+export function continueLineIdsAfter(lines: { id: number }[]): void {
+  lines.forEach((line) => {
+    if (line.id >= nextId) nextId = line.id + 1;
+  });
+}

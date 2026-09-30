@@ -47,8 +47,10 @@ class CertificatePhotoController extends BaseController
 
         $this->photo->attach($certificate, $request->file('photo')->store(CertificatePhoto::DIRECTORY, 'public'));
 
+        /* fresh() on its own reloads the columns and none of the relations —
+           which is what blanked the holder in the counter's window. */
         return $this->success(
-            $certificate->fresh(),
+            $certificate->fresh(Certificate::COUNTER_RELATIONS),
             'Photograph attached. It prints in the box beside the thumbmarks.'
         );
     }
@@ -90,6 +92,6 @@ class CertificatePhotoController extends BaseController
 
         $this->photo->attach($certificate, $path);
 
-        return $this->success($certificate->fresh(), 'Photograph attached.');
+        return $this->success($certificate->fresh(Certificate::COUNTER_RELATIONS), 'Photograph attached.');
     }
 }

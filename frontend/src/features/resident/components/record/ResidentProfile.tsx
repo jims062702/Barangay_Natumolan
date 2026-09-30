@@ -30,10 +30,14 @@ export function ResidentProfile({ ctx, resident, isOutside }: {
           hint={birthdateNote(resident.birthdate_is_estimated) || undefined}
         />
         <Row label="Place of birth" value={resident.birth_place} />
+        {/* RBIM Q7 — printed on the Resident ID. */}
+        <Row label="Nationality" value={resident.nationality} />
         <Row label="Civil status" value={resident.civil_status} />
         <Row label="Occupation" value={resident.occupation} />
         <Row label="Educational attainment" value={resident.educational_attainment} />
-        <Row label="Contact" value={resident.contact_number} />
+        {/* RBIM Q32 — where they vote. */}
+        <Row label="Registered voter in" value={resident.registered_voter_in} />
+        <Row label="Contact Number" value={resident.contact_number} />
         <Row label="Email" value={resident.email} />
       </Card>
 
@@ -93,9 +97,15 @@ export function ResidentProfile({ ctx, resident, isOutside }: {
             {resident.sectors?.map((sector) => (
               <span
                 key={sector.id}
+                /* The note says what the tag rests on — the disability the
+                   census recorded, or that the ID number is still to come. */
+                title={sector.note ?? undefined}
                 className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary"
               >
                 {sector.sector_type}
+                {sector.sector_type === "PWD" && sector.note?.includes(" (RBIM") && (
+                  <span className="font-normal">· {sector.note.split(" (RBIM")[0]}</span>
+                )}
                 {/* Age brackets are auto-managed → no manual remove. */}
                 {isBpo && !isAgeSector(sector.sector_type) && (
                   <button
@@ -114,7 +124,8 @@ export function ResidentProfile({ ctx, resident, isOutside }: {
         )}
         {isBpo && (
           <p className="mt-3 text-xs text-gray-400">
-            Age brackets (Child, Youth, Adult, Senior Citizen) are set automatically from birthdate.
+            The age bracket — one at a time: Children Under Five (0–4), Child (5–14), Youth
+            (15–30), Adult (31–59), Senior Citizen (60+) — is set automatically from the birthdate.
           </p>
         )}
       </Card>

@@ -6,10 +6,12 @@ import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { usePulse } from "../../../shared/hooks/usePulse";
 import { toast } from "../../../shared/lib/toast";
 import { confirmAction } from "../../../shared/lib/confirm";
+import { useModalDraft } from "../../../shared/lib/useModalDraft";
 import { authApi } from "../../../shared/auth/api";
 import type { User } from "../../../shared/types";
 import { ROLE_OFFICE } from "../lib/roles";
 import { adminApi } from "../api";
+import { usePageLoad } from "../../../shared/ui/PageLoad";
 
 /**
  * The state and handlers of <UserManagement>, so its sections can share them.
@@ -33,6 +35,8 @@ export function useAccountAdmin({
   // So the footer can say WHICH rows are on screen, not only the page.
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  /* The page's skeleton until the first answer — see PageLoad. */
+  const pageLoad = usePageLoad();
 
   /* Both totals, so this page can point at the other register rather than
      leaving somebody to click the sidebar to find out if it is empty. */
@@ -76,6 +80,7 @@ export function useAccountAdmin({
         setTotal(r.data.data.total ?? 0);
         setCounts(r.data.data.counts);
       })
+      .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
       .catch(noteOffline)
       .finally(() => setLoading(false));
   };
@@ -124,6 +129,7 @@ export function useAccountAdmin({
         });
       }
 
+      selfDraft.clear();
       toast("Your account has been updated.");
       setSelfOpen(false);
       setCurrentPassword("");
@@ -143,6 +149,60 @@ export function useAccountAdmin({
     setRole(user.role);
   };
 
+  /* The new-account form shares its boxes with the edit form: it starts
+     blank, not holding whoever was edited last. */
+  const openCreate = () => {
+    setName("");
+    setEmail("");
+    setPassword("");
+    setRole("Clerk");
+    setCreateOpen(true);
+  };
+
+  /*
+   * What was typed into the account forms, kept until saved or discarded —
+   * the name, email and role. A password is NEVER kept: it is typed again.
+   */
+  const restoreAccount = (kept: { name?: string; email?: string; role?: string }, base: { name: string; email: string; role: string }) => {
+    setName(kept.name ?? base.name);
+    setEmail(kept.email ?? base.email);
+    setRole(kept.role ?? base.role);
+  };
+  const blankCreate = { name: "", email: "", role: "Clerk" };
+  const createDraft = useModalDraft(
+    "new-staff-account",
+    createOpen,
+    { name, email, role },
+    (kept) => restoreAccount(kept, blankCreate),
+    { blank: blankCreate, reset: () => restoreAccount(blankCreate, blankCreate) },
+  );
+  const editBase = { name: editing?.name ?? "", email: editing?.email ?? "", role: editing?.role ?? "Clerk" };
+  const editDraft = useModalDraft(
+    editing ? `edit-account:${editing.id}` : null,
+    editing !== null,
+    { name, email, role },
+    (kept) => restoreAccount(kept, editBase),
+    { blank: editBase, reset: () => restoreAccount(editBase, editBase), version: JSON.stringify(editBase) },
+  );
+  const selfBase = { name: user?.name ?? "", email: user?.email ?? "" };
+  const selfDraft = useModalDraft(
+    "my-account",
+    selfOpen,
+    { name: selfName, email: selfEmail },
+    (kept) => {
+      setSelfName(kept.name ?? selfBase.name);
+      setSelfEmail(kept.email ?? selfBase.email);
+    },
+    {
+      blank: selfBase,
+      reset: () => {
+        setSelfName(selfBase.name);
+        setSelfEmail(selfBase.email);
+      },
+      version: JSON.stringify(selfBase),
+    },
+  );
+
   const saveEdit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!editing) return;
@@ -161,6 +221,7 @@ export function useAccountAdmin({
           : { role, office: ROLE_OFFICE[role] }),
       });
 
+      editDraft.clear();
       toast(`${name} updated.`);
       setEditing(null);
       setPassword("");
@@ -181,6 +242,7 @@ export function useAccountAdmin({
         role,
         office: ROLE_OFFICE[role],
       });
+      createDraft.clear();
       setCreateOpen(false);
       setName("");
       setEmail("");
@@ -229,13 +291,14 @@ export function useAccountAdmin({
   };
 
   return {
+    pageLoad,
     offline,
     user, refresh, rows, setRows, search, setSearch, page, setPage, lastPage, setLastPage,
     total, setTotal, loading, setLoading, counts, setCounts, selfOpen, setSelfOpen, selfName,
     setSelfName, selfEmail, setSelfEmail, currentPassword, setCurrentPassword, selfPassword,
     setSelfPassword, createOpen, setCreateOpen, editing, setEditing, name, setName, email,
     setEmail, password, setPassword, role, setRole, load, openSelf, saveSelf, startEdit,
-    saveEdit, create, remove, toggle,
+    saveEdit, create, remove, toggle, openCreate, createDraft, editDraft, selfDraft,
   };
 }
 

@@ -4,12 +4,9 @@ import PhoneInput from "../../../shared/ui/PhoneInput";
 import HouseholdPicker from "./HouseholdPicker";
 import { useZoneNames } from "../../population/lib/useZones";
 import { MANUAL_SECTORS } from "../lib/sectors";
-import {
-  ageFrom,
-  birthMonthValue,
-  birthMonthToDate,
-  birthdateNote,
-} from "../../../shared/lib/birthdate";
+import { RegisteredVoterField } from "./RegisteredVoterField";
+import { NationalityField } from "./NationalityField";
+import { ageFrom, formatBirthdate } from "../../../shared/lib/birthdate";
 import type { Household } from "../../../shared/types";
 
 /**
@@ -33,6 +30,8 @@ export interface ResidentForm {
   /** True when only a month and a year were ever given — see shared/lib/birthdate. */
   birthdate_is_estimated?: boolean;
   birth_place: string;
+  /** RBIM Q7 — see NationalityField. */
+  nationality: string;
   civil_status: string;
   occupation: string;
   contact_number: string;
@@ -42,6 +41,7 @@ export interface ResidentForm {
   residency_status: string;
   length_of_residence_years: string;
   educational_attainment: string;
+  registered_voter_in: string;
   /** Only used for someone who lives outside the barangay. */
   address: string;
 }
@@ -65,6 +65,7 @@ export const RESIDENT_FORM_INITIAL: ResidentForm = {
      the one that estimates, and it sets this itself. */
   birthdate_is_estimated: false,
   birth_place: "",
+  nationality: "",
   civil_status: "",
   occupation: "",
   contact_number: "",
@@ -74,6 +75,7 @@ export const RESIDENT_FORM_INITIAL: ResidentForm = {
   residency_status: "",
   length_of_residence_years: "",
   educational_attainment: "",
+  registered_voter_in: "",
   address: "",
 };
 
@@ -87,13 +89,14 @@ export const RESIDENT_FORM_INITIAL: ResidentForm = {
 export { ageFrom as ageFromBirthdate };
 
 /**
- * Age-based sectors (a person can fall in more than one):
- *   0–14 Child · 15–17 Child + Youth · 18–30 Youth · 31–59 Adult · 60+ Senior.
+ * The ONE age bracket, as the register works it out (Resident::ageSectors):
+ *   0–4 Children Under Five · 5–14 Child · 15–30 Youth · 31–59 Adult · 60+ Senior.
+ * Shown on the form; the server decides it again from the birthdate.
  */
 export function ageSectors(age: number | null): string[] {
   if (age === null) return [];
+  if (age < 5) return ["Children Under Five"];
   if (age <= 14) return ["Child"];
-  if (age <= 17) return ["Child", "Youth"];
   if (age <= 30) return ["Youth"];
   if (age <= 59) return ["Adult"];
   return ["Senior Citizen"];
@@ -217,35 +220,31 @@ export default function ResidentFormFields({
         </select>
       </FormField>
       {/*
-        A day, or a month — whichever the record actually knows.
+        THE WHOLE DATE, ALWAYS (2026-09-30): month, day and year.
 
-        The RBIM census asks Q5 for a month and a year and no day, so a
-        record registered from one carries the last day of that month purely
-        because the column needs a day. Offering a date picker for it would
-        put that invented day in front of a clerk as though they had chosen
-        it, and the first edit would silently promote a guess to a fact.
-
-        The month picker writes back the last day of the month, which is what
-        makes the age tick over only once that month has run out.
+        A record that holds only a month and a year (the imported sheet gave
+        no day) carries the last day of that month purely because the column
+        needs one. That day is not shown here as though somebody chose it:
+        the box starts empty, says what is on record, and a date typed into
+        it is the whole one — no longer an estimate.
       */}
       <FormField
         label="Birthdate"
         required
-        hint={form.birthdate_is_estimated ? birthdateNote(true) : undefined}
+        hint={
+          form.birthdate_is_estimated && form.birthdate
+            ? `Only ${formatBirthdate(form.birthdate, true)} is on record — enter the full date: month, day and year.`
+            : undefined
+        }
       >
-        {form.birthdate_is_estimated ? (
-          <input
-            type="month"
-            value={birthMonthValue(form.birthdate)}
-            onChange={(e) =>
-              onChange({ ...form, birthdate: birthMonthToDate(e.target.value) })
-            }
-            required
-            className={inputClasses}
-          />
-        ) : (
-          <input type="date" value={form.birthdate} onChange={set("birthdate")} required className={inputClasses} />
-        )}
+        <input
+          type="date"
+          value={form.birthdate_is_estimated ? "" : form.birthdate}
+          onChange={(e) => onChange({ ...form, birthdate: e.target.value, birthdate_is_estimated: false })}
+          max={new Date().toLocaleDateString("en-CA")}
+          required={!form.birthdate_is_estimated}
+          className={inputClasses}
+        />
       </FormField>
       <FormField label="Place of birth" hint="Also on the PSA birth certificate.">
         <input
@@ -255,6 +254,7 @@ export default function ResidentFormFields({
           placeholder="e.g. Tagoloan, Misamis Oriental"
         />
       </FormField>
+      <NationalityField value={form.nationality} onChange={(value) => onChange({ nationality: value })} />
       <FormField label="Civil status">
         <select value={form.civil_status} onChange={set("civil_status")} className={inputClasses}>
           <option value="">Not recorded</option>
@@ -278,7 +278,7 @@ export default function ResidentFormFields({
           </p>
         </div>
       </FormField>
-      <FormField label="Contact number" hint="Philippine mobile — 10 digits after +63">
+      <FormField label="Contact Number" hint="Philippine mobile — 10 digits after +63">
         <PhoneInput
           value={form.contact_number}
           onChange={(v) => onChange({ contact_number: v })}
@@ -293,7 +293,7 @@ export default function ResidentFormFields({
       {showHousehold && (
         <FormField
           plain
-          label="Household (Household No.)"
+          label="Household (Household Number)"
           hint={householdHint ?? "Search to set the address & Purok. Not listed? Register one."}
         >
           <HouseholdPicker
@@ -312,7 +312,7 @@ export default function ResidentFormFields({
         in Purok 1.
       */}
       <FormField
-        label="Zone"
+        label="Zone / Purok"
         required
         hint={purokFromHousehold ? "From the chosen household — a zone belongs to the house." : undefined}
       >
@@ -383,6 +383,10 @@ export default function ResidentFormFields({
           placeholder="e.g. High School Graduate"
         />
       </FormField>
+      <RegisteredVoterField
+        value={form.registered_voter_in}
+        onChange={(value) => onChange({ registered_voter_in: value })}
+      />
 
       {/* Sectors / classification — age-based tag is automatic; the rest
           are quick toggle buttons. Spans the full form width. */}

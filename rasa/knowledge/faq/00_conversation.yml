@@ -1,0 +1,137 @@
+# Greetings, thanks, and talking about the chatbot itself.
+#
+# Each intent:
+#   id        the Rasa intent (kept as it was for the ones that existed, so old
+#             buttons and payloads still work)
+#   response  only where the old response name is kept; otherwise utter_<id>
+#   label     the button's words when another answer offers this one
+#   question  the question in full, as a person would ask it
+#   answer    what the chatbot says — facts from the system or the law only
+#   related   the questions offered under this answer (2–4)
+#   en/tl/ceb phrasings in English, Tagalog and Bisaya
+#   test      questions kept OUT of training, to measure the chatbot honestly
+topic: conversation
+intents:
+  - id: greet
+    response: utter_greet
+    label: "Hello"
+    question: "Hello!"
+    answer: |-
+      Kumusta! I'm the Barangay Natumolan assistant. Ask me about certificates and fees, filing a complaint, the VAWC Desk, the Health Station, the Population Office or the resident portal.
+    related: [ask_certificates, ask_office_hours, ask_file_complaint, ask_portal_account]
+    en: [hi, hello, hey, good morning, good afternoon, good evening, hi there, hello there, greetings, yo]
+    tl: [kumusta, kamusta po, hello po, magandang umaga, magandang hapon, magandang gabi, musta]
+    ceb: [maayong buntag, maayong hapon, maayong gabii, kumusta ka, hello diha]
+    test: [good day, magandang araw po]
+
+  - id: goodbye
+    response: utter_goodbye
+    label: "Goodbye"
+    question: "Goodbye"
+    answer: |-
+      Salamat! Take care, and feel free to chat again anytime.
+    related: []
+    en: [bye, goodbye, see you, see you later, that's all, i'm done, bye bye, talk later]
+    tl: [paalam, sige salamat, ok bye na, sige po paalam, yun lang po]
+    ceb: [babay, sige salamat kaayo, mao ra to, adto na ko]
+    test: [ok that is everything bye, sige na po bye]
+
+  - id: thanks
+    response: utter_thanks
+    label: "Thank you"
+    question: "Thank you"
+    answer: |-
+      Walang anuman! Happy to help. Is there anything else you need?
+    related: [ask_certificates, ask_office_hours, ask_file_complaint]
+    en: [thanks, thank you, thank you so much, thanks a lot, many thanks, appreciate it, that helps]
+    tl: [salamat, salamat po, maraming salamat, salamat sa tulong, salamat ng marami]
+    ceb: [salamat kaayo, daghang salamat, salamat sa tabang]
+    test: [thank you very much for the help, salamat talaga po]
+
+  - id: bot_challenge
+    response: utter_iamabot
+    label: "Are you a bot?"
+    question: "Am I talking to a bot?"
+    answer: |-
+      I'm the Barangay Natumolan chatbot — a computer program, not a person. I answer common questions about barangay services. For a real person, press "Talk to Clerk".
+    related: [ask_human, ask_capabilities]
+    en: [are you a bot, are you human, am i talking to a robot, is this a real person, are you ai, who are you, what are you]
+    tl: [bot ka ba, tao ka ba, robot ka ba, sino ka]
+    ceb: [bot ka, tawo ka ba, kinsa ka]
+    test: [is this an automated chat, totoong tao ba ito]
+
+  - id: ask_capabilities
+    label: "What can you help with?"
+    question: "What can you help me with?"
+    answer: |-
+      I can help with:
+      • Certificates and clearances — what they cost and what to bring
+      • Requesting and tracking certificates online
+      • Filing a complaint with the Lupon Tagapamayapa
+      • The VAWC Desk, the Health Station and the Population Office
+      • The resident portal and your account
+      • Office hours and where to find the Barangay Hall
+    related: [ask_certificates, ask_file_complaint, ask_portal_account, ask_offices]
+    en: [what can you do, what can you help me with, how can you help, what do you know, what can i ask you, what services can you answer, help]
+    tl: [ano ang kaya mong gawin, ano pwede kong itanong, paano mo ako matutulungan, tulong]
+    ceb: [unsa imong mahimo, unsa akong mapangutana, tabang]
+    test: [what questions can you answer, anong alam mo]
+
+  - id: ask_language
+    label: "Can I use Tagalog or Bisaya?"
+    question: "Can I ask in Tagalog or Bisaya?"
+    framed:
+      can: [type in tagalog, ask in bisaya, use cebuano, write in filipino]
+    answer: |-
+      Yes — you can type in English, Tagalog or Bisaya. I will answer in English, and the barangay staff speak all three if you visit.
+    related: [ask_capabilities, ask_human]
+    en: [can i speak tagalog, do you understand tagalog, can i type in bisaya, do you speak cebuano, what languages do you understand, can i use filipino]
+    tl: [pwede ba tagalog, marunong ka ba mag tagalog, pwede mag bisaya]
+    ceb: [kahibalo ka mag bisaya, pwede mag binisaya, kasabot ka og bisaya]
+    test: [english lang ba pwede, can i write in cebuano]
+
+  - id: ask_human
+    label: "Talk to a person"
+    question: "How do I talk to a real person?"
+    framed:
+      how_to: [talk to a person, talk to a real person, chat with the clerk, talk to the staff]
+      can: [talk to a real person, chat with the clerk, speak to someone at the office]
+    answer: |-
+      Press "Talk to Clerk (live agent)" below the chat. The Barangay Clerk answers one person at a time during office hours, Monday to Friday, 8:00 AM – 5:00 PM.
+
+      The live desk is for registered residents, so you will be asked to sign in to the resident portal first.
+    related: [ask_portal_account, ask_office_hours, ask_contact]
+    en: [talk to a person, i want a human, can i talk to someone, talk to staff, connect me to an agent, live agent, speak to the clerk, real person please]
+    tl: [gusto ko makausap ang tao, pwede makausap ang staff, kausapin ang clerk]
+    ceb: [gusto ko makig-istorya sa tawo, pwede ko makaistorya sa staff]
+    test: [is there a live person i can chat with, may tao ba dito]
+
+  - id: ask_developers
+    response: utter_developers
+    label: "Who developed this?"
+    question: "Who developed the Barangay Natumolan System?"
+    answer: |-
+      The Barangay Natumolan Management Information System was developed by Team Pentagram 🫰
+
+      • Honeyleth S. Monteadora — Project Manager
+      • Angeline O. Auza — Technical Writer
+      • VJ L. Batal — System Analyst 1
+      • Rachiel C. Torrejos — System Analyst 2
+      • Johnvyll A. Gumahin — Frontend Developer
+      • James Gasang — Backend Developer
+
+      Salamat for using our system! 💜
+    related: [ask_capabilities]
+    en: [who developed this, who made this system, who built this website, who created the barangay natumolan system, developers of this system, team behind this]
+    tl: [sino gumawa nito, sino ang gumawa ng system, sino nag develop]
+    ceb: [kinsa naghimo ani, kinsa ang nag develop sa system]
+    test: [who programmed this chatbot, sino ang developer]
+
+  # What Rasa says when it does not understand. The website's chat widget
+  # recognises it by its opening words — keep "Sorry, I did not quite get that".
+  - id: nlu_fallback
+    label: "Not understood"
+    question: ""
+    answer: |-
+      Sorry, I did not quite get that. You can ask me about certificates, fees, office hours, filing a complaint, the VAWC Desk, the Health Station or the resident portal — or try one of these:
+    related: [ask_certificates, ask_office_hours, ask_file_complaint, ask_contact]

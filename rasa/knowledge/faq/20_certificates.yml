@@ -1,0 +1,567 @@
+# Certificates and clearances.
+#
+# EVERY AMOUNT HERE IS THE ORDINANCE'S (18 January 2020), as the system
+# charges it — backend/app/Services/Service/CertificateCatalogue.php. If the
+# ordinance changes, change both, or the chatbot quotes a fee the counter
+# does not charge.
+#
+# The ₱30 documentary stamp goes on EVERY certificate, on top of the fee,
+# and is never waived — an exemption removes the fee, not the stamp.
+topic: certificates
+intents:
+  - id: ask_certificates
+    response: utter_certificates
+    label: "What certificates are available?"
+    question: "What certificates are available?"
+    answer: |-
+      The Main Office issues:
+      • Barangay Clearance (also with Picture)
+      • Business Barangay Clearance
+      • Barangay Construction Clearance
+      • Certificate of Residency (also with Birth Details)
+      • Certificate of Indigency
+      • Certificate of Low or No Income
+      • Good Moral Character
+      • First-Time Jobseeker Certification (RA 11261)
+      • Certification of Death
+      • Certification for Marriage License
+      • Certification of Common Law Partner
+      • Certification of Oneness of Name
+      • Certificate of Appearance
+
+      Walk in at the Main Office, or request one online through the resident portal.
+    related: [ask_fees, ask_requirements, ask_request_online, ask_clearance]
+    en: [what certificates can i get, what certificates are available, list of certificates, what documents does the barangay issue, what can i request from the barangay, what certifications do you offer, available barangay documents]
+    tl: [anong mga certificate ang pwede makuha, ano ang mga sertipiko sa barangay, anong dokumento ang binibigay ng barangay, listahan ng certificate]
+    ceb: [unsa mga certificate ang makuha, unsa nga dokumento ang ihatag sa barangay, lista sa mga certificate]
+    test: [which papers can the barangay issue me, anong klaseng certification ang meron kayo]
+
+  - id: ask_fees
+    response: utter_fees
+    label: "How much are the fees?"
+    question: "How much are the certificate fees?"
+    framed:
+      fee: [a certificate, barangay certificates, the certificates, barangay documents]
+    answer: |-
+      Fees follow the barangay's fee ordinance:
+      • Barangay Clearance — ₱30 to ₱200, depending on what it is for
+      • Business Barangay Clearance — ₱25 to ₱750, depending on the kind of business
+      • Certificate of Residency — ₱40
+      • Barangay Construction Clearance — ₱50
+      • Good Moral, Low or No Income, Appearance, Common Law Partner, Oneness of Name, Marriage License — ₱30 each
+      • Indigency, First-Time Jobseeker, Death — no fee
+
+      A ₱30 documentary stamp is added to every certificate, including the ones with no fee. You pay at the Main Office counter and get an official receipt.
+    related: [ask_clearance_fee, ask_business_clearance_fee, ask_documentary_stamp, ask_fee_exemption]
+    en: [how much are the fees, how much does a certificate cost, certificate fees, price list of certificates, how much do i pay, fee schedule, how much is a barangay certificate]
+    tl: [magkano ang bayad sa certificate, magkano ang mga sertipiko, presyo ng certificate, magkano babayaran ko]
+    ceb: [pila ang bayad sa certificate, pila ang presyo sa mga certificate, tagpila ang certificate]
+    test: [what are the charges for barangay documents, magkano po lahat ng certificate]
+
+  - id: ask_requirements
+    response: utter_requirements
+    label: "What do I need to bring?"
+    question: "What are the requirements for a certificate?"
+    framed:
+      requirements: [a certificate, barangay certificates, a barangay document, getting a certificate]
+    answer: |-
+      For any certificate:
+      • Bring a valid ID
+      • You should be listed in the barangay's register of residents — if you are not yet, the Population Office can register you through the RBIM census
+
+      Some certificates ask for more details on the form — for example the business name and kind for a business clearance, or your parents' names for a residency with birth details. The clerk will ask for these at the counter.
+    related: [ask_register_resident, ask_fees, ask_certificates]
+    en: [what are the requirements, what do i need to bring, requirements for a certificate, what documents do i need, what should i bring to the barangay, do i need an id]
+    tl: [ano ang requirements, ano ang dadalhin ko, ano kailangan para sa certificate, kailangan ba ng id]
+    ceb: [unsa ang requirements, unsa akong dalhon, unsa kinahanglan para sa certificate]
+    test: [what papers must i present for a certificate, anong kailangan ko ipakita sa barangay]
+
+  - id: ask_documentary_stamp
+    label: "The documentary stamp"
+    question: "What is the ₱30 documentary stamp?"
+    framed:
+      what: [the documentary stamp, the stamp fee, the extra 30 pesos]
+    answer: |-
+      The barangay puts a ₱30 documentary stamp on every certificate it issues. It is charged on top of the certificate's fee and is recorded separately.
+
+      It still applies when the certificate has no fee, or when the fee is waived — an exemption removes the fee, not the stamp.
+    related: [ask_fees, ask_fee_exemption, ask_payment]
+    en: [what is the documentary stamp, why is there an extra 30 pesos, what is the extra charge, documentary stamp fee, is the stamp required]
+    tl: [ano yung documentary stamp, bakit may dagdag na 30 pesos, para saan ang dagdag na bayad]
+    ceb: [unsa ang documentary stamp, ngano naay dugang nga 30 pesos]
+    test: [why did i pay 30 more than the fee, ano po yung stamp na binayaran]
+
+  - id: ask_fee_exemption
+    label: "Can the fee be waived?"
+    question: "Can I be exempted from paying the fee?"
+    framed:
+      can: [get it for free, be exempted from the fee, not pay the fee, get a fee exemption]
+    answer: |-
+      Some certificates have no fee: Indigency, First-Time Jobseeker and Death certifications. For other certificates, an indigent resident may ask the Main Office for a fee exemption — the clerk records it on the certificate.
+
+      The ₱30 documentary stamp still applies either way.
+    related: [ask_indigency, ask_jobseeker, ask_documentary_stamp]
+    en: [can the fee be waived, can i get it for free, fee exemption, i cannot afford the fee, free certificate, is there a discount]
+    tl: [pwede ba libre, wala akong pambayad, pwede ba hindi magbayad, may discount ba]
+    ceb: [pwede ba libre, wala koy ikabayad, naa bay discount]
+    test: [are poor residents exempted from paying, pwede po bang walang bayad]
+
+  - id: ask_payment
+    label: "How do I pay?"
+    question: "How do I pay for a certificate?"
+    framed:
+      how_to: [pay for a certificate, pay the fee, pay online]
+    answer: |-
+      Pay at the Main Office counter when you are there — the clerk issues an official receipt, and its number is recorded on your certificate. There is no online payment.
+    related: [ask_fees, ask_request_online, ask_claim_certificate]
+    en: [how do i pay, can i pay online, where do i pay, mode of payment, gcash payment, do you accept online payment, official receipt]
+    tl: [saan magbabayad, pwede ba magbayad online, pwede ba gcash, paano magbayad]
+    ceb: [asa ko mobayad, pwede ba mobayad online, pwede ba gcash]
+    test: [can i settle the fee through an app, saan po ang bayaran]
+
+  - id: ask_clearance
+    label: "Barangay Clearance"
+    question: "How do I get a Barangay Clearance?"
+    framed:
+      get: [barangay clearance, a barangay clearance, clearance, brgy clearance, clearance sa barangay]
+      requirements: [barangay clearance, clearance, brgy clearance]
+    answer: |-
+      Go to the Main Office with a valid ID, or request it online through the resident portal. The clerk asks what the clearance is for, because the fee depends on it:
+      • Mayor's Permit — ₱200
+      • Employment Abroad — ₱100
+      • Passport — ₱50
+      • Loan Purposes — ₱40
+      • Motor Installment — ₱30
+      • Employment (local) and other purposes — ₱30
+
+      Plus the ₱30 documentary stamp.
+    related: [ask_clearance_with_picture, ask_business_clearance, ask_request_online, ask_track_request]
+    en: [how do i get a barangay clearance, i need a barangay clearance, barangay clearance application, where do i get a clearance, how to apply for barangay clearance, request barangay clearance]
+    tl: [paano kumuha ng barangay clearance, kailangan ko ng barangay clearance, saan kukuha ng clearance]
+    ceb: [unsaon pagkuha og barangay clearance, kinahanglan ko og barangay clearance, asa makuha ang clearance]
+    test: [steps to get a clearance from the barangay, pano po magpagawa ng clearance]
+
+  - id: ask_clearance_fee
+    label: "Clearance fee"
+    question: "How much is a Barangay Clearance?"
+    framed:
+      fee: [barangay clearance, clearance, brgy clearance, clearance for employment, clearance for passport, clearance for abroad, clearance for a loan, clearance for mayors permit, clearance for work]
+    answer: |-
+      A Barangay Clearance is priced by what it is for:
+      • Mayor's Permit — ₱200
+      • Employment Abroad — ₱100
+      • Passport — ₱50
+      • Loan Purposes — ₱40
+      • Motor Installment — ₱30
+      • Employment (local) and other purposes — ₱30
+
+      A ₱30 documentary stamp is added. A clearance for a business is a Business Barangay Clearance, priced by the kind of business.
+    related: [ask_clearance, ask_business_clearance_fee, ask_documentary_stamp]
+    en: [how much is a barangay clearance, clearance fee, price of barangay clearance, how much for a clearance for employment, how much is a clearance for passport, clearance for abroad how much]
+    tl: [magkano ang barangay clearance, magkano clearance, presyo ng clearance, magkano ang clearance para sa trabaho]
+    ceb: [pila ang barangay clearance, pila ang clearance, tagpila ang clearance]
+    test: [cost of a clearance for a loan, magkano po ang clearance pang abroad]
+
+  - id: ask_clearance_with_picture
+    label: "Clearance with Picture"
+    question: "What is a Barangay Clearance with Picture?"
+    framed:
+      get: [clearance with picture, barangay clearance with photo, clearance with thumbmark]
+      what: [clearance with picture]
+    answer: |-
+      It is a Barangay Clearance that carries your photograph. The photo is taken at the Main Office counter by the clerk — photos brought from home are not used — and your thumbmarks are inked on the printed sheet there. So you need to come in person.
+
+      The fee is the same as a Barangay Clearance: it depends on the purpose, plus the ₱30 documentary stamp.
+    related: [ask_clearance_fee, ask_clearance, ask_claim_certificate]
+    en: [clearance with picture, barangay clearance with photo, do i need a picture for the clearance, should i bring a 1x1 photo, clearance with thumbmark]
+    tl: [clearance na may picture, kailangan ba ng picture sa clearance, magdadala ba ako ng 1x1]
+    ceb: [clearance nga naay picture, kinahanglan ba og picture sa clearance, magdala ba ko og 1x1]
+    test: [does the clearance need my photo taken at the office, may litrato po ba ang clearance]
+
+  - id: ask_business_clearance
+    label: "Business clearance"
+    question: "How do I get a Business Barangay Clearance?"
+    framed:
+      get: [business clearance, business barangay clearance, clearance for my business, barangay business permit, clearance for my store]
+      requirements: [business clearance, business barangay clearance, a business permit from the barangay]
+    answer: |-
+      Go to the Main Office with a valid ID. The clerk records the business name and the kind of business, which sets the fee under the ordinance — from ₱25 to ₱750 — plus the ₱30 documentary stamp.
+
+      A Barangay Clearance for a Mayor's Permit is ₱200.
+    related: [ask_business_clearance_fee, ask_clearance_fee, ask_requirements]
+    en: [how do i get a business clearance, business barangay clearance, clearance for my business, barangay permit for a store, i am opening a business what do i need, business permit from the barangay]
+    tl: [paano kumuha ng business clearance, clearance para sa negosyo, magtatayo ako ng negosyo ano kailangan]
+    ceb: [unsaon pagkuha og business clearance, clearance para sa negosyo, mag negosyo ko unsa kinahanglan]
+    test: [what does a new shop need from the barangay, clearance po para sa tindahan]
+
+  - id: ask_business_clearance_fee
+    label: "Business clearance fee"
+    question: "How much is a Business Barangay Clearance?"
+    framed:
+      fee: [business clearance, business barangay clearance, clearance for a sari-sari store, clearance for an eatery, clearance for a store, business permit in the barangay, clearance for a junk shop]
+    answer: |-
+      It depends on the kind of business. Some examples from the ordinance:
+      • Trisikad — ₱25
+      • Sari-sari Store, Softdrinks Retailer, Trimotor — ₱50
+      • General Merchandise, Junk Shop, Auto Shop, Vulcanizing Shop, Internet Café (per unit) — ₱100
+      • Eatery — ₱200
+      • Catering, Construction Supply, Food Processing, Pharmaceuticals — ₱500
+      • Buy and Sell Falcata & Gemelina — ₱750
+
+      Plus the ₱30 documentary stamp. The clerk finds your kind of business on the full list.
+    related: [ask_business_clearance, ask_documentary_stamp, ask_payment]
+    en: [how much is a business clearance, business clearance fee, how much for a sari-sari store clearance, fee for an eatery clearance, how much for a store permit, business clearance price]
+    tl: [magkano ang business clearance, magkano sa sari-sari store, magkano ang clearance ng karinderya]
+    ceb: [pila ang business clearance, pila sa sari-sari store, pila ang clearance sa kan-anan]
+    test: [what does the barangay charge for a junk shop, magkano po clearance ng tindahan]
+
+  - id: ask_construction_clearance
+    label: "Construction clearance"
+    question: "How do I get a Barangay Construction Clearance?"
+    framed:
+      get: [construction clearance, barangay construction clearance, clearance for building a house]
+      fee: [construction clearance, barangay construction clearance]
+      requirements: [construction clearance]
+    answer: |-
+      A Barangay Construction Clearance is ₱50, plus the ₱30 documentary stamp. At the Main Office the clerk records the applicant's name and the work being applied for.
+    related: [ask_building_permit_certification, ask_fees, ask_requirements]
+    en: [construction clearance, i will build a house what do i need, clearance for construction, barangay clearance for building, renovation clearance, how much is a construction clearance]
+    tl: [construction clearance, magpapagawa ako ng bahay ano kailangan, clearance para sa pagpapatayo]
+    ceb: [construction clearance, magpatukod ko og balay unsa kinahanglan]
+    test: [permit from the barangay before building, magkano po ang construction clearance]
+
+  - id: ask_residency
+    label: "Certificate of Residency"
+    question: "How do I get a Certificate of Residency?"
+    framed:
+      get: [certificate of residency, residency certificate, proof of residency, residency]
+      fee: [certificate of residency, residency certificate, residency]
+      requirements: [certificate of residency, residency certificate]
+    answer: |-
+      A Certificate of Residency is ₱40, plus the ₱30 documentary stamp. It states that you live in Barangay Natumolan and for how many years. Bring a valid ID to the Main Office, or request it through the resident portal.
+
+      A Certificate of Residency with Birth Details also states your parents' names, and costs the same.
+    related: [ask_requirements, ask_request_online, ask_register_resident]
+    en: [certificate of residency, proof of residency, how do i get a residency certificate, how much is the certificate of residency, residency certificate with birth details, i need proof that i live here]
+    tl: [certificate of residency, patunay na taga dito ako, magkano ang residency, paano kumuha ng residency]
+    ceb: [certificate of residency, pamatuod nga taga diri ko, pila ang residency]
+    test: [document showing i reside in natumolan, residency po magkano]
+
+  - id: ask_indigency
+    label: "Certificate of Indigency"
+    question: "How do I get a Certificate of Indigency?"
+    framed:
+      get: [certificate of indigency, indigency, indigency certificate, indigency for hospital]
+      fee: [certificate of indigency, indigency]
+      requirements: [certificate of indigency, indigency]
+    answer: |-
+      A Certificate of Indigency has no fee — only the ₱30 documentary stamp. It is often asked for when applying for medical, educational or legal assistance. Bring a valid ID to the Main Office, or request it through the resident portal, and say what it is for.
+    related: [ask_low_income, ask_fee_exemption, ask_request_online]
+    en: [certificate of indigency, indigency certificate, i need an indigency for the hospital, is indigency free, how do i get an indigency, indigency for scholarship, the hospital is asking for an indigency, social welfare needs a certificate of indigency, certificate showing we are poor]
+    tl: [certificate of indigency, indigency para sa ospital, libre ba ang indigency, paano kumuha ng indigency, hinihingan ako ng indigency sa ospital, patunay na mahirap kami]
+    ceb: [certificate of indigency, indigency para sa hospital, libre ba ang indigency, unsaon pagkuha og indigency, gipangayoan ko og indigency sa hospital]
+    test: [paper for financial assistance at the hospital, indigency po para sa pcso]
+
+  - id: ask_low_income
+    label: "Low or No Income certificate"
+    question: "How do I get a Certificate of Low or No Income?"
+    framed:
+      get: [certificate of low income, certificate of no income, no income certificate]
+      fee: [certificate of low income, certificate of no income, no income certificate]
+    answer: |-
+      A Certificate of Low or No Income is ₱30, plus the ₱30 documentary stamp. Request it at the Main Office with a valid ID, or through the resident portal.
+    related: [ask_indigency, ask_fees, ask_request_online]
+    en: [certificate of low income, certificate of no income, no income certificate, low income certification, i have no income what certificate]
+    tl: [certificate of no income, walang trabaho certificate, low income certificate magkano]
+    ceb: [certificate of no income, walay trabaho nga certificate, low income certificate pila]
+    test: [proof that i have no earnings, certificate po na walang income]
+
+  - id: ask_good_moral
+    label: "Good Moral Character"
+    question: "How do I get a Good Moral Character certificate?"
+    framed:
+      get: [good moral, good moral certificate, certificate of good moral character]
+      fee: [good moral, good moral certificate, certificate of good moral character]
+    answer: |-
+      A Good Moral Character certificate is ₱30, plus the ₱30 documentary stamp. Request it at the Main Office with a valid ID, or through the resident portal, and say what it is for.
+    related: [ask_clearance, ask_request_online, ask_fees]
+    en: [good moral certificate, certificate of good moral character, how much is good moral, good moral for school, barangay good moral]
+    tl: [good moral certificate, magkano ang good moral, good moral para sa school]
+    ceb: [good moral certificate, pila ang good moral, good moral para sa eskwelahan]
+    test: [character certificate from the barangay, good moral po magkano]
+
+  - id: ask_jobseeker
+    label: "First-Time Jobseeker"
+    question: "How do I get a First-Time Jobseeker Certification?"
+    framed:
+      get: [first time jobseeker certificate, first time jobseeker, jobseeker certification]
+      fee: [first time jobseeker, first time jobseeker certificate]
+      requirements: [first time jobseeker]
+    answer: |-
+      Under the First Time Jobseekers Assistance Act (RA 11261), the barangay certification for a first-time jobseeker has no barangay fee. It can be availed once, and you sign an oath of undertaking at the Main Office. The clerk also asks your educational level and whether you are still in school.
+
+      The barangay's ₱30 documentary stamp is still added.
+    related: [ask_clearance, ask_requirements, ask_fee_exemption]
+    en: [first time jobseeker, first-time jobseeker certificate, ra 11261, i am looking for my first job, jobseeker certification, free certificate for first job]
+    tl: [first time jobseeker, unang trabaho certificate, libre ba ang first time jobseeker]
+    ceb: [first time jobseeker, una nga trabaho certificate, libre ba ang first time jobseeker]
+    test: [certificate for fresh graduates applying for work, first job po ako may libreng certificate ba]
+
+  - id: ask_death_certification
+    label: "Certification of Death"
+    question: "How do I get a Certification of Death from the barangay?"
+    framed:
+      get: [certification of death, barangay death certificate, death certification]
+      fee: [death certification, certification of death]
+    answer: |-
+      A Certification of Death has no fee — only the ₱30 documentary stamp. At the Main Office the clerk records the deceased's name, age and address; the date, time and place of death; your relationship to the deceased; and who is requesting it.
+
+      To record the death in the barangay's register, tell the Population Office too.
+    related: [ask_report_death, ask_fees]
+    en: [certification of death, barangay death certificate, someone died what do i need, death certification for burial, how do i report a death certificate]
+    tl: [certification of death, namatay ang kamag-anak ko ano kailangan, death certificate sa barangay]
+    ceb: [certification of death, namatay among paryente unsa kinahanglan]
+    test: [paper from the barangay for a funeral, may namatay po sa amin anong kukunin]
+
+  - id: ask_marriage_certification
+    label: "Certification for Marriage License"
+    question: "How do I get a Certification for Marriage License?"
+    framed:
+      get: [certification for marriage license, barangay certificate for marriage, certificate for my wedding]
+      fee: [certification for marriage license]
+      requirements: [marriage license certification]
+    answer: |-
+      A Certification for Marriage License is ₱30, plus the ₱30 documentary stamp. At the Main Office the clerk records the civil status you state, the documents you attach, and — if you are widowed — your late spouse's name.
+    related: [ask_common_law, ask_fees, ask_requirements]
+    en: [certification for marriage license, i am getting married what do i need, barangay certificate for marriage, marriage license requirement from barangay]
+    tl: [certification para sa marriage license, ikakasal ako ano kailangan sa barangay]
+    ceb: [certification para sa marriage license, magpakasal ko unsa kinahanglan sa barangay]
+    test: [barangay paper before a wedding, kasal po ano kukunin sa barangay]
+
+  - id: ask_common_law
+    label: "Common Law Partner"
+    question: "How do I get a Certification of Common Law Partner?"
+    framed:
+      get: [certification of common law partner, live in partner certificate, common law certificate]
+      fee: [certification of common law partner, live in partner certificate]
+    answer: |-
+      A Certification of Common Law Partner is ₱30, plus the ₱30 documentary stamp. At the Main Office the clerk records your partner's name and how many years you have been together.
+    related: [ask_marriage_certification, ask_fees]
+    en: [certification of common law partner, live in partner certificate, common law spouse certification, certificate that we live together]
+    tl: [certification ng live in partner, common law partner certificate, patunay na nagsasama kami]
+    ceb: [certification sa live in partner, pamatuod nga nagpuyo mi]
+    test: [document for unmarried partners living together, live in po kami may certificate ba]
+
+  - id: ask_oneness_of_name
+    label: "Oneness of Name"
+    question: "What is a Certification of Oneness of Name?"
+    framed:
+      get: [certification of oneness of name, oneness of name, one and the same person certificate]
+      what: [oneness of name, certification of oneness of name]
+      fee: [oneness of name]
+    answer: |-
+      It certifies that two different spellings or versions of a name belong to one person — for example the name on a payroll and your correct name. It is ₱30, plus the ₱30 documentary stamp; the clerk records both names.
+    related: [ask_certificates, ask_fees]
+    en: [oneness of name, one and the same person certificate, my name is spelled differently, name discrepancy certificate, wrong spelling of my name certificate]
+    tl: [oneness of name, magkaiba ang spelling ng pangalan ko, iisang tao certificate]
+    ceb: [oneness of name, lahi ang spelling sa akong ngalan]
+    test: [my payroll name does not match my id, mali po ang spelling ng pangalan ko]
+
+  - id: ask_appearance
+    label: "Certificate of Appearance"
+    question: "What is a Certificate of Appearance?"
+    framed:
+      get: [certificate of appearance, appearance certificate]
+      what: [certificate of appearance]
+      fee: [certificate of appearance]
+    answer: |-
+      It certifies that you appeared at the barangay on official business — often asked of employees on official travel. It is ₱30, plus the ₱30 documentary stamp. The form records your position, your station and the dates you appeared.
+    related: [ask_certificates, ask_fees]
+    en: [certificate of appearance, appearance certificate for travel, proof i went to the barangay, certificate of appearance for work]
+    tl: [certificate of appearance, patunay na pumunta ako sa barangay]
+    ceb: [certificate of appearance, pamatuod nga niadto ko sa barangay]
+    test: [my office needs proof of my visit to the barangay, appearance po magkano]
+
+  - id: ask_other_certifications
+    label: "Other certifications"
+    question: "What other certifications does the ordinance list?"
+    framed:
+      get: [certification to transport animals, certificate to transport a pig, lumber transport certification, affidavit of loss certification, certificate for titling, garage certification, farm certification]
+      fee: [certification to transport animals, certificate to transport a pig, lumber transport certification, affidavit of loss certification, certificate for titling, garage certification, farm certification]
+    answer: |-
+      The barangay's fee ordinance also lists these certifications:
+      • Transport of animals — ₱50 per head (pig, goat); ₱100 per head (cow, carabao, horse)
+      • Lumber transport — ₱100
+      • Affidavit of Loss — ₱50
+      • Has Business/Income — ₱50
+      • Farms — ₱50
+      • Building Permit — ₱50
+      • Birth Certificate — ₱40
+      • Certificate for Titling — ₱100
+      • Garage — ₱100 residential, ₱500 commercial
+
+      Ask at the Main Office for any of these.
+    related: [ask_building_permit_certification, ask_certificates, ask_fees]
+    en: [certification for transporting animals, certificate to transport a carabao, lumber transport certificate, affidavit of loss certification, certificate for land titling, garage certification, farm certification, i will bring my pigs to the market in another town, certificate to ship livestock, papers to move my carabao, permit to haul lumber]
+    tl: [certificate para magbiyahe ng baboy, certification ng kalabaw, affidavit of loss sa barangay, certification para sa titulo, papel para ibiyahe ang baboy, kailangan ba ng papel sa pagbiyahe ng kalabaw]
+    ceb: [certificate para magbiyahe og baboy, certification sa kabaw, affidavit of loss sa barangay, papel para ibiyahe ang baboy, papeles sa pagbiyahe sa kabaw]
+    test: [permit to move my cow to another town, magkano po ang certification sa pagbiyahe ng kambing]
+
+  - id: ask_building_permit_certification
+    label: "Building permit certification"
+    question: "Does the barangay issue a certification for a building permit?"
+    framed:
+      get: [building permit certification, barangay certification for a building permit]
+      fee: [building permit certification]
+    answer: |-
+      Yes. Under the fee ordinance, the barangay certification for a Building Permit is ₱50. The building permit itself comes from the municipality; ask at the Main Office for the barangay's part.
+    related: [ask_construction_clearance, ask_other_certifications]
+    en: [building permit certification, barangay certification for building permit, do i need a barangay paper for a building permit]
+    tl: [certification para sa building permit, kailangan ba ng barangay sa building permit]
+    ceb: [certification para sa building permit, kinahanglan ba sa barangay ang building permit]
+    test: [what the barangay gives for a municipal building permit, building permit po kukuha sa barangay]
+
+  - id: ask_request_online
+    label: "Request online"
+    question: "How do I request a certificate online?"
+    framed:
+      how_to: [request a certificate online, request a clearance online, apply online for a certificate, request documents online]
+      can: [request a certificate online, apply for clearance online, request without going to the barangay]
+    answer: |-
+      With a resident portal account:
+      • Sign in and open My Request Certificates
+      • Choose the certificate and say what it is for — the page shows what it needs and costs
+      • Follow its status there; you are notified when it is ready
+      • Come to the Main Office to pay and claim it
+
+      Residents can also press "Request a certificate" in this chat. No account yet? The Population Office issues them.
+    related: [ask_portal_account, ask_track_request, ask_request_status, ask_claim_certificate]
+    en: [how do i request a certificate online, can i request online, online certificate request, request a clearance online, apply online for a certificate, can i get a certificate without going there]
+    tl: [paano mag request online, pwede ba mag request ng certificate online, online request ng clearance]
+    ceb: [unsaon pag request online, pwede ba mag request og certificate online]
+    test: [can i apply for my clearance through the website, online po ba pwede mag-request]
+
+  - id: ask_track_request
+    response: utter_track_request
+    label: "Track my request"
+    question: "How do I track my certificate request?"
+    framed:
+      status: [my request, my certificate request, my clearance, my certificate]
+      how_to: [track my request, track my certificate, follow up my request]
+    answer: |-
+      Sign in to the resident portal and open My Request Certificates — each request shows its status, and you get a notification when it moves on. No account? Ask at the Main Office with your request's number.
+    related: [ask_request_status, ask_cancel_request, ask_claim_certificate]
+    en: [how do i track my request, where is my certificate, status of my request, is my certificate ready, check my request, follow up my request]
+    tl: [paano ko malalaman kung tapos na, nasaan na ang request ko, ready na ba ang certificate ko]
+    ceb: [unsaon pagsubay sa akong request, asa na akong certificate, andam na ba akong certificate]
+    test: [has my clearance been processed yet, ano na po status ng request ko]
+
+  - id: ask_request_status
+    label: "What the statuses mean"
+    question: "What do the request statuses mean?"
+    framed:
+      what: [pending, processing, ready to claim, released status, the request status]
+    answer: |-
+      A certificate moves through:
+      • Pending — received, waiting for a clerk
+      • Processing — a clerk is preparing it
+      • Ready to Claim — printed; come to the Main Office for it
+      • Released — you have it
+
+      A request you take back shows as Cancelled.
+    related: [ask_track_request, ask_claim_certificate, ask_cancel_request]
+    en: [what does pending mean, what does processing mean, what does ready to claim mean, what is released status, meaning of request status]
+    tl: [ano ibig sabihin ng pending, ano ang ready to claim, ano meaning ng processing]
+    ceb: [unsa ang pasabot sa pending, unsa ang ready to claim]
+    test: [my request says processing what now, ano po ibig sabihin ng released]
+
+  - id: ask_cancel_request
+    label: "Cancel a request"
+    question: "Can I cancel my certificate request?"
+    framed:
+      how_to: [cancel my request, cancel a certificate request, resume a cancelled request]
+      can: [cancel my request, cancel my certificate request]
+    answer: |-
+      Yes. In the resident portal, open My Request Certificates and cancel the request. It is kept as Cancelled rather than deleted, so you can resume it later if you change your mind.
+    related: [ask_track_request, ask_request_online]
+    en: [can i cancel my request, how do i cancel a certificate request, i want to cancel my request, undo my request, resume a cancelled request]
+    tl: [pwede ba i-cancel ang request, paano i-cancel ang request ko, ayoko na ng request]
+    ceb: [pwede ba i-cancel ang request, unsaon pag cancel sa akong request]
+    test: [i requested the wrong certificate, pwede po bang bawiin ang request]
+
+  - id: ask_claim_certificate
+    label: "Claim my certificate"
+    question: "How do I claim my certificate?"
+    framed:
+      how_to: [claim my certificate, pick up my clearance, claim my clearance]
+    answer: |-
+      When it is Ready to Claim, come to the Main Office during office hours, Monday to Friday, 8:00 AM – 5:00 PM. Pay any fee at the counter, and the clerk releases the certificate to you.
+    related: [ask_payment, ask_office_hours, ask_verify_certificate]
+    en: [how do i claim my certificate, where do i get my certificate, it says ready to claim, pick up my clearance, when can i get my certificate]
+    tl: [paano kunin ang certificate, saan kukunin ang clearance, ready to claim na saan kukunin]
+    ceb: [unsaon pagkuha sa akong certificate, asa kuhaon ang clearance]
+    test: [my document is ready where do i collect it, kukunin ko na po ang clearance ko]
+
+  - id: ask_processing_time
+    label: "How long does it take?"
+    question: "How long does a certificate take?"
+    answer: |-
+      It depends on how many people are ahead of you at the counter. Online requests show their status in the resident portal, and you are notified when the certificate is Ready to Claim.
+    related: [ask_track_request, ask_request_status, ask_walk_in]
+    en: [how long does it take, how many days for a certificate, processing time, can i get it today, same day release, how fast is the clearance]
+    tl: [gaano katagal, ilang araw ang certificate, makukuha ba ngayon din]
+    ceb: [unsa kadugay, pila ka adlaw ang certificate, makuha ba karon dayon]
+    test: [will my clearance be ready within the day, gaano po katagal gawin]
+
+  - id: ask_verify_certificate
+    label: "Verify a certificate"
+    question: "How do I check if a certificate is genuine?"
+    framed:
+      how_to: [verify a certificate, check if a clearance is genuine, verify a barangay clearance]
+      can: [verify a certificate online, check if a certificate is real]
+    answer: |-
+      Open the Certificate Verification page of this website (/verify) and enter the reference number printed on the certificate, or scan its QR code. It shows whether the certificate is valid and who it was issued to.
+    related: [ask_claim_certificate, ask_lost_certificate]
+    en: [how do i verify a certificate, is this certificate real, check if a clearance is genuine, verify barangay clearance, scan the qr code, certificate verification]
+    tl: [paano malalaman kung totoo ang certificate, i-verify ang clearance, tunay ba ang certificate]
+    ceb: [unsaon pag verify sa certificate, tinuod ba ang certificate]
+    test: [an employer wants to confirm my clearance, paano po i-check kung legit ang certificate]
+
+  - id: ask_certificate_validity
+    label: "How long is it valid?"
+    question: "How long is a certificate valid?"
+    answer: |-
+      It depends on the office or agency asking for it — many accept a certificate only if it was issued recently. Check with them, and request a new one from the barangay when you need it.
+    related: [ask_request_online, ask_lost_certificate]
+    en: [how long is a clearance valid, validity of barangay clearance, does the certificate expire, when does my clearance expire, how many months is it valid]
+    tl: [gaano katagal valid ang clearance, nag-eexpire ba ang certificate]
+    ceb: [unsa kadugay valid ang clearance, mo-expire ba ang certificate]
+    test: [is a clearance from last year still usable, ilang buwan po ang bisa ng clearance]
+
+  - id: ask_lost_certificate
+    label: "Lost certificate"
+    question: "I lost my certificate. What do I do?"
+    framed:
+      get: [a replacement certificate, another copy of my certificate, a new copy of my clearance]
+    answer: |-
+      Request a new one, the same way as before — at the Main Office or through the resident portal. The new certificate gets its own number and its own fee.
+
+      If you need an Affidavit of Loss certification for another lost document, the ordinance fee is ₱50.
+    related: [ask_request_online, ask_other_certifications]
+    en: [i lost my certificate, lost my clearance, my certificate got lost, replacement certificate, how do i get another copy]
+    tl: [nawala ang certificate ko, nawala ang clearance ko, paano kumuha ulit]
+    ceb: [nawala akong certificate, nawala akong clearance, unsaon pagkuha usab]
+    test: [i misplaced the clearance you gave me, nasira po ang certificate ko]
+
+  - id: ask_unlisted_person
+    label: "Not on the register yet"
+    question: "Can I get a certificate if I am not yet on the register?"
+    framed:
+      can: [get a certificate even if not registered, get a clearance without being registered]
+    answer: |-
+      Not yet — a barangay certificate is issued only to a resident on the barangay's register. Go to the Population Office first and complete the RBIM census to be listed. Once you are on the register, the Main Office can issue your certificate.
+    related: [ask_register_resident, ask_requirements]
+    en: [i am not registered can i get a certificate, not in the list of residents, new resident certificate, just moved here can i get a clearance]
+    tl: [hindi pa ako rehistrado pwede ba certificate, bagong lipat pwede ba kumuha ng clearance]
+    ceb: [wala pa ko narehistro pwede ba certificate, bag-o lang ko nibalhin pwede ba clearance]
+    test: [my name is not in your records yet, bago pa lang po ako dito pwede na ba]

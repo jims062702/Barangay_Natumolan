@@ -155,6 +155,39 @@ export function splitHeadName(full: string): { last: string; first: string; midd
  * Derived rather than typed, so it is right tomorrow as well as today. An age
  * written into a box is a fact about the day it was written.
  */
+/**
+ * Age on a birthday, from Q5's DATE of birth (YYYY-MM-DD).
+ *
+ * Exact to the day, unlike the month-and-year below: somebody born on
+ * 30 June 2002 is 23 on 29 June 2026 and 24 the day after.
+ */
+export function ageFromDate(date: unknown): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(date ?? ""));
+  if (!match) return null;
+
+  const [y, m, d] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const now = new Date();
+  const today = [now.getFullYear(), now.getMonth() + 1, now.getDate()];
+
+  // A date still ahead of us is a mis-typed line, not a person.
+  if (y > today[0] || (y === today[0] && (m > today[1] || (m === today[1] && d > today[2])))) {
+    return null;
+  }
+
+  const hadBirthday = today[1] > m || (today[1] === m && today[2] >= d);
+
+  return today[0] - y - (hadBirthday ? 0 : 1);
+}
+
+/**
+ * Q5, whichever way the line holds it: the date the form now asks for, or
+ * the month and year of a form saved before it did.
+ */
+export function ageFromBirth(member: Member): number | null {
+  return ageFromDate(member.q5_birthdate)
+    ?? ageFromMonthYear(member.q5_birth_month, member.q5_birth_year);
+}
+
 export function ageFromMonthYear(month: unknown, year: unknown): number | null {
   const m = Number(month);
   const y = Number(year);
@@ -243,7 +276,7 @@ export function inBand(age: unknown, min: number, max?: number): boolean {
  * the age and not the birth month.
  */
 export function ageOf(member: Member): number | null {
-  const derived = ageFromMonthYear(member.q5_birth_month, member.q5_birth_year);
+  const derived = ageFromBirth(member);
   if (derived !== null) return derived;
 
   const typed = member.q4_age;

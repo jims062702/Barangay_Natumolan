@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { FiBell, FiVolumeX, FiVolume2 } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
+import { FiBell, FiChevronRight, FiVolumeX, FiVolume2 } from "react-icons/fi";
 import { useSoundMuted } from "../../shared/hooks/useSoundMuted";
 import { notificationPermission, ensureNotifyPermission, showDesktopNotification, notificationsSupported } from "../../shared/lib/desktopNotify";
 import { playNotificationSound } from "../../shared/lib/sound";
@@ -8,6 +9,7 @@ import type { AppNotification } from "../../shared/types";
 import { accountApi } from "../../features/account/api";
 
 export function NotificationsBell() {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   const [items, setItems] = useState<AppNotification[]>([]);
@@ -61,6 +63,26 @@ export function NotificationsBell() {
   // `evenWhenHidden` keeps polling while the user is on another tab so the
   // sound and desktop alert still fire.
   useAutoRefresh(load, REFRESH.staff, { evenWhenHidden: true });
+
+  /*
+   * Pressing a notice opens what it is about, and marks it read.
+   *
+   * Marked on the screen first and on the server after: the page it opens
+   * should not wait on a round trip, and if that trip fails the next poll
+   * simply shows the notice as unread again — nothing is lost.
+   */
+  const openNotice = (n: AppNotification) => {
+    if (!n.is_read) {
+      setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, is_read: true } : x)));
+      setUnread((u) => Math.max(0, u - 1));
+      prevUnread.current = Math.max(0, prevUnread.current - 1);
+      accountApi.markNotificationRead(n.id).catch(() => undefined);
+    }
+    if (n.link) {
+      setOpen(false);
+      navigate(n.link);
+    }
+  };
 
   const markAllRead = async () => {
     await accountApi.markAllNotificationsRead();
@@ -142,13 +164,22 @@ export function NotificationsBell() {
               </p>
             )}
             {items.map((n) => (
-              <div
+              <button
                 key={n.id}
-                className={`border-b border-gray/60 px-4 py-3 ${n.is_read ? "" : "bg-primary/5"}`}
+                type="button"
+                onClick={() => openNotice(n)}
+                className={`flex w-full items-start gap-2 border-b border-gray/60 px-4 py-3 text-left transition-colors ${
+                  n.is_read ? "" : "bg-primary/5"
+                } ${n.link ? "cursor-pointer hover:bg-primary/10" : "cursor-default"}`}
               >
-                <p className="text-sm font-medium text-dark">{n.subject}</p>
-                <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">{n.message}</p>
-              </div>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium text-dark">{n.subject}</span>
+                  {/* In full: the hearing date is often the last words. */}
+                  <span className="mt-0.5 block text-xs text-gray-500">{n.message}</span>
+                </span>
+                {/* Only a notice that leads somewhere looks like it does. */}
+                {n.link && <FiChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" aria-hidden="true" />}
+              </button>
             ))}
           </div>
         </div>

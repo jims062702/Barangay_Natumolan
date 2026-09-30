@@ -32,8 +32,10 @@ class CaseController extends PortalController
             return $this->notFound('No resident record is linked to your account');
         }
 
-        $kp = CaseFile::where('complainant_id', $residentId)
-            ->orWhereHas('respondents', fn ($q) => $q->where('residents.id', $residentId))
+        $kp = CaseFile::where(fn ($q) => $q->where('complainant_id', $residentId)
+                ->orWhereHas('respondents', fn ($r) => $r->where('residents.id', $residentId)))
+            /* On their portal once the summons is PRINTED — see summonsIssued(). */
+            ->summonsIssued()
             ->with([
                 'complaint:id,lupon_case_id,date_of_occurrence,place_of_occurrence',
                 'hearings' => fn ($q) => $q->orderBy('scheduled_at'),

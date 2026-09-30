@@ -7,8 +7,7 @@ import type { WidgetMessage } from "../types";
 export const RASA_URL =
   (import.meta.env.VITE_RASA_URL as string | undefined) ?? "http://localhost:5005";
 
-/** How often the live conversation is refreshed while the panel is open. */
-export const LIVE_POLL_MS = 4000;
+/* How often the live conversation is refreshed: CHAT_CONFIG.livePollMs. */
 
 export const WELCOME: WidgetMessage = {
   id: 0,
@@ -22,6 +21,7 @@ export const WELCOME: WidgetMessage = {
     { title: "How much are the fees?", payload: "How much are the certificate fees?" },
     { title: "Office hours", payload: "What are your office hours?" },
     { title: "How do I get a portal account?", payload: "How do I get a resident portal account?" },
+    { title: "How do I file a complaint?", payload: "How do I file a complaint?" },
     { title: "Who developed this?", payload: "Who developed the Barangay Natumolan System?" },
   ],
 };

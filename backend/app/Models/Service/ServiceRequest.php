@@ -13,6 +13,7 @@ class ServiceRequest extends Model
 {
     protected $fillable = [
         'request_number',
+        'transaction_code',
         'resident_id',
         'service_type',
         'office',
@@ -39,6 +40,19 @@ class ServiceRequest extends Model
     public static function nextNumber(): string
     {
         return SequenceNumber::next('service_requests', 'request_number', 'REQ-' . date('Y') . '-', 6);
+    }
+
+    /*
+     * The certificates a resident asks for in one visit share a transaction
+     * code. TX- and ten hex digits: random rather than counted, because a
+     * counter device with no line has to be able to make one too, and a
+     * random code cannot collide the way two devices' "next number" would.
+     */
+    public const TRANSACTION_CODE = '/^TX-[0-9A-F]{10}$/';
+
+    public static function newTransactionCode(): string
+    {
+        return 'TX-' . strtoupper(bin2hex(random_bytes(5)));
     }
 
     public function resident(): BelongsTo

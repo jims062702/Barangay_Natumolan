@@ -1,3 +1,4 @@
+import DraftNotice from "../../../../shared/ui/DraftNotice";
 import Modal from "../../../../shared/ui/Modal";
 import StatusBadge from "../../../../shared/ui/StatusBadge";
 import FormField, { inputClasses } from "../../../../shared/ui/FormField";
@@ -9,7 +10,7 @@ import type { SettlementDocketState } from "../../hooks/useSettlementDocket";
  * One settlement: its terms, its deadlines, and what may be done next.
  */
 export function SettlementDetailModal({ ctx }: { ctx: SettlementDocketState }) {
-  const { viewing, setViewing, saveDeadline, deadline, setDeadline, notes, setNotes, run } = ctx;
+  const { viewing, setViewing, saveNotes, notes, setNotes, run, notesDraft } = ctx;
 
   return (
     <Modal
@@ -84,16 +85,16 @@ export function SettlementDetailModal({ ctx }: { ctx: SettlementDocketState }) {
             </div>
           </dl>
 
-          <form onSubmit={saveDeadline} className="grid gap-4 rounded-xl border border-gray p-4 sm:grid-cols-2">
-            <FormField label="Compliance deadline" hint="When the obligations fall due.">
-              <input
-                type="date"
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-                className={inputClasses}
-              />
-            </FormField>
-            <FormField label="Compliance notes">
+          {/*
+            NO COMPLIANCE DEADLINE FIELD.
+
+            The date lived here and nowhere else: the terms themselves say
+            when the money is handed over, and the office learns it was not
+            from the complainant coming back. What is left is the note of
+            what has happened since.
+          */}
+          <form onSubmit={saveNotes} className="rounded-xl border border-gray p-4">
+            <FormField label="Notes" hint="What has happened since the parties signed.">
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
@@ -101,11 +102,14 @@ export function SettlementDetailModal({ ctx }: { ctx: SettlementDocketState }) {
                 className={`${inputClasses} resize-none`}
               />
             </FormField>
+            <div className="mt-2">
+              <DraftNotice draft={notesDraft} />
+            </div>
             <button
               type="submit"
-              className="w-full cursor-pointer rounded-full border border-primary/40 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-white sm:col-span-2"
+              className="mt-3 w-full cursor-pointer rounded-full border border-primary/40 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
             >
-              Save deadline &amp; notes
+              Save notes
             </button>
           </form>
 

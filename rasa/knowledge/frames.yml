@@ -1,0 +1,187 @@
+# The ways people ask the same KIND of question, in English, Tagalog and
+# Bisaya. {s} is the subject — what the question is about — supplied by each
+# intent in faq/*.yml:
+#
+#   - id: ask_clearance_fee
+#     subjects: [barangay clearance, clearance for employment, brgy clearance]
+#     frames: [fee]
+#
+# gives "how much is barangay clearance", "magkano ang clearance for
+# employment", "pila ang brgy clearance", and every other pairing.
+#
+# THIS IS WHERE THE CHATBOT'S VOCABULARY COMES FROM. A handful of tidy
+# sentences per question taught it those sentences and little else: on
+# questions written differently it was right four times in ten. Every frame
+# added here is a way of asking that every intent using it now understands.
+#
+# Subjects are plain noun phrases ("barangay clearance") for most frames,
+# and verb phrases ("file a complaint") for `how_to` and `can`.
+
+get:
+  - how do i get {s}
+  - how to get {s}
+  - how can i get {s}
+  - where can i get {s}
+  - where do i get {s}
+  - i need {s}
+  - i need to get {s}
+  - how do i apply for {s}
+  - how to apply for {s}
+  - i want to request {s}
+  - request for {s}
+  - steps to get {s}
+  - process of getting {s}
+  - can i get {s}
+  - paano kumuha ng {s}
+  - paano makakuha ng {s}
+  - saan kukuha ng {s}
+  - kailangan ko ng {s}
+  - pano magpagawa ng {s}
+  - gusto ko kumuha ng {s}
+  - paano mag apply ng {s}
+  - unsaon pagkuha og {s}
+  - asa makuha ang {s}
+  - kinahanglan ko og {s}
+  - gusto ko mokuha og {s}
+  - unsaon pag apply og {s}
+
+fee:
+  - how much is {s}
+  - how much does {s} cost
+  - how much is the fee for {s}
+  - price of {s}
+  - fee for {s}
+  - "{s} fee"
+  - "{s} price"
+  - cost of {s}
+  - how much do i pay for {s}
+  - how much will i pay for {s}
+  - what is the fee for {s}
+  - is {s} free
+  - magkano ang {s}
+  - magkano {s}
+  - magkano po ang {s}
+  - presyo ng {s}
+  - magkano bayad sa {s}
+  - bayad sa {s}
+  - may bayad ba ang {s}
+  - pila ang {s}
+  - tagpila ang {s}
+  - pila bayad sa {s}
+  - pila ang presyo sa {s}
+  - naa bay bayad ang {s}
+
+requirements:
+  - what are the requirements for {s}
+  - requirements for {s}
+  - "{s} requirements"
+  - what do i need for {s}
+  - what should i bring for {s}
+  - what documents do i need for {s}
+  - what to bring for {s}
+  - ano ang requirements sa {s}
+  - ano kailangan sa {s}
+  - ano dadalhin para sa {s}
+  - requirements ng {s}
+  - unsa ang requirements sa {s}
+  - unsa kinahanglan sa {s}
+  - unsa dalhon para sa {s}
+
+what:
+  - what is {s}
+  - what is the {s}
+  - what does {s} mean
+  - meaning of {s}
+  - explain {s}
+  - tell me about {s}
+  - information about {s}
+  - what do you mean by {s}
+  - ano ang {s}
+  - ano yung {s}
+  - ano ibig sabihin ng {s}
+  - para saan ang {s}
+  - unsa ang {s}
+  - unsa ang pasabot sa {s}
+  - para asa ang {s}
+
+where:
+  - where is {s}
+  - where is the {s}
+  - location of {s}
+  - where can i find {s}
+  - how do i get to {s}
+  - address of {s}
+  - saan ang {s}
+  - nasaan ang {s}
+  - saan makikita ang {s}
+  - asa ang {s}
+  - asa makita ang {s}
+  - asa nahimutang ang {s}
+
+when:
+  - when is {s}
+  - what time is {s}
+  - schedule of {s}
+  - "{s} schedule"
+  - what day is {s}
+  - kailan ang {s}
+  - anong oras ang {s}
+  - anong araw ang {s}
+  - schedule ng {s}
+  - kanus-a ang {s}
+  - unsa oras ang {s}
+  - unsa nga adlaw ang {s}
+
+who:
+  - who is {s}
+  - who is the {s}
+  - who are {s}
+  - name of {s}
+  - sino ang {s}
+  - sino po ang {s}
+  - kinsa ang {s}
+
+report:
+  - how do i report {s}
+  - i want to report {s}
+  - report {s}
+  - where do i report {s}
+  - who do i tell about {s}
+  - paano i-report ang {s}
+  - saan isusumbong ang {s}
+  - gusto ko i-report ang {s}
+  - unsaon pag report sa {s}
+  - asa i-report ang {s}
+
+how_to:
+  - how do i {s}
+  - how to {s}
+  - how can i {s}
+  - what are the steps to {s}
+  - i want to {s}
+  - help me {s}
+  - paano {s}
+  - pano {s}
+  - gusto ko {s}
+  - unsaon {s}
+  - gusto ko mo {s}
+
+can:
+  - can i {s}
+  - is it possible to {s}
+  - am i allowed to {s}
+  - pwede ba {s}
+  - pwede po ba {s}
+  - pwede ba ako {s}
+  - pwede ba ko {s}
+  - mahimo ba {s}
+
+status:
+  - status of {s}
+  - check {s}
+  - update on {s}
+  - follow up {s}
+  - what happened to {s}
+  - ano na ang {s}
+  - ano na nangyari sa {s}
+  - unsa na ang {s}

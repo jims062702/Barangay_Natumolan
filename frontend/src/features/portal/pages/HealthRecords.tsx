@@ -6,6 +6,7 @@ import PageHeader from "../../../shared/ui/PageHeader";
 import StatusBadge from "../../../shared/ui/StatusBadge";
 import { RowsSkeleton } from "../../../shared/ui/Skeleton";
 import { portalApi } from "../api";
+import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
 
 /**
  * A resident's own health record, as a copy they can read.
@@ -45,6 +46,10 @@ export default function HealthRecords() {
   const [shots, setShots] = useState<PortalImmunization[]>([]);
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
+  /* Its skeleton until the first answer — see PageLoad. */
+  const pageLoad = usePageLoad();
+  /* Bumped by "Try again": the load is an effect, so this re-runs it. */
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     portalApi.health()
@@ -53,9 +58,12 @@ export default function HealthRecords() {
         setShots(r.data.data.immunizations ?? []);
         setNote(r.data.data.note ?? "");
       })
+      .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
       .catch(() => undefined)
       .finally(() => setLoading(false));
-  }, []);
+  }, [attempt]);
+
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => setAttempt((n) => n + 1)} />;
 
   return (
     <div>

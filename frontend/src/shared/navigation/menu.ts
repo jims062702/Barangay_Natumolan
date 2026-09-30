@@ -2,25 +2,32 @@ import type { IconType } from "react-icons";
 import {
   FiActivity,
   FiAlertCircle,
+  FiArchive,
   FiAward,
   FiBarChart2,
   FiBell,
   FiBookOpen,
   FiCalendar,
+  FiClipboard,
   FiClock,
+  FiEye,
   FiFileText,
+  FiFilePlus,
   FiFolder,
   FiHeart,
   FiHome,
   FiImage,
+  FiInbox,
   FiLayers,
+  FiMail,
   FiMap,
-  FiMapPin,
   FiMessageCircle,
   FiSettings,
   FiShield,
+  FiSlash,
   FiSmile,
   FiUser,
+  FiUserCheck,
   FiUserPlus,
   FiUserX,
   FiUsers,
@@ -60,6 +67,22 @@ export function menuFor(user: User): MenuSection[] {
            * out of it — and the two pages disagreed about its status.
            */
           { label: "My Request Certificates", to: "/resident/requests", icon: FiAward },
+          /*
+           * FILING ONE, which is not the same thing as having one.
+           *
+           * Its own entry above Lupon Records, deliberately: a complaint sent
+           * from here is NOT a case, it is a reference number and an
+           * instruction to come to the office. Putting it among the cases
+           * would tell a resident they had filed when they had not.
+           */
+          { label: "File a Complaint", to: "/resident/file-complaint", icon: FiFilePlus },
+          /*
+           * A VAWC report to the VAW Desk — its own entry, apart from the
+           * Lupon's complaint form, because the law keeps the two apart: KP
+           * mediation is prohibited for violence against women and children.
+           * The office asked for residents to follow their reports here.
+           */
+          { label: "VAWC Online Complaint", to: "/resident/vawc-report", icon: FiShield },
           /*
            * Their Katarungang Pambarangay record — never VAWC, see
            * Portal\CaseController for why.
@@ -116,12 +139,50 @@ export function menuFor(user: User): MenuSection[] {
    * secretary is the officer who takes the minutes at both, which is why the
    * time and the attendance are set from here rather than from the docket.
    */
+  /*
+   * THE SIDEBAR IS THE ONLY MENU FOR THIS ROOM, AND IT IS NOT THE SAME
+   * MENU FOR EVERY OFFICE.
+   *
+   * The page used to carry a row of pills repeating these, one of them a
+   * dropdown hiding Today, Upcoming and Past — two menus for one set of
+   * screens, and those three were state rather than places, so none of
+   * them could be linked to. Every list is an entry here now.
+   *
+   * But the three offices do different work in this room, and one shared
+   * list handed each of them the other two's screens:
+   *
+   *   Secretary   works the Punong Barangay's Tuesdays: prints the papers,
+   *               writes the minutes on the day. The full set below.
+   *   Lupon       works its own Thursdays, and WATCHES the Tuesdays — a
+   *               case on its third is about to land on their desk.
+   *   Punong      presides and records nothing. One screen: the month.
+   *     Barangay
+   */
+  const hearingRoom: MenuItem[] = [
+    /* First, because it is where the day starts: the cases forwarded to
+       this desk, which have no sitting until the summons is printed. */
+    { label: "For Summons", to: "/lupon/hearings/for-summons", icon: FiMail },
+    { label: "Today's Hearing", to: "/lupon/hearings", icon: FiCalendar },
+    { label: "Upcoming Hearing", to: "/lupon/hearings/upcoming", icon: FiClock },
+    { label: "Past Hearings", to: "/lupon/hearings/past", icon: FiArchive },
+    { label: "Cancelled", to: "/lupon/hearings/cancelled", icon: FiSlash },
+    { label: "CFA Cases", to: "/lupon/hearings/cfa", icon: FiFileText },
+  ];
+
+  /* The Lupon's own set, plus the Punong Barangay's month to watch. */
+  const luponHearingRoom: MenuItem[] = [
+    ...hearingRoom,
+    { label: "Punong Barangay Hearings", to: "/lupon/hearings/calendar", icon: FiEye },
+  ];
+
   const secretariat: MenuItem[] = [
     { label: "Barangay Sessions", to: "/sessions", icon: FiBookOpen },
-    { label: "Hearing & Mediation", to: "/lupon/hearings", icon: FiCalendar },
-    /* The Lupon, the VAWC desk and the health station in one return. The
-       Secretary was copying figures off three screens onto paper, which is
-       where a transcription error becomes a submitted report. */
+    { label: "Hearing & Mediation", to: "/lupon/hearings", icon: FiCalendar, children: hearingRoom },
+    /* Every office in one return — Lupon, VAWC, Health, Population and the
+       Clerk's certificates. The Secretary was copying figures off separate
+       screens onto paper, which is where a transcription error becomes a
+       submitted report. Only the Secretary and the PB have this entry; each
+       office keeps a Reports page of its own. */
     { label: "Consolidated Reports", to: "/reports/consolidated", icon: FiBarChart2 },
   ];
 
@@ -147,9 +208,8 @@ export function menuFor(user: User): MenuSection[] {
       items: [
         { label: "Certificates", to: "/certificates", icon: FiAward },
         { label: "Certificate Report", to: "/certificates/report", icon: FiBarChart2 },
-        /* The Lupon's fees are taken at this counter: ₱20 to file a case,
-           ₱230 to certify a failed conciliation to court. The Lupon asks
-           and watches for "Paid"; the money changes hands here. */
+        /* No Lupon fees here at all: the Lupon presses Paid itself on
+           sight of the receipt, and the Clerk takes no part in it. */
         /* The website's chat desk moved here from the Secretary: the person
            answering "how do I get a clearance?" should be the one who
            issues it. */
@@ -175,12 +235,24 @@ export function menuFor(user: User): MenuSection[] {
         sections.push({
           heading: "Lupon Tagapamayapa",
           items: [
-            /* Today's, upcoming and past sittings on one screen — the PB
-               mediates on Tuesdays and needs to know which is which. */
-            { label: "Hearings", to: "/lupon/hearings", icon: FiCalendar },
+            /*
+             * ONE SCREEN, AND IT WRITES NOTHING.
+             *
+             * They preside; the Barangay Secretary keeps the record. Six
+             * list views with an Actions column offered them work they are
+             * refused, so what is left is the month itself: which days the
+             * hall sits, at what hour, who is coming, and the case behind
+             * each one to read before walking into the room.
+             */
+            { label: "Hearing Schedule", to: "/lupon/hearings/calendar", icon: FiCalendar },
             { label: "Settlements", to: "/lupon/settlements", icon: FiFileText },
-            { label: "Reports & Archives", to: "/lupon/reports", icon: FiBarChart2 },
-          { label: "Consolidated Report", to: "/reports/consolidated", icon: FiLayers },
+            /*
+             * No "Reports & Archives" here. Consolidated Reports below is
+             * the return the Punong Barangay signs, and it already carries
+             * the Lupon's figures along with every other office's — two
+             * entries to the same numbers is two places to look and one
+             * place to be told a different total.
+             */
           ],
         });
         /* The return the PB signs, read before signing it. */
@@ -209,6 +281,8 @@ export function menuFor(user: User): MenuSection[] {
         heading: "VAWC Desk",
         items: [
           { label: "Confidential Cases", to: "/vawc/cases", icon: FiShield },
+          /* Reports residents sent online, waiting to be verified. */
+          { label: "Online Complaints", to: "/vawc/online-reports", icon: FiInbox },
           /*
            * Referrals and Follow-Up Monitoring are off the menu. Both are
            * recorded on the case itself, where the officer already is; a
@@ -216,10 +290,9 @@ export function menuFor(user: User): MenuSection[] {
            * look and a separate place to forget.
            */
           { label: "Documents & Access Trail", to: "/vawc/documents", icon: FiFolder },
+          /* The desk's own report. The consolidated return is the
+             Secretary's and the Punong Barangay's, not a desk's. */
           { label: "Reports", to: "/vawc/reports", icon: FiBarChart2 },
-          /* The desk's own consolidated return, generated rather than
-             transcribed. Counts only — the section carries no case. */
-          { label: "Consolidated Report", to: "/reports/consolidated", icon: FiLayers },
         ],
       });
       break;
@@ -233,8 +306,16 @@ export function menuFor(user: User): MenuSection[] {
       sections.push({
         heading: "Lupon Tagapamayapa",
         items: [
+          /*
+           * THE QUEUE IN FRONT OF THE DOCKET, and it sits above it because
+           * that is the order the work arrives in: somebody filed on the
+           * website overnight, and the Lupon reads it before the complainant
+           * walks in. Nothing on that screen is a case until Accept is
+           * pressed at the counter.
+           */
+          { label: "Online Complaints", to: "/lupon/online-complaints", icon: FiInbox },
           { label: "Case Docket", to: "/lupon/cases", icon: FiBookOpen },
-          { label: "Hearings & KP Forms", to: "/lupon/hearings", icon: FiCalendar },
+          { label: "Hearings & KP Forms", to: "/lupon/hearings", icon: FiCalendar, children: luponHearingRoom },
           { label: "Settlements", to: "/lupon/settlements", icon: FiFileText },
           { label: "Reports & Archives", to: "/lupon/reports", icon: FiBarChart2 },
         ],
@@ -257,7 +338,21 @@ export function menuFor(user: User): MenuSection[] {
            */
           { label: "Households", to: "/population/households", icon: FiMap },
           { label: "Sector Lists", to: "/population/sectors", icon: FiLayers },
-          { label: "Portal Accounts", to: "/population/accounts", icon: FiUserPlus },
+          /*
+           * Two lists, opened from the sidebar: the accounts still waiting on
+           * their resident, which is the office's work, and the ones already
+           * in use. The count sits on the first.
+           */
+          {
+            label: "Portal Accounts",
+            to: "/population/accounts",
+            icon: FiUserPlus,
+            children: [
+              { label: "Not activated", to: "/population/accounts/not-activated", icon: FiUserX },
+              { label: "Activated", to: "/population/accounts/activated", icon: FiUserCheck },
+            ],
+          },
+          { label: "Reports", to: "/population/reports", icon: FiBarChart2 },
         ],
       });
       break;
@@ -270,7 +365,16 @@ export function menuFor(user: User): MenuSection[] {
         items: [
           { label: "Patient Visits", to: "/health/visits", icon: FiHeart },
           { label: "Immunization", to: "/health/immunization", icon: FiShield },
-          { label: "Maternal & Child", to: "/health/maternal-child", icon: FiSmile },
+          /*
+           * The station's three record books. They were one "Maternal &
+           * Child" page that kept one record per mother and one per child,
+           * overwritten on every visit. Adding a record is the button on each
+           * list, and their monthly and yearly reports are chosen on Reports —
+           * one filter there, rather than six entries here.
+           */
+          { label: "Child Health & Nutrition", to: "/health/child-health", icon: FiSmile },
+          { label: "Maternal Health", to: "/health/maternal", icon: FiUser },
+          { label: "Prenatal Records", to: "/health/prenatal", icon: FiClipboard },
           /*
            * Moved here from the Population Office.
            *
@@ -279,8 +383,9 @@ export function menuFor(user: User): MenuSection[] {
            * second-hand. The register still READS the zone list; only the
            * keeping of it moved.
            */
-          { label: "Zones & BHWs", to: "/health/zones", icon: FiMapPin },
-          { label: "Consolidated Report", to: "/reports/consolidated", icon: FiLayers },
+          /* The station's own report. It was a "Consolidated Report" entry
+             showing only the station's slice of the Secretary's return. */
+          { label: "Reports", to: "/health/reports", icon: FiBarChart2 },
         ],
       });
       break;

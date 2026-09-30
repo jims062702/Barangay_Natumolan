@@ -1,4 +1,4 @@
-import logo from "../../assets/logo/logo.svg";
+import logo from "../../assets/logo/barangay-logo.png";
 
 /**
  * Chrome / desktop notifications — the OS-level popups that appear even when

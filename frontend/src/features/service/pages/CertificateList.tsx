@@ -5,6 +5,7 @@ import { useCertificateDesk } from "../hooks/useCertificateDesk";
 import { CertificateTable } from "../components/certificates/CertificateTable";
 import { NewCertificateModal } from "../components/certificates/NewCertificateModal";
 import { CertificateDetailModal } from "../components/certificates/CertificateDetailModal";
+import { PageLoading } from "../../../shared/ui/PageLoad";
 
 export default function CertificateList() {
   const ctx = useCertificateDesk();
@@ -12,10 +13,12 @@ export default function CertificateList() {
     openCreate,
   } = ctx;
 
+  if (ctx.pageLoad.state !== "ready") return <PageLoading load={ctx.pageLoad} onRetry={() => ctx.load()} />;
+
   return (
     <div>
       <PageHeader
-        title="Certificates & Clearances"
+        title="Certificates"
         subtitle="Accept → print → release, with public QR/reference verification"
         actions={
           <button

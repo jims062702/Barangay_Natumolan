@@ -1,4 +1,5 @@
 import { FiCheck } from "react-icons/fi";
+import DraftNotice from "../../../shared/ui/DraftNotice";
 import Modal from "../../../shared/ui/Modal";
 import FormField, { inputClasses } from "../../../shared/ui/FormField";
 import FileField from "../../../shared/ui/FileField";
@@ -12,7 +13,7 @@ import type { PostDeskState } from "../hooks/usePostDesk";
 export function PostEditor({ ctx }: { ctx: PostDeskState }) {
   const {
     open, setOpen, editId, save, set, kind, form, uses, currentImage, image, setImage, upload,
-    saving,
+    saving, draft,
   } = ctx;
 
   return (
@@ -277,6 +278,8 @@ export function PostEditor({ ctx }: { ctx: PostDeskState }) {
             />
           </div>
         </FormField>
+
+        <DraftNotice draft={draft} files />
 
         <button
           type="submit"

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import {  FiActivity, FiAlertTriangle, FiHeart, FiSmile , FiPlus } from "react-icons/fi";
+import { FiActivity, FiCalendar, FiClipboard, FiHeart, FiPlus, FiSmile, FiUser } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { usePulse } from "../../../shared/hooks/usePulse";
-import { DashboardBodySkeleton } from "../../../shared/ui/Skeleton";
+import { PageLoading, settleAll, usePageLoad } from "../../../shared/ui/PageLoad";
 import Card from "../../../shared/ui/Card";
 import StatTile from "../../../shared/ui/StatTile";
 import StatusBadge from "../../../shared/ui/StatusBadge";
@@ -11,7 +11,17 @@ import PageHeader from "../../../shared/ui/PageHeader";
 import RevealGroup from "../../../shared/ui/RevealGroup";
 import { dashboardApi } from "../api";
 import { healthApi } from "../../health/api";
-import type { ImmunizationRecord } from "../../health/types";
+import type { RecordsSummary } from "../../health/types";
+/** A dose a child should have had by now, worked out on the server from the
+    DOH schedule and the child's birth date. */
+interface OwedDose {
+  child_id: number;
+  name: string;
+  zone_purok?: string | null;
+  vaccine: string;
+  due_on: string;
+  state: "Due" | "Overdue";
+}
 
 interface Coverage {
   total_visits: number;
@@ -23,7 +33,12 @@ interface Coverage {
 export default function HealthStationDashboard() {
   const [todayVisits, setTodayVisits] = useState(0);
   const [coverage, setCoverage] = useState<Coverage | null>(null);
-  const [attention, setAttention] = useState<ImmunizationRecord[]>([]);
+  /* The record books' counts — every one a COUNT of rows, from the server. */
+  const [records, setRecords] = useState<RecordsSummary | null>(null);
+  const [attention, setAttention] = useState<OwedDose[]>([]);
+  /* How many children under two were checked — so "nothing owed" can say
+     of how many, rather than sounding like a verdict on nobody. */
+  const [checked, setChecked] = useState(0);
 
   // Live updates: bump `tick` to re-run the fetches below.
   const [tick, setTick] = useState(0);
@@ -32,23 +47,24 @@ export default function HealthStationDashboard() {
   /* And within a second when somebody else touches one. */
   usePulse("health", () => setTick((t) => t + 1));
 
-  /* Flipped when the first fetch SETTLES — success or failure alike. Keyed
-     off "is the data still null", a request that fails would leave the
-     skeleton pulsing for ever with nothing to read. */
-  const [ready, setReady] = useState(false);
+  /* Its skeleton until the first answer, then the page — see PageLoad. A
+     refresh after that keeps the page; only a first load that gets NO
+     answer at all shows the error. */
+  const pageLoad = usePageLoad();
 
   useEffect(() => {
     void Promise.allSettled([
       dashboardApi.summary().then((r) => setTodayVisits(r.data.data.quick_stats?.today_visits ?? 0)),
       healthApi.coverageReport().then((r) => setCoverage(r.data.data)),
-      Promise.all([
-        healthApi.immunizations({ params: { status: "Missed" } }),
-        healthApi.immunizations({ params: { status: "Pending" } }),
-      ]).then(([missed, pending]) =>
-        setAttention([...(missed.data.data.data ?? []), ...(pending.data.data.data ?? [])])
-      ),
-    ]).then(() => setReady(true));
+      healthApi.recordsSummary().then((r) => setRecords(r.data.data)),
+      healthApi.immunizationDue().then((r) => {
+        setAttention(r.data.data.doses ?? []);
+        setChecked(r.data.data.children_checked ?? 0);
+      }),
+    ]).then((results) => settleAll(pageLoad, results));
   }, [tick]);
+
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => setTick((t) => t + 1)} />;
 
   return (
     <div>
@@ -65,54 +81,60 @@ export default function HealthStationDashboard() {
         }
       />
 
-      {!ready ? (
-        <DashboardBodySkeleton tiles={4} tileColumns={4} cards={1} cardColumns={1} />
-      ) : (
-        <>
       <RevealGroup className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile label="Visits Today" value={todayVisits} icon={FiActivity} />
         <StatTile label="Visits This Year" value={coverage?.total_visits ?? 0} icon={FiHeart} tone="success" />
         <StatTile label="Children Immunized" value={coverage?.total_immunized ?? 0} icon={FiSmile} tone="warning" />
-        <StatTile label="Active Pregnancies" value={coverage?.total_prenatal ?? 0} icon={FiAlertTriangle} tone="danger" />
+        {/* It showed the pregnancies REGISTERED this year under this name, and
+            in red. It is now the ones current today, and a count is not an
+            alarm. */}
+        <StatTile label="Active Pregnancies" value={records?.active_pregnancies ?? 0} icon={FiUser} />
+      </RevealGroup>
+
+      <RevealGroup className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatTile label="Child Health Records" value={records?.child_records ?? 0} icon={FiSmile}
+          hint={`${records?.child_records_this_year ?? 0} this year`} />
+        <StatTile label="Maternal Health Records" value={records?.maternal_records ?? 0} icon={FiUser}
+          hint={`${records?.maternal_records_this_year ?? 0} this year`} />
+        <StatTile label="Current Prenatal Visits" value={records?.current_prenatal_visits ?? 0} icon={FiClipboard}
+          hint={`Across ${records?.active_pregnancies ?? 0} current ${records?.active_pregnancies === 1 ? "pregnancy" : "pregnancies"}`} />
+        <StatTile label="Prenatal Records This Month" value={records?.prenatal_records_this_month ?? 0} icon={FiCalendar}
+          hint={`${records?.prenatal_records_this_year ?? 0} this year`} />
       </RevealGroup>
 
       <div className="mt-6">
         <Card
-          title="Immunizations needing attention (due or missed)"
+          title="Doses due or overdue (children under two)"
           action={
             <Link to="/health/immunization" className="text-sm font-medium text-primary hover:underline">
-              Open board
+              Open records
             </Link>
           }
         >
           {attention.length === 0 ? (
             <p className="py-6 text-center text-sm text-gray-400">
-              No due or missed vaccines — great coverage!
+              {checked === 0
+                ? "No child under two is on the register, so there is nothing to check."
+                : `Every one of the ${checked} children under two has had each dose due for their age.`}
             </p>
           ) : (
             <ul className="divide-y divide-gray/70">
-              {attention.slice(0, 8).map((record) => (
-                <li key={record.id} className="flex items-center justify-between gap-3 py-3">
+              {attention.slice(0, 8).map((d) => (
+                <li key={`${d.child_id}-${d.vaccine}`} className="flex items-center justify-between gap-3 py-3">
                   <div>
-                    <p className="text-sm font-semibold text-dark">
-                      {record.child?.first_name} {record.child?.last_name}
-                    </p>
+                    <p className="text-sm font-semibold text-dark">{d.name}</p>
                     <p className="text-xs text-gray-500">
-                      {record.vaccine_name} ·{" "}
-                      {record.scheduled_date
-                        ? new Date(record.scheduled_date).toLocaleDateString("en-PH")
-                        : "unscheduled"}
+                      {d.vaccine} · due {new Date(d.due_on).toLocaleDateString("en-PH")}
+                      {d.zone_purok ? ` · ${d.zone_purok}` : ""}
                     </p>
                   </div>
-                  <StatusBadge status={record.status} />
+                  <StatusBadge status={d.state} />
                 </li>
               ))}
             </ul>
           )}
         </Card>
       </div>
-        </>
-      )}
     </div>
   );
 }

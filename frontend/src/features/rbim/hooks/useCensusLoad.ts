@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { usePageLoad } from "../../../shared/ui/PageLoad";
 import type { Resident } from "../../../shared/types";
 import { rbimApi } from "../api";
 import { HOME, BLANK_MEMBER } from "../lib/constants";
@@ -9,13 +10,18 @@ import type { CensusAnswersState } from "./useCensusAnswers";
  */
 export function useCensusLoad(ctx: CensusAnswersState) {
   const {
-    editing, id, pristine, setCensusNo, setCodes, setForm, setLoading, setMatches, setMembers,
+    adoptedId, editing, id, pristine, setCensusNo, setCodes, setForm, setLoading, setMatches, setMembers,
     setNotOnSheet, setStatus, snapshot,
   } = ctx;
 
-  useEffect(() => {
-    rbimApi.codeLists().then((r) => setCodes(r.data.data));
-  }, []);
+  /*
+   * The form's first load is BOTH answers: the code lists every select is
+   * drawn from, and — when a census is opened — the census. The page's
+   * skeleton stays until the two are in, so the form appears once, whole,
+   * rather than as empty selects that fill in.
+   */
+  const pageLoad = usePageLoad();
+  const [attempt, setAttempt] = useState(0);
   /*
    * A brand-new sheet starts clean.
    *
@@ -29,9 +35,16 @@ export function useCensusLoad(ctx: CensusAnswersState) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
-    if (!editing) return;
+    /*
+     * A new form that has just saved its first draft moved to the draft's
+     * address in place. What is on screen IS that draft (and may be ahead of
+     * it); reading it back now would put the saved copy over the office's
+     * last few keystrokes.
+     */
+    if (id && adoptedId.current === id) return;
 
-    rbimApi.census(id)
+    const codes = rbimApi.codeLists().then((r) => setCodes(r.data.data));
+    const census = !editing ? Promise.resolve() : rbimApi.census(id)
       .then((r) => {
         const data = r.data.data;
         // A form saved through the API may carry none of these; the boxes
@@ -74,7 +87,13 @@ export function useCensusLoad(ctx: CensusAnswersState) {
             .then((h) => setNotOnSheet(h.data.data))
             .catch(() => setNotOnSheet(null));
         }
-      })
+      });
+
+    Promise.all([codes, census])
+      .then(() => pageLoad.done(), (error) => pageLoad.fail(error))
       .finally(() => setLoading(false));
-  }, [editing, id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, id, attempt]);
+
+  return { pageLoad, retryLoad: () => setAttempt((n) => n + 1) };
 }

@@ -9,10 +9,10 @@ import { ComplaintCard } from "../components/case/ComplaintCard";
 import { HearingsCard } from "../components/case/HearingsCard";
 import { SettlementCard } from "../components/case/SettlementCard";
 import { FeeAndScheduleCard } from "../components/case/FeeAndScheduleCard";
-import { HearingModal } from "../components/case/HearingModal";
 import { MediationModal } from "../components/case/MediationModal";
 import { ConciliationModal } from "../components/case/ConciliationModal";
 import { SettlementModal } from "../components/case/SettlementModal";
+import { PageLoading } from "../../../shared/ui/PageLoad";
 
 export default function CaseDetail() {
   const ctx = useLuponCase();
@@ -20,9 +20,7 @@ export default function CaseDetail() {
     caseData,
   } = ctx;
 
-  if (!caseData) {
-    return <p className="py-10 text-center text-sm text-gray-400">Loading case…</p>;
-  }
+  if (!caseData) return <PageLoading load={ctx.pageLoad} onRetry={ctx.load} />;
 
   const settlement = caseData.settlement;
   const stageIndex = STAGES.indexOf(caseData.current_stage);
@@ -81,7 +79,7 @@ export default function CaseDetail() {
       )}
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <ComplaintCard caseData={caseData} />
+        <ComplaintCard caseData={caseData} onChanged={ctx.load} />
 
         <FeeAndScheduleCard ctx={ctx} caseData={caseData} />
 
@@ -89,9 +87,6 @@ export default function CaseDetail() {
 
         <SettlementCard ctx={ctx} settlement={settlement} />
       </div>
-
-      {/* Hearing modal */}
-      <HearingModal ctx={ctx} />
 
       {/* Mediation modal */}
       <MediationModal ctx={ctx} />

@@ -1,5 +1,19 @@
 import type { Catalogue } from "../types";
 
+/** The server's CertificateCatalogue::MAX_IN_TRANSACTION. */
+export const MAX_IN_TRANSACTION = 10;
+
+/**
+ * A random transaction code, the same shape the server makes: TX- and ten
+ * hex digits. Made here when a counter with no line files several at once —
+ * random, so two devices never make the same one.
+ */
+export function newTransactionCode(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(5));
+
+  return "TX-" + Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+
 /**
  * What a certificate costs, worked out the way the ordinance does.
  *

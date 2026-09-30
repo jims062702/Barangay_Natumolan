@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useLocation } from "react-router-dom";
-import { menuFor } from "../navigation/menu";
+import { menuFor, type MenuItem } from "../navigation/menu";
 import { useAuth } from "../auth/AuthContext";
 import Breadcrumbs, { type Crumb } from "./Breadcrumbs";
 import { useReveal, revealProps } from "../hooks/useReveal";
@@ -34,23 +34,43 @@ interface PageHeaderProps {
  * section this user cannot open.
  */
 function trailFor(pathname: string, sections: ReturnType<typeof menuFor>, title: string): Crumb[] {
-  let best: { heading?: string; item: { label: string; to: string } } | null = null;
+  type Found = { heading?: string; parent?: MenuItem; item: MenuItem };
+  let best: Found | null = null;
+
+  /*
+   * THE TRAIL FOLLOWS THE MENU ALL THE WAY DOWN, INCLUDING CHILDREN.
+   *
+   * It used to read only the top level, so every screen under one parent
+   * reported the parent and then its own page title. The hearing room has
+   * six entries — For Summons, Today's Hearing, Upcoming, Past, Cancelled,
+   * CFA Cases — and all six shared one title, so all six breadcrumbs read
+   * "Secretariat > Hearing & Mediation > Hearing & KP Forms". The one line
+   * on the page whose whole job is to say WHERE YOU ARE said the same thing
+   * in six different places.
+   */
+  const consider = (item: MenuItem, heading?: string, parent?: MenuItem) => {
+    const exact = pathname === item.to;
+    const inside = pathname.startsWith(item.to + "/");
+
+    if (!exact && !inside) return;
+
+    // The longest match wins: /lupon/hearings/past beats /lupon/hearings.
+    if (!best || item.to.length > best.item.to.length) {
+      best = { heading, parent, item };
+    }
+  };
 
   for (const section of sections) {
     for (const item of section.items) {
-      const exact = pathname === item.to;
-      const inside = pathname.startsWith(item.to + "/");
-
-      if (!exact && !inside) continue;
-
-      // The longest match wins: /population/rbim beats /population.
-      if (!best || item.to.length > best.item.to.length) {
-        best = { heading: section.heading, item };
+      consider(item, section.heading);
+      for (const child of item.children ?? []) {
+        consider(child, section.heading, item);
       }
     }
   }
 
   if (!best) return [];
+  const found: Found = best;
 
   const crumbs: Crumb[] = [];
 
@@ -59,13 +79,23 @@ function trailFor(pathname: string, sections: ReturnType<typeof menuFor>, title:
    * Office", only a group of them. A crumb that looks clickable and is not
    * is worse than a plain one.
    */
-  if (best.heading) {
-    crumbs.push({ label: best.heading });
+  if (found.heading) {
+    crumbs.push({ label: found.heading });
   }
 
-  const atTheItem = pathname === best.item.to;
+  /*
+   * The parent, where the match was one of its children. Not a link when it
+   * leads to the same address as the child does — several parents exist only
+   * to open a group and point at their own first entry, and two crumbs in a
+   * row going to one place is a trail that reads like a stutter.
+   */
+  if (found.parent && found.parent.to !== found.item.to) {
+    crumbs.push({ label: found.parent.label, to: found.parent.to });
+  }
 
-  crumbs.push({ label: best.item.label, to: atTheItem ? undefined : best.item.to });
+  const atTheItem = pathname === found.item.to;
+
+  crumbs.push({ label: found.item.label, to: atTheItem ? undefined : found.item.to });
 
   /*
    * A page deeper than the menu goes — a case, a resident, a form — names
@@ -105,14 +135,16 @@ export default function PageHeader({
         One crumb is the page you are already on, which tells nobody
         anything. The trail earns its space from two.
       */}
-      {trail.length > 1 && <Breadcrumbs items={trail} />}
+      {/* On paper the page title names the table; the trail, the subtitle and
+          the buttons are screen furniture and are left off. */}
+      {trail.length > 1 && <div className="print-hide"><Breadcrumbs items={trail} /></div>}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-dark">{title}</h1>
-          {subtitle && <p className="mt-0.5 text-sm text-gray-500">{subtitle}</p>}
+          <h1 className="text-2xl font-bold text-dark print:text-lg">{title}</h1>
+          {subtitle && <p className="print-hide mt-0.5 text-sm text-gray-500">{subtitle}</p>}
         </div>
-        {actions && <div className="flex items-center gap-2">{actions}</div>}
+        {actions && <div className="print-hide flex items-center gap-2">{actions}</div>}
       </div>
     </div>
   );

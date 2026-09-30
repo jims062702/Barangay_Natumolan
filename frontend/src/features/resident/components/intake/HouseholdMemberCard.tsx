@@ -251,7 +251,7 @@ export function HouseholdMemberCard({ ctx, index, member }: {
               <option value="Male">Male</option>
             </select>
           </FormField>
-          <FormField label="Contact number">
+          <FormField label="Contact Number">
             <input
               value={member.form.contact_number}
               onChange={(e) => patchMember(index, { contact_number: e.target.value })}

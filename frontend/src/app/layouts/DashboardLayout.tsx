@@ -3,7 +3,7 @@ import { FiLogOut, FiMenu, FiSidebar, FiX } from "react-icons/fi";
 import { Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../shared/auth/AuthContext";
 import { useSignOut } from "../../shared/auth/useSignOut";
-import { PageBodySkeleton } from "../../shared/ui/Skeleton";
+import RouteSkeleton from "../../shared/ui/RouteSkeleton";
 import OfflineBanner from "../../shared/offline/OfflineBanner";
 import PortalOfflineBanner from "../../shared/offline/PortalOfflineBanner";
 import QueuePanel from "../../shared/offline/QueuePanel";
@@ -135,8 +135,14 @@ export default function DashboardLayout() {
         </div>
       )}
 
+      {/*
+        The room kept for the sidebar goes on paper too. The sidebar itself is
+        hidden in print, and without print:pl-0 its 256px were left as a blank
+        band down the left of every printed page, pushing the table off the
+        right edge of a portrait sheet.
+      */}
       <div
-        className={`transition-[padding] duration-200 ease-out ${
+        className={`transition-[padding] duration-200 ease-out print:pl-0 ${
           collapsed ? "lg:pl-[72px]" : "lg:pl-64"
         }`}
       >
@@ -160,7 +166,7 @@ export default function DashboardLayout() {
           : <PortalOfflineBanner />}
 
         {/* Topbar */}
-        <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-gray bg-white/90 px-4 backdrop-blur-md sm:px-6">
+        <header className="print-hide sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-gray bg-white/90 px-4 backdrop-blur-md sm:px-6">
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -252,7 +258,15 @@ export default function DashboardLayout() {
               sidebar and topbar already on screen flickered away and came
               back to sit in exactly the same place. Only the body waits now.
             */}
-            <Suspense fallback={<PageBodySkeleton />}>
+            {/*
+              THE SHAPE OF THE PAGE THAT IS COMING.
+              This drew one heading over one list card whatever was being
+              opened, so nearly every screen — and nearly every screen here
+              is a toolbar over a table — was replaced wholesale when it
+              arrived. RouteSkeleton reads the address, which is known
+              before the chunk is.
+            */}
+            <Suspense fallback={<RouteSkeleton />}>
               <Outlet />
             </Suspense>
           </ErrorBoundary>

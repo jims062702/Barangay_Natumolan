@@ -4,12 +4,15 @@ import { STATUSES } from "../lib/postDesk";
 import { usePostDesk } from "../hooks/usePostDesk";
 import { PostTable } from "../components/PostTable";
 import { PostEditor } from "../components/PostEditor";
+import { PageLoading } from "../../../shared/ui/PageLoad";
 
 export default function Announcements() {
   const ctx = usePostDesk();
   const {
     counts, statusFilter, setStatusFilter, setPage, openAdd,
   } = ctx;
+
+  if (ctx.pageLoad.state !== "ready") return <PageLoading load={ctx.pageLoad} onRetry={() => ctx.load()} />;
 
   return (
     <div>

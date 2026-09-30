@@ -5,6 +5,7 @@ namespace App\Models\Vawc;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use App\Models\Account\User;
 use App\Models\Resident\Resident;
 use App\Support\SequenceNumber;
@@ -12,6 +13,32 @@ use App\Support\SequenceNumber;
 class CaseFile extends Model
 {
     protected $table = 'vawc_cases';
+
+    /**
+     * The one-word column follows the list, always.
+     *
+     * `violence_type` is read by the quarterly forms, the case filter and
+     * the yearly report, and it is NOT NULL. Kept in step here rather than
+     * in each controller, because a case saved from a screen that forgot to
+     * set it would drop out of the return without anyone noticing — and a
+     * VAW case missing from the return is the one number the barangay is
+     * legally obliged to submit.
+     *
+     * More than one kind is "Mixed", which is what that word was always
+     * for; the list beside it says which.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (CaseFile $case) {
+            $types = $case->violence_types;
+
+            if (! is_array($types) || $types === []) {
+                return;
+            }
+
+            $case->violence_type = count($types) > 1 ? 'Mixed' : $types[0];
+        });
+    }
 
     /**
      * How urgent this case is, from most to least.
@@ -36,8 +63,84 @@ class CaseFile extends Model
         'Threat', 'Physical', 'Psychological', 'Economic', 'Sexual', 'Mixed',
     ];
 
-    /** What a new case may be filed as. Mirrors the intake form's dropdown. */
-    public const INTAKE_VIOLENCE_TYPES = ['Threat', 'Physical'];
+    /**
+     * THE FOUR KINDS RA 9262 NAMES, and a case may be any number of them.
+     *
+     * The intake form offered two, and one at a time. A woman describing a
+     * beating, the threats that came with it and the wages taken off her had
+     * to be filed as ONE of those things and the desk chose — so the other
+     * two went unrecorded, the quarterly return under-reported them, and the
+     * next officer to open the file saw a narrower case than the one that
+     * walked in.
+     *
+     * "Threat" is gone from what a new case may be filed as: a threat is
+     * psychological violence under §3(c), and it is listed below as one of
+     * the acts. Old cases filed as Threat keep the word (VIOLENCE_TYPES
+     * above) — the record is not bent to fit a later form.
+     */
+    public const INTAKE_VIOLENCE_TYPES = ['Physical', 'Sexual', 'Psychological', 'Economic'];
+
+    /**
+     * The specific acts under each kind, as RA 9262 §3 sets them out.
+     *
+     * OPTIONAL, ALWAYS. A survivor recounting what happened is not filling
+     * in a checklist, and an officer who cannot find the exact act on this
+     * list must still be able to record the kind. Choosing a kind is the
+     * record; choosing an act is detail the desk adds when it has it.
+     */
+    public const VIOLENCE_ACTS = [
+        'Physical' => [
+            'Hitting or punching', 'Slapping', 'Kicking', 'Pushing', 'Strangling',
+            'Beating', 'Causing physical injuries',
+        ],
+        'Sexual' => [
+            'Rape', 'Sexual harassment', 'Acts of lasciviousness', 'Forced sexual activity',
+            'Forcing the victim to perform sexual acts', 'Sexual coercion',
+            'Prostituting the woman or child',
+        ],
+        'Psychological' => [
+            'Intimidation', 'Harassment', 'Stalking', 'Public humiliation',
+            'Repeated verbal abuse', 'Threatening', 'Marital infidelity',
+            'Controlling or frightening the victim',
+            'Making the victim witness violence against another person',
+        ],
+        'Economic' => [
+            'Withholding financial support', 'Preventing the woman from working',
+            'Controlling her money', 'Depriving her or the children of financial resources',
+            'Destroying or controlling property',
+            'Preventing access to legitimate livelihood or financial resources',
+        ],
+    ];
+
+    /** Every act, flattened — what a submitted list is validated against. */
+    public static function allViolenceActs(): array
+    {
+        return array_merge(...array_values(self::VIOLENCE_ACTS));
+    }
+
+    /**
+     * Who reported the case — asked outright instead of a checkbox.
+     *
+     * "Victim-Survivor" means she came in herself, and then nobody else's
+     * name, number or consent belongs on the case.
+     */
+    public const REPORTER_TYPES = [
+        'Victim-Survivor', 'Parent/Guardian', 'Relative', 'Friend/Support Person',
+        'Barangay Official', 'Police Officer', 'Social Worker', 'Other',
+    ];
+
+    /**
+     * The relationship of the victim-survivor to the respondent.
+     *
+     * Anything else the desk types under "Other (Specify)" is stored as the
+     * words typed, and null is "Not Recorded".
+     */
+    public const RELATIONSHIPS = [
+        'Spouse', 'Former Spouse', 'Cohabiting Partner', 'Dating Partner', 'Sexual Partner',
+    ];
+
+    /** The immediate safety assessment's first question. */
+    public const DANGER_ANSWERS = ['Yes', 'No', 'Unknown'];
 
     /**
      * How a follow-up's safety finding moves the case's risk level.
@@ -54,8 +157,8 @@ class CaseFile extends Model
      */
     public const RISK_FROM_SAFETY = [
         'Safe' => 'Low',
-        'At Risk' => 'High',
-        'Critical' => 'Critical',
+        'Ongoing concern' => 'High',
+        'Immediate danger' => 'Critical',
     ];
 
     /** VAWC-2026-0001 — one above the highest ever issued. */
@@ -83,9 +186,24 @@ class CaseFile extends Model
             'risk_assessed_at' => $on ?: now(),
         ]);
     }
+
+    /**
+     * The risk level an immediate safety assessment sets.
+     *
+     * Somebody in danger right now is Critical, whatever the level said
+     * before. "No" and "Unknown" set nothing: not being in danger this
+     * minute is not the same as being safe, and only the desk's own judgment
+     * may lower a level.
+     */
+    public static function riskFromDanger(?string $currentlyInDanger): ?string
+    {
+        return $currentlyInDanger === 'Yes' ? 'Critical' : null;
+    }
     protected $fillable = [
         'case_code',
         'survivor_id',
+        // Victim-Survivor, Parent/Guardian, Relative, … — see REPORTER_TYPES.
+        'reported_by_type',
         // Who brought the complaint, when that is not the survivor.
         'reported_by_name',
         /* Set when the reporter is on the register — a resident OR a
@@ -99,8 +217,16 @@ class CaseFile extends Model
            knows them; typed details when it does not. */
         'respondent_id',
         'violence_type',
+        /* The kinds this case is, and the acts under them the desk noted.
+           `violence_type` is kept in step with the first of the list so the
+           quarterly forms and the case filter that read it keep working. */
+        'violence_types',
+        'violence_acts',
         'risk_level',
         'risk_assessed_at',
+        /* The immediate safety assessment. */
+        'currently_in_danger',
+        'protection_needed',
         'reporting_channel',
         'relationship_to_offender',
         'children_involved',
@@ -131,6 +257,8 @@ class CaseFile extends Model
     {
         return [
             'children_involved' => 'boolean',
+            'violence_types' => 'array',
+            'violence_acts' => 'array',
             'report_date' => 'datetime',
             'risk_assessed_at' => 'datetime',
             'closed_at' => 'datetime',
@@ -220,5 +348,23 @@ class CaseFile extends Model
     public function accessLogs(): HasMany
     {
         return $this->hasMany(AccessLog::class, 'vawc_case_id');
+    }
+
+    /** Every BPO applied for or issued on this case, newest first. */
+    public function protectionOrders(): HasMany
+    {
+        return $this->hasMany(ProtectionOrder::class, 'vawc_case_id')->latest('id');
+    }
+
+    /** The case assessment and action plan — one per case. */
+    public function assessment(): HasOne
+    {
+        return $this->hasOne(Assessment::class, 'vawc_case_id');
+    }
+
+    /** Child and dependent welfare — one record per case. */
+    public function childWelfare(): HasOne
+    {
+        return $this->hasOne(ChildWelfare::class, 'vawc_case_id');
     }
 }

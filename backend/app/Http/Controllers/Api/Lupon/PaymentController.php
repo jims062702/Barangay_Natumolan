@@ -3,197 +3,154 @@
 namespace App\Http\Controllers\Api\Lupon;
 
 use App\Http\Controllers\Api\BaseController;
-use App\Models\Account\Notification;
-use App\Support\ChangeLog;
 use App\Models\Lupon\CaseFile;
 use App\Models\Lupon\Payment;
+use App\Services\Lupon\FilingFeeDeadlines;
+use App\Services\Lupon\HearingCalendar;
+use App\Support\ChangeLog;
 use App\Support\ManilaTime;
-use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 /**
- * Whether a case's filing fee has been settled.
+ * Whether a case's filing fee has been paid — confirmed by the Lupon.
  *
- * NOT A COLLECTIONS DESK. This system handles no money: the barangay takes
- * the fee at the counter and keeps its own book of it. What is recorded here
- * is a single fact the Lupon needs and cannot get any other way — has this
- * complainant paid? — because the summons is blocked until they have.
+ * NO MONEY, AT ANY DESK. The complainant pays where the barangay takes
+ * payments and comes back with the official receipt; the Lupon staff LOOK at
+ * it and press Paid. Nobody at the Lupon or the Clerk's counter handles the
+ * fee, and this records no amount and no receipt — only that the receipt
+ * was seen, by whom and when, because the summons waits on it.
  *
- * So there are no amounts, no receipts and no totals. The Clerk marks it Paid
- * or back to Unpaid, and the Lupon sees it.
+ * It used to go through the Clerk: the Lupon sent the fee to the counter and
+ * waited for the Clerk to mark it. That was a second office handling a
+ * payment it never saw, and a case standing still until somebody at another
+ * screen got to it.
  */
 class PaymentController extends BaseController
 {
-    /** What the Clerk still has to confirm, and what has been settled. */
-    public function index(Request $request)
-    {
-        $payments = Payment::with([
-                'luponCase:id,case_number,case_title,complainant_id,complainant_name',
-                'luponCase.complainant:id,first_name,middle_name,last_name,suffix',
-                'requestedBy:id,name',
-                'paidBy:id,name',
-            ])
-            ->when(
-                $request->input('status', 'Requested') !== 'all',
-                fn ($query) => $query->where('status', $request->input('status', 'Requested'))
-            )
-            /* Unsettled first: it is the only row anybody has to act on. */
-            ->orderByRaw("FIELD(status, 'Requested', 'Paid', 'Cancelled')")
-            ->orderBy('requested_at')
-            ->paginate(25);
-
-        return $this->success([
-            'payments' => $payments,
-            'outstanding' => Payment::outstanding()->count(),
-            'settled' => Payment::where('status', 'Paid')->count(),
-        ], 'Lupon filing fees retrieved');
-    }
-
     /**
-     * The Lupon tells the Clerk this case owes its filing fee.
+     * The receipt was shown: the case's filing fee is paid, and the case is
+     * FORWARDED to the Barangay Secretary.
      *
-     * One live request per case. Two clicks would put the same complainant on
-     * the Clerk's list twice; the standing one is handed back instead, so the
-     * second click is a no-op rather than an error somebody has to read.
+     * It books nothing. Confirming the fee used to put three Tuesdays on the
+     * calendar there and then, which meant the Secretary was never handed
+     * anything — they opened a calendar that had filled itself and had no
+     * way to tell a case that had reached them from one that had not. Now
+     * the case stands in their "For summons" list until they print, and the
+     * printing is what books the Tuesdays.
      */
-    public function store(Request $request, CaseFile $case)
+    public function paid(CaseFile $case)
     {
-        $validated = $request->validate([
-            'notes' => ['nullable', 'string', 'max:255'],
-        ]);
+        /* Its three days may have ended a moment ago: settle that first. */
+        FilingFeeDeadlines::closeOverdue();
+        $case->refresh();
 
-        $standing = $case->payments()
+        if ($case->current_stage === CaseFile::CLOSED_UNPAID) {
+            return $this->error('The ' . FilingFeeDeadlines::DAYS . ' days to pay the filing fee ended on '
+                . FilingFeeDeadlines::dueWords($case->payment_due_at) . ', so the case was closed unpaid. '
+                . 'The complainant may file the complaint again.', 422);
+        }
+
+        if ($case->isClosed()) {
+            return $this->error('This case is closed; its filing fee can no longer be changed.', 422);
+        }
+
+        $already = $case->payments()
             ->where('kind', Payment::KIND_FILING)
-            ->whereIn('status', ['Requested', 'Paid'])
+            ->where('status', 'Paid')
             ->first();
 
-        if ($standing) {
-            return $this->success(
-                $standing->load('requestedBy:id,name', 'paidBy:id,name'),
-                $standing->status === 'Paid'
-                    ? 'The filing fee for this case is already marked paid.'
-                    : 'The filing fee is already on the Clerk\'s list.'
-            );
+        /* Pressed twice: the first is the record, the second changes nothing. */
+        if ($already) {
+            return $this->success($already->load('paidBy:id,name'), 'The filing fee is already marked paid.');
         }
+
+        $now = ManilaTime::now();
 
         $payment = $case->payments()->create([
             'kind' => Payment::KIND_FILING,
-            'status' => 'Requested',
+            'status' => 'Paid',
             'requested_by' => auth()->id(),
-            'requested_at' => ManilaTime::now(),
-            'notes' => $validated['notes'] ?? null,
+            'requested_at' => $now,
+            'paid_by' => auth()->id(),
+            'paid_at' => $now,
+            'notes' => 'Official receipt seen by the Lupon.',
         ]);
 
-        /*
-         * And the other direction: tell the COUNTER somebody is coming.
-         *
-         * Same gap, mirrored. The Clerk's list is on a dashboard card they
-         * may not be looking at, and a complainant who walks up to a counter
-         * that does not know they are expected gets sent away to wait.
-         */
-        /* The case's readiness changed, so every docket watching cases
-           reloads — the payment row is not itself a topic anybody waits on. */
+        /* The fee's state first; the stage moves as it always has. */
+        $case->update(['payment_status' => FilingFeeDeadlines::PAID]);
+        FilingFeeDeadlines::record($case, 'fee_paid', 'Official receipt seen by the Lupon.');
+
+        if ($case->current_stage === 'Filed') {
+            $case->update(['current_stage' => 'For Summons']);
+        }
+
         ChangeLog::bump('lupon_cases');
 
-        Notification::notifyFrontDesk(
-            'lupon_fee_requested',
-            'Filing fee to collect — ' . $case->case_number,
-            'The Lupon has sent a complainant to pay the filing fee on this case. '
-                . 'Mark it paid once they have.',
-            'lupon_case',
-            $case->id
-        );
-
         return $this->success(
-            $payment->load('requestedBy:id,name'),
-            'Sent to the Clerk. Nothing moves on this case until it is marked paid.'
+            [
+                'payment' => $payment->load('paidBy:id,name'),
+                'case' => $case->fresh()->load('hearings'),
+            ],
+            'Filing fee marked paid. The case has gone to the Barangay Secretary, '
+                . 'who prints the summons — and that printing books the three Tuesdays '
+                . 'with the Punong Barangay.'
         );
     }
 
     /**
-     * The Clerk marks it Paid, or puts it back to Unpaid.
+     * A mis-click, put right.
      *
-     * REVERSIBLE, deliberately. Marking the wrong case paid is a mis-click,
-     * and the previous version of this refused to undo it on the grounds that
-     * a receipt had been written — but there is no receipt any more, only a
-     * status somebody set by hand. A status set by hand has to be correctable
-     * by hand, or the fix becomes a database edit.
-     *
-     * Who set it and when is kept either way, so the change is not silent.
+     * Only before the summons: once the summons has gone out on the strength
+     * of the fee, taking the fee back would leave a case moving on a payment
+     * the record says never happened. Kept as Cancelled rather than deleted,
+     * so who pressed Paid, and who took it back, stays on the record.
      */
-    public function mark(Request $request, Payment $payment)
+    public function undo(CaseFile $case, HearingCalendar $calendar)
     {
-        $validated = $request->validate([
-            'paid' => ['required', 'boolean'],
-            'notes' => ['nullable', 'string', 'max:255'],
-        ]);
-
-        if ($payment->status === 'Cancelled') {
-            return $this->error('This request was withdrawn and cannot be settled.', 422);
+        if ($case->hearings()->where('summons_issued', true)->exists()) {
+            return $this->error('The summons has already been printed on this fee, so it can no longer be undone.', 422);
         }
 
-        $paid = $validated['paid'];
+        $paid = $case->payments()
+            ->where('kind', Payment::KIND_FILING)
+            ->where('status', 'Paid')
+            ->get();
 
-        $payment->update([
-            'status' => $paid ? 'Paid' : 'Requested',
-            'paid_by' => $paid ? auth()->id() : null,
-            'paid_at' => $paid ? ManilaTime::now() : null,
-            'notes' => $validated['notes'] ?? $payment->notes,
+        if ($paid->isEmpty()) {
+            return $this->error('The filing fee is not marked paid.', 422);
+        }
+
+        $paid->each->update([
+            'status' => 'Cancelled',
+            'notes' => 'Paid was undone by ' . (auth()->user()?->name ?? 'the Lupon') . ' on '
+                . Carbon::now(ManilaTime::ZONE)->format('M j, Y g:i A') . '.',
         ]);
+
+        /* Unpaid again, on the same three days: a deadline already past
+           closes the case at the next sweep, as the rule says. */
+        $case->update(['payment_status' => FilingFeeDeadlines::UNPAID]);
+        FilingFeeDeadlines::record($case, 'fee_undone', 'Paid was undone.');
 
         /*
-         * TELL THE LUPON. This is the whole point of the two-office split.
-         *
-         * The Lupon asks the Clerk for the fee and then cannot issue the
-         * summons until it is settled — but the settling happens at another
-         * counter, on another screen. Without this the Lupon office learns
-         * about it by reopening the case and looking, which means they learn
-         * about it late, and the complainant waits for a summons that could
-         * have gone out that morning.
-         *
-         * Sent both ways: putting it back to unpaid stops a case the Lupon
-         * may already have started to move on.
+         * Nothing is normally booked at this point — the fee forwards the
+         * case, the summons books the sittings — but a case carried over
+         * from the old order may still hold Tuesdays that went on the
+         * calendar with the receipt, and a sitting nobody will hold must not
+         * stand on it.
          */
-        $case = $payment->luponCase;
+        $stood = $calendar->standDown($case, 'Stood down: the filing fee was put back to unpaid.');
 
-        ChangeLog::bump('lupon_cases');
-
-        Notification::notifyLupon(
-            $paid ? 'lupon_fee_paid' : 'lupon_fee_unpaid',
-            $paid
-                ? 'Filing fee paid — ' . ($case?->case_number ?? 'a case')
-                : 'Filing fee put back to unpaid — ' . ($case?->case_number ?? 'a case'),
-            $paid
-                ? 'The Clerk has marked the filing fee settled. You can issue the summons.'
-                : 'The Clerk has put this filing fee back to unpaid. The summons is blocked again.',
-            'lupon_case',
-            $case?->id
-        );
-
-        return $this->success(
-            $payment->fresh()->load('luponCase:id,case_number', 'paidBy:id,name'),
-            $paid
-                ? 'Marked paid. The Lupon has been told and can proceed.'
-                : 'Put back to unpaid. The Lupon has been told the summons is blocked again.'
-        );
-    }
-
-    /**
-     * The Lupon withdraws a request it should not have made.
-     *
-     * Cancelled rather than deleted: "asked for and withdrawn" is a thing the
-     * counter may have already acted on, and a row that disappears cannot
-     * explain why somebody was sent to pay and then turned away.
-     */
-    public function cancel(Payment $payment)
-    {
-        if ($payment->status === 'Paid') {
-            return $this->error('This is already marked paid and cannot be withdrawn.', 422);
+        if (
+            in_array($case->current_stage, ['For Summons', 'Mediation'], true)
+            && ! $case->hearings()->where('status', 'Completed')->exists()
+        ) {
+            $case->update(['current_stage' => 'Filed']);
         }
 
-        $payment->update(['status' => 'Cancelled']);
-
         ChangeLog::bump('lupon_cases');
 
-        return $this->success($payment->fresh(), 'The request was withdrawn.');
+        return $this->success(null, 'Put back to unpaid.'
+            . ($stood > 0 ? " {$stood} sitting(s) were stood down." : '')
+            . ' The calendar waits until the receipt is seen.');
     }
 }

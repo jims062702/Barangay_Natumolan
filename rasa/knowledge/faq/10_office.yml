@@ -1,0 +1,206 @@
+# The Barangay Hall itself: when, where, who, and how to reach it.
+#
+# NO TELEPHONE NUMBER IS GIVEN. The only number the system holds is a
+# placeholder, and a number that does not answer is worse than none. Add the
+# real one here when the office has it.
+topic: general
+intents:
+  - id: ask_office_hours
+    response: utter_office_hours
+    label: "Office hours"
+    question: "What are the Barangay office hours?"
+    framed:
+      when: [office hours, the opening time of the barangay, the closing time of the barangay hall, barangay office hours, the barangay hall opening]
+    answer: |-
+      🕗 The Barangay Hall is open Monday to Friday, 8:00 AM – 5:00 PM, except holidays.
+
+      All offices follow the same schedule: the Main Office, the VAWC Desk, the Lupon Tagapamayapa, the Population Office and the Health Station.
+    related: [ask_open_weekend, ask_location, ask_walk_in]
+    en: [what are your office hours, what time do you open, when is the barangay hall open, what time does the office close, office hours, opening hours, are you open today, what are the barangay office hours, what time can i go to the barangay]
+    tl: [anong oras bukas ang barangay, anong oras kayo nagsasara, bukas ba ang barangay ngayon, hanggang anong oras kayo, oras ng opisina]
+    ceb: [unsa oras abri ang barangay, unsa oras mo magsira, abri ba ang barangay karon, hangtod unsa oras mo]
+    test: [when does the barangay office open in the morning, anong oras po pwede pumunta sa barangay hall]
+
+  - id: ask_open_weekend
+    label: "Open on weekends?"
+    question: "Is the Barangay Hall open on Saturday, Sunday or holidays?"
+    framed:
+      can: [go to the barangay on saturday, visit the barangay on sunday, go there on a holiday, process papers on a weekend]
+    answer: |-
+      The Barangay Hall is open Monday to Friday only, 8:00 AM – 5:00 PM. It is closed on Saturdays, Sundays and holidays.
+
+      In an emergency at any time, call 911.
+    related: [ask_office_hours, ask_request_online, ask_vawc_emergency]
+    en: [are you open on saturday, is the barangay open on sunday, are you open on weekends, open on holidays, can i go on saturday, is the office open during holidays]
+    tl: [bukas ba kayo sa sabado, bukas ba sa linggo, may pasok ba sa holiday, bukas ba ang barangay kapag weekend]
+    ceb: [abri ba mo sa sabado, abri ba sa domingo, naa ba mo sa holiday]
+    test: [can i visit the barangay hall this weekend, may opisina po ba sa sabado]
+
+  - id: ask_location
+    response: utter_location
+    label: "Where is the Barangay Hall?"
+    question: "Where is the Barangay Hall?"
+    framed:
+      where: [the barangay hall, barangay natumolan hall, the barangay office, the barangay hall of natumolan]
+    answer: |-
+      📍 The Barangay Hall is in Barangay Natumolan, Tagoloan, Misamis Oriental 9001, Philippines. There is a map at the bottom of this website, in the Contact section.
+    related: [ask_office_hours, ask_contact, ask_offices]
+    en: [where is the barangay hall, where are you located, what is your address, how do i get to the barangay hall, barangay natumolan address, location of the barangay office, where is the barangay office]
+    tl: [saan ang barangay hall, saan kayo matatagpuan, ano ang address ng barangay, paano pumunta sa barangay hall]
+    ceb: [asa ang barangay hall, asa mo nahimutang, unsa inyong address, unsaon pag-adto sa barangay hall]
+    test: [directions to the natumolan barangay hall, saan po ang opisina ng barangay]
+
+  - id: ask_contact
+    response: utter_contact
+    label: "Contact the barangay"
+    question: "How can I contact the barangay?"
+    framed:
+      what: [the contact number of the barangay, the barangay hotline, the barangay phone number]
+    answer: |-
+      📧 Email: barangaynatumolan@gmail.com
+      You can also send a message through the Contact section of this website — it goes straight to the Main Office staff — or visit the Barangay Hall, Monday to Friday, 8:00 AM – 5:00 PM.
+    related: [ask_email, ask_contact_form, ask_location]
+    en: [how can i contact the barangay, what is your contact number, how do i reach you, contact details, phone number of the barangay, how can i get in touch, hotline of the barangay, i want to call the barangay, what number do i call for the barangay, can i phone the office]
+    tl: [paano makontak ang barangay, ano ang contact number ninyo, numero ng barangay, paano kayo matatawagan, gusto ko tawagan ang barangay, anong number ang tatawagan]
+    ceb: [unsaon pagkontak sa barangay, unsa inyong numero, unsaon pagtawag sa barangay, gusto ko tawagan ang barangay, unsa nga numero akong tawagan]
+    test: [i need to call the barangay office, may cellphone number po ba ang barangay]
+
+  - id: ask_email
+    label: "Email address"
+    question: "What is the barangay's email address?"
+    framed:
+      what: [the barangay email, the email address of the barangay, the gmail of the barangay]
+    answer: |-
+      📧 barangaynatumolan@gmail.com
+
+      For anything that needs a document, come to the Barangay Hall — requests are not filed by email.
+    related: [ask_contact, ask_contact_form, ask_request_online]
+    en: [what is your email, email address of the barangay, can i email you, where do i send an email, barangay email]
+    tl: [ano ang email ng barangay, pwede ba mag email, saan mag email]
+    ceb: [unsa ang email sa barangay, pwede ba mag email]
+    test: [give me the gmail of the barangay, may email po ba kayo]
+
+  - id: ask_contact_form
+    label: "Send a message"
+    question: "Can I send the barangay a message online?"
+    framed:
+      how_to: [send a message to the barangay, message the barangay online, send an inquiry to the office]
+    answer: |-
+      Yes. Use the Contact section at the bottom of this website — your message goes straight to the Main Office staff. Include a way to reach you so they can reply.
+    related: [ask_contact, ask_email, ask_human]
+    en: [can i send a message online, how do i message the barangay, contact form, send an inquiry, can i write to the barangay, leave a message for the office]
+    tl: [pwede ba mag message online, paano mag send ng mensahe sa barangay, saan mag iwan ng mensahe]
+    ceb: [pwede ba mag message online, unsaon pagpadala og mensahe sa barangay]
+    test: [where can i submit a question to the office, paano po magpadala ng inquiry]
+
+  - id: ask_offices
+    label: "Offices in the Barangay Hall"
+    question: "What offices are in the Barangay Hall?"
+    framed:
+      what: [the offices in the barangay hall, the barangay departments]
+    answer: |-
+      The Barangay Hall has:
+      • Main Office — certificates, clearances and the service counter
+      • Lupon Tagapamayapa — disputes and complaints under the Katarungang Pambarangay
+      • VAWC Desk — confidential help for women and children facing violence
+      • Population Office — the register of residents and households, and portal accounts
+      • Health Station — consultations, immunization and maternal and child care
+    related: [ask_certificates, ask_lupon, ask_vawc_help, ask_health]
+    en: [what offices are in the barangay, what departments do you have, list of offices, which office handles what, what are the barangay offices, who do i go to]
+    tl: [anong mga opisina ang meron, ano ang mga opisina sa barangay, saang opisina ako pupunta]
+    ceb: [unsa mga opisina sa barangay, asa nga opisina ko moadto]
+    test: [what sections does the barangay hall have, ilan ang opisina sa barangay]
+
+  - id: ask_officials
+    label: "Barangay officials"
+    question: "Who are the barangay officials?"
+    framed:
+      who: [the barangay officials, the kagawad, the barangay councilors, the members of the sangguniang barangay, the barangay council]
+    answer: |-
+      The Punong Barangay, the Sangguniang Barangay members, the Sangguniang Kabataan and the other officials are listed with their photos in the Officials section of this website.
+    related: [ask_punong_barangay, ask_sk, ask_offices]
+    en: [who are the barangay officials, list of officials, who are the kagawad, barangay council members, who runs the barangay, sangguniang barangay members]
+    tl: [sino ang mga opisyal ng barangay, sino ang mga kagawad, sino ang namamahala sa barangay]
+    ceb: [kinsa ang mga opisyal sa barangay, kinsa ang mga kagawad]
+    test: [names of the barangay councilors, sino po ang mga konsehal]
+
+  - id: ask_punong_barangay
+    label: "The Punong Barangay"
+    question: "Who is the Punong Barangay?"
+    framed:
+      who: [the punong barangay, the barangay captain, kapitan, the kap, the barangay chairman]
+    answer: |-
+      The Punong Barangay (barangay captain) is named in the Officials section of this website.
+
+      The Punong Barangay heads the barangay, presides over the Sangguniang Barangay, and chairs the Lupon Tagapamayapa — including the first mediation hearings of a complaint.
+    related: [ask_officials, ask_hearing_schedule, ask_bpo]
+    en: [who is the punong barangay, who is the barangay captain, who is kapitan, name of the barangay chairman, who is the barangay head]
+    tl: [sino ang kapitan, sino ang punong barangay, sino ang chairman ng barangay]
+    ceb: [kinsa ang kapitan, kinsa ang punong barangay]
+    test: [who is the current captain of natumolan, sino po ang kap ngayon]
+
+  - id: ask_sk
+    label: "Sangguniang Kabataan"
+    question: "What is the Sangguniang Kabataan?"
+    framed:
+      what: [sk, the sangguniang kabataan, the sk council]
+      who: [the sk chairman, the sk chairperson, the sk officials]
+    answer: |-
+      The Sangguniang Kabataan (SK) is the barangay's youth council. It runs programmes for the youth of the barangay. Its chairperson and members are listed in the Officials section of this website, and its news appears under News & Announcements.
+    related: [ask_officials, ask_announcements]
+    en: [what is the sk, sangguniang kabataan, who is the sk chairman, youth council, sk programs, what does the sk do]
+    tl: [ano ang sk, sino ang sk chairman, ano ang ginagawa ng sk]
+    ceb: [unsa ang sk, kinsa ang sk chairman]
+    test: [are there youth activities from the sk, sino po ang sk ngayon]
+
+  - id: ask_announcements
+    label: "News & announcements"
+    question: "Where can I see barangay announcements?"
+    framed:
+      where: [the announcements, the barangay news, the latest updates]
+    answer: |-
+      Barangay news and announcements are posted in the News & Announcements section of this website. Residents with a portal account also see them under Announcements after signing in.
+    related: [ask_portal_features, ask_sk]
+    en: [where are the announcements, barangay news, latest announcements, any news from the barangay, where do you post updates, events in the barangay]
+    tl: [saan makikita ang mga anunsyo, may balita ba sa barangay, bagong anunsyo]
+    ceb: [asa makita ang mga pahibalo, naa bay balita sa barangay]
+    test: [what is new in the barangay this week, may bagong announcement po ba]
+
+  - id: ask_walk_in
+    response: utter_walk_in
+    label: "Walk in"
+    question: "Can I just walk in?"
+    framed:
+      can: [walk in, go directly to the barangay, go there without an appointment]
+    answer: |-
+      Yes — walk-ins are welcome, Monday to Friday, 8:00 AM – 5:00 PM. Go to the Main Office, present a valid ID and tell the clerk what you need. Your request is recorded on the spot; fees are paid at the counter and you get an official receipt.
+    related: [ask_requirements, ask_fees, ask_office_hours]
+    en: [can i walk in, do i need an appointment or can i just go, walk in request, can i go directly to the barangay, is walk in allowed]
+    tl: [pwede ba walk in, pwede ba pumunta na lang, kailangan pa ba ng appointment o pwede diretso]
+    ceb: [pwede ba walk in, pwede ra ba mo adto diretso]
+    test: [can i show up without scheduling, pwede po ba dumiretso na lang]
+
+  - id: ask_appointment
+    response: utter_appointment
+    label: "Book an appointment"
+    question: "How do I book an appointment?"
+    framed:
+      how_to: [book an appointment, set an appointment, schedule a visit]
+    answer: |-
+      There is no appointment booking — you do not need one. Walk in at the Main Office, Monday to Friday, 8:00 AM – 5:00 PM, or request a certificate online through the resident portal and come in when it is ready to claim.
+    related: [ask_walk_in, ask_request_online, ask_office_hours]
+    en: [how do i book an appointment, can i schedule an appointment, set an appointment, reserve a schedule, appointment booking, do i need an appointment]
+    tl: [paano mag book ng appointment, pwede ba magpa schedule, kailangan ba ng appointment]
+    ceb: [unsaon pag book og appointment, kinahanglan ba og appointment]
+    test: [is there online scheduling for visits, pano po magpa-appointment]
+
+  - id: ask_data_privacy
+    label: "Is my information safe?"
+    question: "What happens to my personal information?"
+    answer: |-
+      The barangay keeps your records to provide its services. Records at the VAWC Desk are confidential by law (RA 9262) and are seen only by the VAWC Desk. For any question about your own records, ask at the Main Office or the Population Office.
+    related: [ask_update_profile, ask_vawc_confidential]
+    en: [is my information safe, what do you do with my data, data privacy, who can see my records, is my personal data protected, privacy policy, will you share my information, who can see my personal details, do you give my data to others, is my address shown to other people]
+    tl: [ligtas ba ang impormasyon ko, sino makakakita ng records ko, protektado ba ang data ko, ibibigay nyo ba ang impormasyon ko sa iba, sino makakakita ng detalye ko]
+    ceb: [luwas ba akong impormasyon, kinsa makakita sa akong records, ihatag ba ninyo akong impormasyon sa uban]
+    test: [will my details be shared with others, safe po ba ang personal info ko]

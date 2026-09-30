@@ -60,6 +60,21 @@ export function useCensusAnswers() {
    */
   const pristine = useRef("");
   const [saving, setSaving] = useState(false);
+  /*
+   * THE DRAFT, SAVED AS IT IS TYPED (2026-09-29).
+   *
+   * Where the last save stands — said beside Preview form, and only what
+   * the server confirmed: "saved" is set when the server answered, never
+   * before. `adoptedId` is the id a NEW form gave itself on its first save:
+   * the address moves to it without the page reopening (see CensusRecord),
+   * and the loader must not read the form back over what is being typed.
+   */
+  const [draftSave, setDraftSave] = useState<DraftSave>("idle");
+  const [draftSavedAt, setDraftSavedAt] = useState<Date | null>(null);
+  const [draftError, setDraftError] = useState("");
+  const adoptedId = useRef<string | null>(null);
+  /* Preview form's own save has landed, so Submit knows which census to register. */
+  const [previewReady, setPreviewReady] = useState(false);
   const [loading, setLoading] = useState(editing);
   const set = (key: string, value: FormValue) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -212,6 +227,11 @@ export function useCensusAnswers() {
     return JSON.stringify({ f: rest, m: mem.map((one) => clean(one)) });
   };
   const isDirty = () => snapshot() !== pristine.current;
+  /** Nothing typed on this sheet at all — a new form's starting state. */
+  const isBlankSheet = () => snapshot() === snapshot(
+    { household_head_name: "", ...HOME, is_institutional: false, consent_given: false },
+    [{ ...BLANK_MEMBER }],
+  );
   /** Back to an empty sheet, keeping the number that was just checked. */
   const resetForm = (keepNumber: string) => {
     const blank = {
@@ -233,8 +253,13 @@ export function useCensusAnswers() {
     setHouseCheck, gaps, setGaps, previewOpen, setPreviewOpen, registering, setRegistering,
     notOnSheet, setNotOnSheet, pristine, saving, setSaving, loading, setLoading, set, listOf,
     setList, fillLineOneFrom, setMemberFlag, setMember, clashingLine, filledLines, clean,
-    snapshot, isDirty, resetForm,
+    snapshot, isDirty, isBlankSheet, resetForm,
+    draftSave, setDraftSave, draftSavedAt, setDraftSavedAt, draftError, setDraftError, adoptedId,
+    previewReady, setPreviewReady,
   };
 }
 
 export type CensusAnswersState = ReturnType<typeof useCensusAnswers>;
+
+/** Where the draft's last save stands. */
+export type DraftSave = "idle" | "saving" | "saved" | "error" | "offline";

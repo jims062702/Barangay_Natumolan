@@ -6,6 +6,7 @@ import { useCaseRegistry } from "../hooks/useCaseRegistry";
 import { CaseTable } from "../components/cases/CaseTable";
 import { IntakeModal } from "../components/cases/IntakeModal";
 import { EditCaseModal } from "../components/cases/EditCaseModal";
+import { PageLoading } from "../../../shared/ui/PageLoad";
 
 export default function CaseList() {
   const ctx = useCaseRegistry();
@@ -13,10 +14,12 @@ export default function CaseList() {
     period, windowLabel, years, periodCounts, total, setIntakeOpen, changePeriod, offline,
   } = ctx;
 
+  if (ctx.pageLoad.state !== "ready") return <PageLoading load={ctx.pageLoad} onRetry={() => ctx.load()} />;
+
   return (
     <div>
       <PageHeader
-        title="VAWC Confidential Case Registry"
+        title="Confidential Cases"
         subtitle="Cases are identified by case code — access is logged"
         actions={
           <button

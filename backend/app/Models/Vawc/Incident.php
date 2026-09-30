@@ -20,6 +20,10 @@ class Incident extends Model
          * of is in the house right now.
          */
         'occurred_at',
+        /* "Around 8:00 PM" — words, because a victim-survivor may not know
+           the exact time, and a clock box invites a precise one nobody
+           stands behind. */
+        'approximate_time',
         'location',
         'is_ongoing',
         'offender_nearby',

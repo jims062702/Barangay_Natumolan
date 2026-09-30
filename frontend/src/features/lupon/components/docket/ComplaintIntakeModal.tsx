@@ -1,3 +1,4 @@
+import DraftNotice from "../../../../shared/ui/DraftNotice";
 import Modal from "../../../../shared/ui/Modal";
 import FormField, { inputClasses } from "../../../../shared/ui/FormField";
 import PhoneInput from "../../../../shared/ui/PhoneInput";
@@ -12,11 +13,11 @@ import type { LuponDocketState } from "../../hooks/useLuponDocket";
  */
 export function ComplaintIntakeModal({ ctx }: { ctx: LuponDocketState }) {
   const {
-    intakeOpen, closeIntake, intake, outsideComplainant, outsideName, setOutsideName,
+    intakeOpen, closeIntake, discardIntake, intake, outsideComplainant, outsideName, setOutsideName,
     complainant, setComplainant, respondents, setOutsideComplainant, setRespondents,
     outsideAddress, setOutsideAddress, outsideContact, setOutsideContact,
     classification, setClassification, occurrenceDate, setOccurrenceDate, place, setPlace,
-    relationship, setRelationship, narrative, setNarrative,
+    relationship, setRelationship, narrative, setNarrative, intakeDraft,
   } = ctx;
   const offline = useIsOffline();
 
@@ -100,7 +101,7 @@ export function ComplaintIntakeModal({ ctx }: { ctx: LuponDocketState }) {
                 placeholder="Barangay / municipality"
               />
             </FormField>
-            <FormField label="Complainant contact number">
+            <FormField label="Complainant Contact Number">
               <PhoneInput value={outsideContact} onChange={setOutsideContact} />
             </FormField>
             <p className="self-end pb-2.5 text-xs text-gray-400">
@@ -118,7 +119,7 @@ export function ComplaintIntakeModal({ ctx }: { ctx: LuponDocketState }) {
           report could group by either with confidence. The list is the
           answer; the title follows it.
         */}
-        <FormField label="Nature of the case" required>
+        <FormField label="Nature of the Case" required>
           <select value={classification} onChange={(e) => setClassification(e.target.value)} className={inputClasses}>
             {CLASSIFICATIONS.map((c) => (
               <option key={c}>{c}</option>
@@ -158,11 +159,26 @@ export function ComplaintIntakeModal({ ctx }: { ctx: LuponDocketState }) {
           </FormField>
         </div>
 
+        {/*
+          Discard is its own button, and asks first. Closing the form KEEPS
+          what was typed — the clerk steps away and comes back to it — so
+          throwing it away has to be something done on purpose.
+        */}
         <div className="sm:col-span-2 lg:col-span-3">
+          <DraftNotice draft={intakeDraft} ownDiscard />
+        </div>
+        <div className="flex flex-col-reverse gap-3 sm:col-span-2 sm:flex-row lg:col-span-3">
+          <button
+            type="button"
+            onClick={discardIntake}
+            className="cursor-pointer rounded-full border border-gray px-6 py-2.5 text-sm font-semibold text-dark transition-colors hover:border-danger hover:text-danger"
+          >
+            Discard
+          </button>
           <button
             type="submit"
             disabled={respondents.length === 0 || (outsideComplainant ? !outsideName.trim() : !complainant)}
-            className="w-full cursor-pointer rounded-full bg-primary py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark disabled:opacity-50"
+            className="flex-1 cursor-pointer rounded-full bg-primary py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark disabled:opacity-50"
           >
             File case
           </button>

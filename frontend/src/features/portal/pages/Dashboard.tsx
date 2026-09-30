@@ -12,6 +12,8 @@ import type { Resident, ServiceRequest } from "../../../shared/types";
 import { portalApi } from "../api";
 import MyHearingsCard from "../components/MyHearingsCard";
 import type { Announcement } from "../../content/types";
+import { PageLoading, settleAll, usePageLoad } from "../../../shared/ui/PageLoad";
+import type { PortalKpCase } from "../types";
 
 interface PortalHome {
   resident: Resident;
@@ -27,14 +29,24 @@ interface PortalHome {
 export default function Dashboard() {
   const { user } = useAuth();
   const [home, setHome] = useState<PortalHome | null>(null);
+  const [cases, setCases] = useState<PortalKpCase[]>([]);
+  /* Its skeleton until the first answer — the home figures AND the cases
+     the hearings card lays out, asked together. See PageLoad. */
+  const pageLoad = usePageLoad();
 
   // Live updates: bump `tick` to re-run the fetch below.
   const [tick, setTick] = useState(0);
   useAutoRefresh(() => setTick((t) => t + 1), REFRESH.portal);
 
   useEffect(() => {
-    portalApi.dashboard().then((r) => setHome(r.data.data)).catch(() => undefined);
+    void Promise.allSettled([
+      portalApi.dashboard().then((r) => setHome(r.data.data)),
+      portalApi.cases().then((r) => setCases(r.data.data.kp_cases ?? [])),
+    ]).then((results) => settleAll(pageLoad, results));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick]);
+
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => setTick((t) => t + 1)} />;
 
   return (
     <div>
@@ -42,7 +54,7 @@ export default function Dashboard() {
         title={`Welcome, ${user?.name?.split(" ")[0] ?? "Resident"}!`}
         subtitle={
           home
-            ? `Resident No. ${home.resident?.resident_number} · ${home.resident?.zone_purok ?? ""}`
+            ? `Resident Number ${home.resident?.resident_number} · ${home.resident?.zone_purok ?? ""}`
             : "Your barangay services, online"
         }
       />
@@ -79,7 +91,7 @@ export default function Dashboard() {
         they already knew there was something in it.
       */}
       <div className="mt-6">
-        <MyHearingsCard />
+        <MyHearingsCard cases={cases} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">

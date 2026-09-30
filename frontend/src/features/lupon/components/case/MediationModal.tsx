@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import DraftNotice from "../../../../shared/ui/DraftNotice";
 import Modal from "../../../../shared/ui/Modal";
 import FormField, { inputClasses } from "../../../../shared/ui/FormField";
 import { localNow } from "../../lib/caseStages";
@@ -11,7 +12,7 @@ import type { LuponCaseState } from "../../hooks/useLuponCase";
 export function MediationModal({ ctx }: { ctx: LuponCaseState }) {
   const {
     mediationOpen, setMediationOpen, post, id, mediationDate, attendance, mediationOutcome,
-    mediationNotes, setMediationDate, setAttendance, setMediationOutcome, setMediationNotes,
+    mediationNotes, setMediationDate, setAttendance, setMediationOutcome, setMediationNotes, mediationDraft, finishMediation,
   } = ctx;
 
   return (
@@ -26,7 +27,7 @@ export function MediationModal({ ctx }: { ctx: LuponCaseState }) {
               outcome: mediationOutcome,
               proceedings_notes: mediationNotes || undefined,
             }),
-            () => setMediationOpen(false)
+            finishMediation
           );
         }}
         className="space-y-4"
@@ -58,6 +59,7 @@ export function MediationModal({ ctx }: { ctx: LuponCaseState }) {
         <FormField label="Proceedings notes">
           <textarea value={mediationNotes} onChange={(e) => setMediationNotes(e.target.value)} rows={2} className={`${inputClasses} resize-none`} />
         </FormField>
+        <DraftNotice draft={mediationDraft} />
         <button type="submit" className="w-full cursor-pointer rounded-full bg-primary py-2.5 text-sm font-semibold text-white hover:bg-primary-dark">
           Save mediation
         </button>

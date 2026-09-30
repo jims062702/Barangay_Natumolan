@@ -8,11 +8,16 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * The one session a VAWC case gets, and what was agreed at it.
+ * The one dialogue a VAWC case may have, and whether it ended in agreement.
  *
  * One per case — enforced by a unique key on the table, not by this class.
  * The desk hears the parties ONCE; a second and a third sitting is mediation,
  * and mediating a VAWC matter is prohibited.
+ *
+ * OPTIONAL, and never a step before protection. A case may go straight to a
+ * Barangay Protection Order without any dialogue, and nothing here holds an
+ * application back: RA 9262 §33 forbids the barangay from pressing a
+ * victim-survivor to settle or to give up any relief she asks for.
  */
 class Agreement extends Model
 {
@@ -20,17 +25,16 @@ class Agreement extends Model
 
     protected $table = 'vawc_agreements';
 
+    public const OUTCOMES = ['Agreement reached', 'No agreement'];
+
     protected $fillable = [
-        'vawc_case_id', 'session_date', 'attendees', 'discussion', 'agreement',
-        'survivor_acknowledged', 'respondent_acknowledged', 'recorded_by',
+        'vawc_case_id', 'session_date', 'attendees', 'discussion', 'outcome', 'agreement', 'recorded_by',
     ];
 
     protected function casts(): array
     {
         return [
-            'session_date' => 'date',
-            'survivor_acknowledged' => 'boolean',
-            'respondent_acknowledged' => 'boolean',
+            'session_date' => 'date:Y-m-d',
             /*
              * Encrypted at rest, like the rest of this desk.
              *

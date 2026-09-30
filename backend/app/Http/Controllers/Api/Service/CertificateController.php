@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Api\Service;
 
 use App\Http\Controllers\Api\BaseController;
+use App\Http\Requests\Service\StoreCertificateBatchRequest;
 use App\Http\Requests\Service\StoreCertificateRequest;
 use App\Models\Service\Certificate;
+use App\Models\Service\ServiceRequest;
 use App\Services\Service\CertificateFiling;
 use App\Services\Service\CertificateFilingRefused;
 use App\Services\Service\CertificateCatalogue;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Certificates & clearances.
@@ -39,7 +42,7 @@ class CertificateController extends BaseController
          */
         $query = Certificate::with([
             'resident', 'processor', 'signer', 'releaser',
-            'serviceRequest:id,request_type',
+            'serviceRequest:id,request_type,transaction_code',
         ]);
 
         if ($request->has('resident_id')) {
@@ -48,6 +51,11 @@ class CertificateController extends BaseController
 
         if ($request->has('certificate_type')) {
             $query->where('certificate_type', $request->certificate_type);
+        }
+
+        /* The other certificates of one visit — see ServiceRequest::TRANSACTION_CODE. */
+        if ($request->filled('transaction_code')) {
+            $query->whereHas('serviceRequest', fn ($q) => $q->where('transaction_code', $request->transaction_code));
         }
 
         // Counted before the status filter narrows it — see statusCounts.
@@ -64,6 +72,21 @@ class CertificateController extends BaseController
          * whatever order it liked, so 000003 could sit above 000002.
          */
         $certificates = $query->orderBy('created_at', 'desc')->orderBy('id', 'desc')->paginate(20);
+
+        /*
+         * How many certificates each row's visit asked for, so the list can
+         * say "1 of 3" — counted for the codes on this page only, in one
+         * query, whatever page the others landed on.
+         */
+        $codes = collect($certificates->items())->pluck('serviceRequest.transaction_code')->filter()->unique();
+        $sizes = $codes->isEmpty() ? collect() : ServiceRequest::whereIn('transaction_code', $codes)
+            ->groupBy('transaction_code')
+            ->selectRaw('transaction_code, COUNT(*) AS n')
+            ->pluck('n', 'transaction_code');
+        $certificates->getCollection()->each(fn (Certificate $c) => $c->setAttribute(
+            'transaction_size',
+            $c->serviceRequest?->transaction_code ? (int) ($sizes[$c->serviceRequest->transaction_code] ?? 1) : null,
+        ));
 
         return $this->success(
             $certificates->toArray() + ['counts' => $counts],
@@ -82,9 +105,63 @@ class CertificateController extends BaseController
         return $this->success($certificate, $message, 201);
     }
 
+    /**
+     * Several certificates for one resident, in one visit.
+     *
+     * ALL OR NOTHING. Each is filed exactly as a single one is — its own
+     * number, request and status — inside one database transaction, so a
+     * certificate the server refuses (a non-resident, a request already
+     * raised) leaves none of the others behind. Filed half-way, the clerk
+     * would press again and file the first ones twice.
+     */
+    public function storeBatch(StoreCertificateBatchRequest $request, CertificateFiling $filing)
+    {
+        $validated = $request->validated();
+        $items = $validated['items'];
+        $code = $validated['transaction_code']
+            ?? (count($items) > 1 ? ServiceRequest::newTransactionCode() : null);
+
+        try {
+            $certificates = DB::transaction(function () use ($items, $validated, $code, $filing) {
+                $filed = [];
+
+                foreach ($items as $i => $item) {
+                    try {
+                        [$certificate] = $filing->file([
+                            ...$item,
+                            'resident_id' => $validated['resident_id'],
+                            'transaction_code' => $code,
+                        ]);
+                    } catch (CertificateFilingRefused $refused) {
+                        throw new CertificateFilingRefused(
+                            'Certificate ' . ($i + 1) . ' (' . $item['certificate_type'] . '): ' . $refused->getMessage()
+                                . ' Nothing was filed.',
+                            $refused->status,
+                            $refused->errors,
+                        );
+                    }
+
+                    $filed[] = $certificate;
+                }
+
+                return $filed;
+            });
+        } catch (CertificateFilingRefused $refused) {
+            return $this->error($refused->getMessage(), $refused->status, $refused->errors);
+        }
+
+        $count = count($certificates);
+
+        return $this->success(
+            ['transaction_code' => $code, 'certificates' => $certificates],
+            $count === 1 ? 'Certificate filed and now being processed' : $count . ' certificates filed and now being processed',
+            201
+        );
+    }
+
     public function show(Certificate $certificate)
     {
-        $certificate->load(['resident', 'serviceRequest', 'processor', 'signer', 'releaser']);
+        $certificate->load(Certificate::COUNTER_RELATIONS);
 
         return $this->success($certificate, 'Certificate retrieved');
     }
@@ -135,9 +212,25 @@ class CertificateController extends BaseController
          * "Loan Purposes" to "Mayor's Permit" is a ₱160 correction. Repricing
          * only on a type change left the old amount on the record.
          */
+        /*
+         * And the kind of business moves a business clearance's price — it is
+         * one of the template fields, filled in on the record before it
+         * prints when the resident asked online without it.
+         */
+        $newAnswers = [
+            'purpose' => $validated['purpose'] ?? $certificate->purpose,
+            'template_fields' => $validated['template_fields'] ?? $certificate->template_fields ?? [],
+        ];
+        $answerChanged = CertificateCatalogue::priceDecidingAnswer($newType, $newAnswers)
+            !== CertificateCatalogue::priceDecidingAnswer($certificate->certificate_type, [
+                'purpose' => $certificate->purpose,
+                'template_fields' => $certificate->template_fields ?? [],
+            ]);
+
         $reprice = (isset($validated['certificate_type'])
                 && $validated['certificate_type'] !== $certificate->certificate_type)
-            || (isset($validated['purpose']) && $validated['purpose'] !== $certificate->purpose);
+            || (isset($validated['purpose']) && $validated['purpose'] !== $certificate->purpose)
+            || $answerChanged;
 
         if ($reprice && ! $certificate->is_exempt) {
             $type = $validated['certificate_type'] ?? $certificate->certificate_type;
@@ -154,7 +247,9 @@ class CertificateController extends BaseController
         }
 
         $certificate->update($validated);
-        $certificate->load('resident:id,first_name,last_name');
+        /* The whole holder, not only the name: the window shows the purok and
+           the contact number too, and replaces its record with this one. */
+        $certificate->load(Certificate::COUNTER_RELATIONS);
 
         return $this->success($certificate, 'Certificate updated');
     }

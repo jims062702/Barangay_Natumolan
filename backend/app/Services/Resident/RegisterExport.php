@@ -47,7 +47,8 @@ final class RegisterExport
     {
         $query = Resident::with([
                 'household:id,household_number',
-                'sectors',
+                /* The sectors they are in now — not the brackets they grew out of. */
+                'sectors' => fn ($q) => $q->where('is_active', true),
                 /* Only the number is written out — an id means nothing to
                    whoever opens this file somewhere else. */
                 'spouse:id,resident_number',
@@ -79,7 +80,8 @@ final class RegisterExport
         }
 
         if ($request->filled('sector')) {
-            $query->whereHas('sectors', fn ($q) => $q->where('sector_type', $request->input('sector')));
+            $query->whereHas('sectors', fn ($q) => $q->where('sector_type', $request->input('sector'))
+                ->where('is_active', true));
         }
 
         $stem = 'barangay-natumolan-residents-' . now()->format('Y-m-d');
@@ -120,6 +122,7 @@ final class RegisterExport
              */
             $r->birthdate_is_estimated ? 'Yes' : 'No',
             $r->birth_place,
+            $r->nationality,
             $r->civil_status,
             $r->spouse?->resident_number,
             $unionTypes[$r->id] ?? null,
@@ -132,6 +135,7 @@ final class RegisterExport
             $r->residency_status,
             $r->length_of_residence_years,
             $r->educational_attainment,
+            $r->registered_voter_in,
             $r->demographic_classification,
             $r->life_status,
             $r->date_of_death?->toDateString(),

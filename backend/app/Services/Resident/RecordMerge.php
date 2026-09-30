@@ -46,6 +46,9 @@ class RecordMerge
         'immunization_records' => ['child_id'],
         'lupon_cases' => ['complainant_id'],
         'maternal_health' => ['mother_id'],
+        /* Was missing: a prenatal record kept pointing at the duplicate that
+           the merge removed. */
+        'prenatal_visits' => ['mother_id'],
         'notifications' => ['resident_id'],
         'office_queue' => ['resident_id'],
         'population_events' => ['resident_id'],
@@ -69,7 +72,7 @@ class RecordMerge
     /** Fields copied onto the keeper only where the keeper has nothing. */
     private const FILLABLE_GAPS = [
         'middle_name', 'mother_maiden_name', 'suffix', 'gender', 'birthdate',
-        'birth_place', 'civil_status', 'occupation', 'contact_number', 'email',
+        'birth_place', 'nationality', 'civil_status', 'occupation', 'contact_number', 'email',
         'household_id', 'zone_purok', 'educational_attainment',
         'length_of_residence_years',
     ];

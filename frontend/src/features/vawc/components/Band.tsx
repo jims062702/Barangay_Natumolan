@@ -6,6 +6,16 @@
  * dangerous it is now, and what the office is keeping. Without them it is
  * twenty boxes in a column and the officer loses their place mid-interview.
  */
+/** A question answered with buttons, marked required the way FormField marks one. */
+export function RequiredQuestion({ text, required = true }: { text: string; required?: boolean }) {
+  return (
+    <p className="mb-1.5 text-sm font-medium text-dark">
+      {text}
+      {required && <span className="text-danger"> *</span>}
+    </p>
+  );
+}
+
 export function Band({ title, hint, children }: {
   title: string;
   hint?: string;

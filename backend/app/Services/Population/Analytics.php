@@ -30,6 +30,7 @@ final class Analytics
             'average_household_size' => $households > 0 ? round($totalPopulation / $households, 2) : 0,
             'population_by_age_group' => $this->ageGroups(),
             'population_by_gender' => $this->genders(),
+            'headcount' => self::headcount(),
             'population_by_zone' => Resident::bonafide()->where('is_active', true)
                 ->groupBy('zone_purok')
                 ->selectRaw('zone_purok, count(*) as count')
@@ -91,6 +92,43 @@ final class Analytics
             $bands,
             array_map(fn ($band) => (int) ($counted[$band] ?? 0), $bands)
         );
+    }
+
+    /**
+     * The four figures a barangay report asks for: male and female, adults
+     * (18 and over) and minors (17 and under) — the living residents on the
+     * register, as they stand today in Manila.
+     *
+     * Somebody whose sex or birthdate the register does not have is counted
+     * in the population and in neither pair, and said separately — so the
+     * pairs add up to the total once those are added back, and nobody is
+     * quietly guessed into a column.
+     *
+     * Static, because the VAW desk's annual report prints the same figures
+     * on its header and must not arrive at different ones.
+     */
+    public static function headcount(): array
+    {
+        $living = fn () => Resident::bonafide()->where('is_active', true);
+        $today = now(ManilaTime::ZONE)->toDateString();
+        $adultBorn = now(ManilaTime::ZONE)->subYears(18)->toDateString();
+
+        $total = $living()->count();
+        $male = $living()->where('gender', 'Male')->count();
+        $female = $living()->where('gender', 'Female')->count();
+        $adults = $living()->whereNotNull('birthdate')->where('birthdate', '<=', $adultBorn)->count();
+        $minors = $living()->whereNotNull('birthdate')->where('birthdate', '>', $adultBorn)->where('birthdate', '<=', $today)->count();
+
+        return [
+            'total' => $total,
+            'male' => $male,
+            'female' => $female,
+            'sex_not_recorded' => $total - $male - $female,
+            'adults' => $adults,
+            'minors' => $minors,
+            'age_not_recorded' => $total - $adults - $minors,
+            'as_of' => $today,
+        ];
     }
 
     private function genders()

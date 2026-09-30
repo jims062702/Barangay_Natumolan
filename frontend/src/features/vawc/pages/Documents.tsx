@@ -9,28 +9,33 @@ import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import RowAction, { RowActions } from "../../../shared/ui/RowAction";
 import Card from "../../../shared/ui/Card";
 import DataTable from "../../../shared/ui/DataTable";
+import { useModalDraft } from "../../../shared/lib/useModalDraft";
+import DraftNotice from "../../../shared/ui/DraftNotice";
 import Modal from "../../../shared/ui/Modal";
 import PageHeader from "../../../shared/ui/PageHeader";
 import FormField, { inputClasses } from "../../../shared/ui/FormField";
 import { vawcApi } from "../api";
+import { DOCUMENT_TYPES, formatDay, manilaToday } from "../lib/caseOptions";
 import type { VawcAccessLog, VawcDocument } from "../types";
-
-/** Mirrors the document_type enum on vawc_documents. */
-const DOCUMENT_TYPES = [
-  "Affidavit",
-  "Statement",
-  "Medical Certificate",
-  "Police Report",
-  "Photograph",
-  "Protection Order",
-  "Other",
-];
+import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
 
 /** Access-trail actions, labelled for the audit table. */
 const ACTION_LABELS: Record<string, string> = {
   created: "Case created",
   viewed: "Case viewed",
   updated: "Case updated",
+  survivor_changed: "Victim-Survivor re-linked",
+  safety_assessed: "Safety assessment updated",
+  bpo_recorded: "BPO recorded",
+  bpo_updated: "BPO updated",
+  bpo_renewed: "BPO renewed",
+  assessment_recorded: "Assessment recorded",
+  assessment_updated: "Assessment updated",
+  child_welfare_recorded: "Child welfare recorded",
+  child_welfare_updated: "Child welfare updated",
+  dialogue_recorded: "Dialogue recorded",
+  dialogue_updated: "Dialogue corrected",
+  report_viewed: "Named in a printed report",
   document_updated: "Document record edited",
   incident_added: "Incident added",
   referral_added: "Referral created",
@@ -58,12 +63,16 @@ export default function Documents() {
   const [docPage, setDocPage] = useState(1);
   const [docLastPage, setDocLastPage] = useState(1);
   const [docLoading, setDocLoading] = useState(true);
+  /* Its skeleton until the register it opens on — the documents — is in.
+     The access log loads behind it, and fills in if its tab is opened. */
+  const pageLoad = usePageLoad();
   const [viewing, setViewing] = useState<VawcDocument | null>(null);
 
   // Metadata correction only — the register never swaps the underlying item.
   const [editing, setEditing] = useState<VawcDocument | null>(null);
   const [editForm, setEditForm] = useState({
     document_type: DOCUMENT_TYPES[0],
+    document_date: "",
     title: "",
     description: "",
     file_reference: "",
@@ -80,6 +89,13 @@ export default function Documents() {
       .then((r) => {
         setDocuments(r.data.data.data ?? []);
         setDocLastPage(r.data.data.last_page ?? 1);
+      })
+      .then(() => pageLoad.done(), (error) => {
+        /* No line: the page, with the notice that says why it is empty —
+           this register is never kept on the device. */
+        if (!(error as { response?: unknown })?.response) pageLoad.done();
+        else pageLoad.fail(error);
+        throw error;
       })
       .catch(noteOffline)
       .finally(() => setDocLoading(false));
@@ -112,11 +128,34 @@ export default function Documents() {
     setEditing(d);
     setEditForm({
       document_type: d.document_type,
+      document_date: d.document_date ?? "",
       title: d.title,
       description: d.description ?? "",
       file_reference: d.file_reference ?? "",
     });
   };
+
+  /* A correction being typed, tab memory only. The record as it was opened
+     is the version, so old typing never lands on a newer save. */
+  const editBase = editing ? {
+    document_type: editing.document_type,
+    document_date: editing.document_date ?? "",
+    title: editing.title,
+    description: editing.description ?? "",
+    file_reference: editing.file_reference ?? "",
+  } : null;
+  const editDraft = useModalDraft(
+    editing ? `vawc-document-edit:${editing.id}` : null,
+    editing !== null,
+    editForm,
+    (kept) => editBase && setEditForm({ ...editBase, ...kept }),
+    {
+      memoryOnly: true,
+      blank: editBase ?? undefined,
+      reset: () => editBase && setEditForm(editBase),
+      version: editBase ? JSON.stringify(editBase) : null,
+    },
+  );
 
   const saveEdit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -126,9 +165,11 @@ export default function Documents() {
     try {
       await vawcApi.updateDocument(editing.id, {
         ...editForm,
+        document_date: editForm.document_date || null,
         description: editForm.description || null,
         file_reference: editForm.file_reference || null,
       });
+      editDraft.clear();
       setEditing(null);
       toast("Document record updated — the change is in the access trail.");
       loadDocuments();
@@ -149,10 +190,12 @@ export default function Documents() {
       "—"
     );
 
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={loadDocuments} />;
+
   return (
     <div>
       <PageHeader
-        title="Incident & Confidential Documents"
+        title="Documents & Access Trail"
         subtitle="Document register across every case, and the complete access trail"
       />
 
@@ -214,9 +257,10 @@ export default function Documents() {
                   </button>
                 ),
               },
+              { header: "Document date", render: (d: VawcDocument) => (d.document_date ? formatDay(d.document_date, "medium") : "—") },
               { header: "File reference", render: (d: VawcDocument) => d.file_reference ?? "—" },
-              { header: "Recorded by", render: (d: VawcDocument) => d.uploader?.name ?? "—" },
-              { header: "Date", render: (d: VawcDocument) => asDate(d.created_at) },
+              { header: "Uploaded by", render: (d: VawcDocument) => d.uploader?.name ?? "—" },
+              { header: "Recorded", render: (d: VawcDocument) => asDate(d.created_at) },
               {
                 header: "Actions",
                 render: (d: VawcDocument) => (
@@ -237,7 +281,7 @@ export default function Documents() {
             numbered
             total={documents.length}
             searchable
-            searchPlaceholder="Search by case code, title or type…"
+            searchPlaceholder="Search by Case Code, Title, Type or File Reference…"
             getSearchText={(d) =>
               `${d.vawc_case?.case_code ?? ""} ${d.title} ${d.document_type} ${d.file_reference ?? ""}`
             }
@@ -268,7 +312,7 @@ export default function Documents() {
             rowKey={(l) => l.id}
             numbered
             searchable
-            searchPlaceholder="Search by case code, action or officer…"
+            searchPlaceholder="Search by Case Code, Action or Officer…"
             getSearchText={(l) =>
               `${l.vawc_case?.case_code ?? ""} ${ACTION_LABELS[l.action] ?? l.action} ${l.detail ?? ""} ${l.user?.name ?? ""}`
             }
@@ -302,11 +346,15 @@ export default function Documents() {
                 <dd className="text-dark">{viewing.document_type}</dd>
               </div>
               <div>
+                <dt className="text-xs uppercase tracking-wide text-gray-400">Document date</dt>
+                <dd className="text-dark">{viewing.document_date ? formatDay(viewing.document_date) : "—"}</dd>
+              </div>
+              <div>
                 <dt className="text-xs uppercase tracking-wide text-gray-400">File reference</dt>
                 <dd className="text-dark">{viewing.file_reference ?? "—"}</dd>
               </div>
-              <div>
-                <dt className="text-xs uppercase tracking-wide text-gray-400">Recorded by</dt>
+              <div className="sm:col-span-2">
+                <dt className="text-xs uppercase tracking-wide text-gray-400">Uploaded by</dt>
                 <dd className="text-dark">
                   {viewing.uploader?.name ?? "—"} · {asDate(viewing.created_at)}
                 </dd>
@@ -314,7 +362,7 @@ export default function Documents() {
             </dl>
             {viewing.description && (
               <div>
-                <p className="mb-1 text-xs uppercase tracking-wide text-gray-400">Description</p>
+                <p className="mb-1 text-xs uppercase tracking-wide text-gray-400">Notes</p>
                 <p className="whitespace-pre-wrap rounded-xl border border-gray px-4 py-3 text-dark">
                   {viewing.description}
                 </p>
@@ -344,7 +392,18 @@ export default function Documents() {
               {DOCUMENT_TYPES.map((t) => (
                 <option key={t}>{t}</option>
               ))}
+              {/* A type the list no longer offers stays readable until changed. */}
+              {!DOCUMENT_TYPES.includes(editForm.document_type) && <option>{editForm.document_type}</option>}
             </select>
+          </FormField>
+          <FormField label="Document date">
+            <input
+              type="date"
+              value={editForm.document_date}
+              max={manilaToday()}
+              onChange={(e) => setEditForm((p) => ({ ...p, document_date: e.target.value }))}
+              className={inputClasses}
+            />
           </FormField>
           <FormField label="Title" required>
             <input
@@ -365,7 +424,7 @@ export default function Documents() {
               placeholder="e.g. VAWC Cabinet 2, Folder 14"
             />
           </FormField>
-          <FormField label="Description">
+          <FormField label="Notes" hint="Stored encrypted.">
             <textarea
               value={editForm.description}
               onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
@@ -373,6 +432,7 @@ export default function Documents() {
               className={`${inputClasses} resize-none`}
             />
           </FormField>
+          <DraftNotice draft={editDraft} tabOnly />
           <button
             type="submit"
             className="w-full cursor-pointer rounded-full bg-primary py-2.5 text-sm font-semibold text-white hover:bg-primary-dark"

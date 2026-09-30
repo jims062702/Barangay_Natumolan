@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { AppShellSkeleton } from "../shared/ui/Skeleton";
-import { useAuth, homePathFor } from "../shared/auth/AuthContext";
+import { useAuth, homePathFor, sessionHint } from "../shared/auth/AuthContext";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -36,7 +36,33 @@ export default function ProtectedRoute({
    * The shell instead: the sidebar and the top bar are already in place, so
    * the page fills in rather than jumping from nothing to everything.
    */
-  if (loading) return <AppShellSkeleton />;
+  /*
+   * Whether an account may open this area — ONE rule, used twice: for the
+   * account the session check is still confirming (the office this device
+   * last signed in as), and for the account it confirms.
+   */
+  const mayOpen = (account: { office: string; role: string }) => {
+    const isResident = account.role === "Resident";
+    if (staffOnly && isResident) return false;
+    if (residentOnly && !isResident) return false;
+    if (deniedRoles?.includes(account.role)) return false;
+    if (allowedOffices || allowedRoles) {
+      return (allowedOffices?.includes(account.office) ?? false) || (allowedRoles?.includes(account.role) ?? false);
+    }
+
+    return true;
+  };
+
+  /*
+   * While the session is checked, the page's own skeleton — but only for an
+   * account that will be let in. A page this office may not open never shows
+   * its shape first: the shell waits empty, and then says so.
+   */
+  if (loading) {
+    const hint = sessionHint();
+
+    return <AppShellSkeleton withPage={!hint || mayOpen(hint)} />;
+  }
 
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />;
@@ -51,11 +77,8 @@ export default function ProtectedRoute({
   const denied = deniedRoles?.includes(user.role) ?? false;
 
   if (denied || allowedOffices || allowedRoles) {
-    const officeOk = allowedOffices?.includes(user.office) ?? false;
-    const roleOk = allowedRoles?.includes(user.role) ?? false;
-
     // A denied role loses even if its office would otherwise be allowed.
-    if (denied || (!officeOk && !roleOk)) {
+    if (!mayOpen(user)) {
       return (
         <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-secondary px-4 text-center">
           <span className="text-5xl" aria-hidden="true">🔒</span>

@@ -80,8 +80,8 @@ export function SectorBrowser({ ctx }: { ctx: SectorReportState }) {
               </Link>
             ),
           },
-          { header: "Resident no.", render: (r: Resident) => r.resident_number ?? "—" },
-          { header: "Purok", render: (r: Resident) => r.zone_purok ?? "—" },
+          { header: "Resident Number", render: (r: Resident) => r.resident_number ?? "—" },
+          { header: "Zone / Purok", render: (r: Resident) => r.zone_purok ?? "—" },
           {
             header: "Age",
             render: (r: Resident) => {
@@ -127,7 +127,7 @@ export function SectorBrowser({ ctx }: { ctx: SectorReportState }) {
         onPageChange={setPage}
         loading={loading}
         searchable
-        searchPlaceholder="Search by name or resident number…"
+        searchPlaceholder="Search by Name, Resident Number or Zone / Purok…"
         getSearchText={(r) =>
           [
             personName(r),
@@ -138,7 +138,7 @@ export function SectorBrowser({ ctx }: { ctx: SectorReportState }) {
           ].join(" ")
         }
         filters={[
-          { label: "Purok", getValue: (r) => r.zone_purok ?? "Not recorded" },
+          { label: "Zone / Purok", getValue: (r) => r.zone_purok ?? "Not recorded" },
           { label: "Sex", getValue: (r) => r.gender ?? "Not recorded" },
         ]}
         emptyMessage="Nobody is on this list."

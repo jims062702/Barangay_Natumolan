@@ -1,6 +1,5 @@
 import NeedsConnection, { useNeedsConnection } from "../../../shared/offline/NeedsConnection";
 import { useEffect } from "react";
-import { FiPrinter } from "react-icons/fi";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { usePulse } from "../../../shared/hooks/usePulse";
 import { useSettledState } from "../../../shared/hooks/useSettledState";
@@ -11,6 +10,9 @@ import CountUp from "../../../shared/ui/CountUp";
 import ReplayOnView from "../../../shared/ui/ReplayOnView";
 import RatioRing from "../../../shared/ui/RatioRing";
 import { vawcApi } from "../api";
+import { SAFETY_STATUSES, violenceLabel } from "../lib/caseOptions";
+import { DeskFormsCards } from "../components/DeskFormsCards";
+import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
 
 interface Stats {
   total_cases_active: number;
@@ -21,12 +23,12 @@ interface Stats {
   pending_followups: number;
   overdue_followups: number;
   protection_orders_issued: number;
+  protection_orders_in_effect: number;
   documents_on_file: number;
-  closure_recommended: number;
   average_response_days: number;
   cases_by_violence_type: { violence_type: string; count: number }[];
   safety_status: Record<string, number>;
-  bpo_compliance: Record<string, number>;
+  protection_order_status: Record<string, number>;
 }
 
 /** Object map → rows, biggest first, zero counts dropped. */
@@ -39,21 +41,21 @@ const toRows = (map: Record<string, number> | undefined) =>
 /**
  * Safety, in the order it gets worse.
  *
- * The one breakdown on this page NOT sorted by size. Safe, At Risk and
- * Critical are a scale, and putting the biggest first would tell an officer
+ * The one breakdown on this page NOT sorted by size. Safe, Ongoing concern
+ * and Immediate danger are a scale, and putting the biggest first would tell an officer
  * scanning it that the order means nothing.
  *
  * The colour was green/amber/red, which is what everybody reaches for and
  * which does not survive being checked: run against colour-blind vision, the
  * green and the amber come out 5.7 apart on a scale where 8 is the target —
- * to a red-green colour-blind reader, "Safe" and "At Risk" are the same bar.
+ * to a red-green colour-blind reader, "Safe" and "Ongoing concern" are the same bar.
  * Darkening them only trades that for amber against red, which is worse.
  *
  * So the order and the label carry the scale, and ONE colour marks the one
  * row an officer must not miss. Two colour classes 25 apart under every kind
  * of colour vision, instead of four that blur into two.
  */
-const SAFETY_ORDER = ["Safe", "At Risk", "Critical", "Unknown"];
+const SAFETY_ORDER = SAFETY_STATUSES;
 
 const CRITICAL = "#DC2626";
 
@@ -70,8 +72,23 @@ export default function Reports() {
   const [stats, setStats] = useSettledState<Stats | null>(null);
   const year = new Date().getFullYear();
 
+  /* Its skeleton until the figures are in — it drew every chart at zero
+     first, then again with the numbers. See PageLoad. */
+  const pageLoad = usePageLoad();
+
   const load = () => {
-    vawcApi.statistics().then((r) => setStats(r.data.data)).catch(noteOffline);
+    vawcApi.statistics()
+      .then((r) => {
+        setStats(r.data.data);
+        pageLoad.done();
+      })
+      .catch((error) => {
+        noteOffline(error);
+        /* No line: the page, with the notice that says why the figures are
+           missing — they are never kept on this device. */
+        if (!(error as { response?: unknown })?.response) pageLoad.done();
+        else pageLoad.fail(error);
+      });
   };
 
   useEffect(load, []);
@@ -80,20 +97,13 @@ export default function Reports() {
   /* And within a second when somebody else touches one. */
   usePulse("vawc_cases", load);
 
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={load} />;
+
   return (
     <div>
       <PageHeader
-        title="VAWC Reports & Compliance"
+        title="Reports"
         subtitle={`Anonymized statistics for ${year} — safe to share with the barangay council`}
-        actions={
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
-          >
-            <FiPrinter className="h-4 w-4" aria-hidden="true" /> Print report
-          </button>
-        }
       />
 
       {offline && (
@@ -116,7 +126,8 @@ export default function Reports() {
               { label: "Cases this year", count: stats?.total_cases_year ?? 0 },
               { label: "Referrals provided", count: stats?.referrals_made ?? 0 },
               { label: "Cases with children", count: stats?.cases_with_children ?? 0 },
-              { label: "Protection orders", count: stats?.protection_orders_issued ?? 0 },
+              { label: "BPOs issued", count: stats?.protection_orders_issued ?? 0 },
+              { label: "BPOs in effect now", count: stats?.protection_orders_in_effect ?? 0 },
             ]}
             unit="cases"
             minHeight={260}
@@ -168,7 +179,6 @@ export default function Reports() {
                     /* The one an officer must not miss. */
                     tone: (stats?.overdue_followups ?? 0) > 0 ? CRITICAL : undefined,
                   },
-                  { label: "Closure advised", count: stats?.closure_recommended ?? 0 },
                 ]}
                 unit="follow-ups"
                 minHeight={220}
@@ -180,7 +190,7 @@ export default function Reports() {
 
         <p className="mt-4 text-xs text-gray-400">
           Response time counts the days from intake to the first protective
-          action on the case — a referral or a follow-up visit, whichever came
+          action on the case — a BPO, a referral or a follow-up, whichever came
           first. Cases with no action yet are excluded.
         </p>
       </Card>
@@ -190,7 +200,7 @@ export default function Reports() {
           <ReplayOnView className="flex min-h-0 flex-1 flex-col">
             <BandChart
               data={(stats?.cases_by_violence_type ?? []).map((row) => ({
-                label: row.violence_type,
+                label: violenceLabel(row.violence_type),
                 count: row.count,
               }))}
               empty="No cases this year."
@@ -212,9 +222,9 @@ export default function Reports() {
                 (name) => ({
                   label: name,
                   count: stats?.safety_status?.[name] ?? 0,
-                  /* Only Critical is coloured. The rest are the one hue the
+                  /* Only Immediate danger is coloured. The rest are the one hue the
                      rest of the app uses for a count. */
-                  tone: name === "Critical" ? CRITICAL : undefined,
+                  tone: name === "Immediate danger" ? CRITICAL : undefined,
                 })
               )}
               empty="No follow-up visits recorded."
@@ -227,10 +237,10 @@ export default function Reports() {
           </p>
         </Card>
 
-        <Card title="Protection order compliance" className="flex h-full flex-col">
+        <Card title="Protection order status — open cases" className="flex h-full flex-col">
           <ReplayOnView className="flex min-h-0 flex-1 flex-col">
             <BandChart
-              data={toRows(stats?.bpo_compliance)}
+              data={toRows(stats?.protection_order_status)}
               empty="No follow-up visits recorded."
               unit="cases"
               angledLabels
@@ -244,9 +254,16 @@ export default function Reports() {
 
       <p className="mt-6 rounded-xl bg-secondary px-4 py-3 text-xs text-gray-500">
         Per the barangay access-control policy, no personally identifiable
-        survivor information ever appears in these reports or in any general
-        dashboard.
+        survivor information appears in the figures above or in any general
+        dashboard. The VAW-C Cases report below names each victim-survivor,
+        as the form requires: it opens only at this desk, and every time it is
+        drawn up it is written to each case's access log.
       </p>
+
+      {/* The printed forms — never part of the page's own print. */}
+      <div className="print-hide">
+        <DeskFormsCards />
+      </div>
     </div>
   );
 }

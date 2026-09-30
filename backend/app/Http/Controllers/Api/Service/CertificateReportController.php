@@ -5,11 +5,35 @@ namespace App\Http\Controllers\Api\Service;
 use App\Http\Controllers\Api\BaseController;
 use App\Models\Resident\Resident;
 use App\Models\Service\Certificate;
+use App\Services\Service\JobseekerSummary;
 use App\Support\DateWindow;
+use App\Support\ManilaTime;
+use App\Support\Signatories;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class CertificateReportController extends BaseController
 {
+    /**
+     * The Monthly Summary of Availees/Beneficiaries (First-Time Jobseekers)
+     * for one year, with who prepares and approves it.
+     */
+    public function jobseekers(Request $request, JobseekerSummary $summary)
+    {
+        $request->validate(['year' => ['nullable', 'integer', 'between:2000,2100']]);
+
+        $year = (int) $request->input('year', Carbon::now(ManilaTime::ZONE)->year);
+
+        return $this->success(
+            $summary->build($year) + [
+                'signatories' => Signatories::all(),
+                /* The date under both signatures: the day it is printed. */
+                'today' => ManilaTime::today(),
+            ],
+            'First-Time Jobseeker summary retrieved'
+        );
+    }
+
     /**
      * How many certificates were asked for, over the windows a clerk is asked
      * about.

@@ -10,18 +10,6 @@ export const populationApi = {
      the Health Station, whose own staff the BHWs are. */
   zones: (...args: QueryArgs) =>
     api.get("/zones", ...args),
-  createZone: (...args: BodyArgs) =>
-    api.post("/health/zones", ...args),
-  updateZone: (zoneId: PathParam, ...args: BodyArgs) =>
-    api.put(`/health/zones/${zoneId}`, ...args),
-  deleteZone: (zoneId: PathParam, ...args: QueryArgs) =>
-    api.delete(`/health/zones/${zoneId}`, ...args),
-  createBhw: (...args: BodyArgs) =>
-    api.post("/health/bhws", ...args),
-  updateBhw: (bhwId: PathParam, ...args: BodyArgs) =>
-    api.put(`/health/bhws/${bhwId}`, ...args),
-  deleteBhw: (bhwId: PathParam, ...args: QueryArgs) =>
-    api.delete(`/health/bhws/${bhwId}`, ...args),
   resendActivation: (userId: PathParam, ...args: BodyArgs) =>
     api.post(`/population/accounts/${userId}/resend-activation`, ...args),
   analytics: (...args: QueryArgs) =>

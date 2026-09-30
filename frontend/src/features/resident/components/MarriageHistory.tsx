@@ -3,7 +3,9 @@ import { FiEye, FiEyeOff, FiHeart } from "react-icons/fi";
 import { errorMessage } from "../../../shared/lib/api";
 import { toast } from "../../../shared/lib/toast";
 import { confirmAction } from "../../../shared/lib/confirm";
+import { useModalDraft } from "../../../shared/lib/useModalDraft";
 import Card from "../../../shared/ui/Card";
+import DraftNotice from "../../../shared/ui/DraftNotice";
 import Modal from "../../../shared/ui/Modal";
 import FormField, { inputClasses } from "../../../shared/ui/FormField";
 import type { Resident } from "../../../shared/types";
@@ -77,6 +79,30 @@ export default function MarriageHistory({ resident, onChanged }: Props) {
     load();
   }, [load]);
 
+  const blankEnd = { reason: REASONS[0] as string, endedOn: "", notes: "", deceased: "", consent: false };
+  const draft = useModalDraft(
+    ending ? `end-marriage:${ending.id}` : null,
+    ending !== null,
+    { reason, endedOn, notes, deceased, consent },
+    (kept) => {
+      setReason(kept.reason ?? REASONS[0]);
+      setEndedOn(kept.endedOn ?? "");
+      setNotes(kept.notes ?? "");
+      setDeceased(kept.deceased ?? "");
+      setConsent(Boolean(kept.consent));
+    },
+    {
+      blank: blankEnd,
+      reset: () => {
+        setReason(REASONS[0]);
+        setEndedOn("");
+        setNotes("");
+        setDeceased("");
+        setConsent(false);
+      },
+    },
+  );
+
   if (marriages.length === 0) return null;
 
   const openEnd = (marriage: Marriage) => {
@@ -110,6 +136,7 @@ export default function MarriageHistory({ resident, onChanged }: Props) {
         deceased_id: reason === "Widowed" && deceased ? Number(deceased) : undefined,
         shown_to_children: consent,
       });
+      draft.clear();
       toast(response.data.message);
       setEnding(null);
       load();
@@ -324,6 +351,8 @@ export default function MarriageHistory({ resident, onChanged }: Props) {
               appears on the children&rsquo;s own family page. You can change it later.
             </p>
           </div>
+
+          <DraftNotice draft={draft} />
 
           <button
             type="submit"

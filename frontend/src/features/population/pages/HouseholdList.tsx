@@ -1,15 +1,17 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { FiEdit2 } from "react-icons/fi";
-import { Link } from "react-router-dom";
+import { FiEdit2, FiEye } from "react-icons/fi";
 import { personName } from "../../../shared/lib/names";
 import { errorMessage } from "../../../shared/lib/api";
 import { toast } from "../../../shared/lib/toast";
 import { confirmAction } from "../../../shared/lib/confirm";
+import { useModalDraft } from "../../../shared/lib/useModalDraft";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { usePulse } from "../../../shared/hooks/usePulse";
 import Card from "../../../shared/ui/Card";
 import DataTable from "../../../shared/ui/DataTable";
+import DraftNotice from "../../../shared/ui/DraftNotice";
 import Modal from "../../../shared/ui/Modal";
+import { ResidentIdRoster } from "../../resident/components/ResidentIdRoster";
 import PageHeader from "../../../shared/ui/PageHeader";
 import FormField, { inputClasses } from "../../../shared/ui/FormField";
 import type { Household, Resident } from "../../../shared/types";
@@ -17,9 +19,18 @@ import { ageFromBirthdate } from "../../resident/components/ResidentFormFields";
 import ResidentPicker from "../../resident/components/ResidentPicker";
 import { populationApi } from "../api";
 import { useZoneNames } from "../lib/useZones";
+import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
 
 
 // @frezieh palambing ko dol
+
+interface HouseholdFields {
+  number: string;
+  zone: string;
+  address: string;
+  houseType: string;
+  head: Resident | null;
+}
 
 export default function HouseholdList() {
   const [rows, setRows] = useState<Household[]>([]);
@@ -28,6 +39,8 @@ export default function HouseholdList() {
   // So the footer can say WHICH rows are on screen, not only the page.
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  /* Its skeleton until the first answer — see PageLoad. */
+  const pageLoad = usePageLoad();
 
   // One modal for both add and edit — editingId null = adding.
   const [modalOpen, setModalOpen] = useState(false);
@@ -41,6 +54,8 @@ export default function HouseholdList() {
   const [address, setAddress] = useState("");
   const [houseType, setHouseType] = useState("Concrete");
   const [head, setHead] = useState<Resident | null>(null);
+  /* The household as it was when the form opened: what a draft is typed against. */
+  const [original, setOriginal] = useState<HouseholdFields | null>(null);
   const [saving, setSaving] = useState(false);
 
   /*
@@ -58,6 +73,8 @@ export default function HouseholdList() {
         setLastPage(r.data.data.last_page ?? 1);
         setTotal(r.data.data.total ?? 0);
       })
+      .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
+      .catch(() => undefined)
       .finally(() => setLoading(false));
   };
 
@@ -78,15 +95,44 @@ export default function HouseholdList() {
   usePulse("households", () => load(true));
 
 
+  const fill = (f: HouseholdFields) => {
+    setNumber(f.number);
+    setZone(f.zone);
+    setAddress(f.address);
+    setHouseType(f.houseType);
+    setHead(f.head);
+  };
+
   const openEdit = (h: Household) => {
+    const fields: HouseholdFields = {
+      number: h.household_number ?? "",
+      zone: h.zone_purok ?? "",
+      address: h.street_address ?? "",
+      houseType: h.house_type ?? "Concrete",
+      head: h.head ?? null,
+    };
     setEditingId(h.id);
-    setNumber(h.household_number ?? "");
-    setZone(h.zone_purok ?? "");
-    setAddress(h.street_address ?? "");
-    setHouseType(h.house_type ?? "Concrete");
-    setHead(h.head ?? null);
+    setOriginal(fields);
+    fill(fields);
     setModalOpen(true);
   };
+
+  /*
+   * Unsaved edits, kept per household. The household's values when the form
+   * opened are the draft's version: if somebody saves the household in the
+   * meantime, the old typing is not laid over the newer record.
+   */
+  const draft = useModalDraft<HouseholdFields>(
+    editingId ? `edit-household:${editingId}` : null,
+    modalOpen,
+    { number, zone, address, houseType, head },
+    fill,
+    {
+      blank: original ?? undefined,
+      reset: () => original && fill(original),
+      version: original ? JSON.stringify({ ...original, head: original.head?.id ?? null }) : null,
+    },
+  );
 
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -118,6 +164,7 @@ export default function HouseholdList() {
         });
         toast("Household registered.");
       }
+      draft.clear();
       setModalOpen(false);
       load();
     } catch (err) {
@@ -127,10 +174,12 @@ export default function HouseholdList() {
     }
   };
 
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => load()} />;
+
   return (
     <div>
       <PageHeader
-        title="Household Registry"
+        title="Households"
         subtitle="Shared population registry — the Main Office verifies records against this list"
       />
 
@@ -138,10 +187,10 @@ export default function HouseholdList() {
         <DataTable
           columns={[
             {
-              header: "Household #",
+              header: "Household Number",
               render: (h: Household) => <span className="font-medium text-dark">{h.household_number}</span>,
             },
-            { header: "Zone", render: (h: Household) => h.zone_purok ?? "—" },
+            { header: "Zone / Purok", render: (h: Household) => h.zone_purok ?? "—" },
             { header: "Address", render: (h: Household) => h.street_address ?? "—" },
             {
               header: "Owner / Head",
@@ -156,75 +205,46 @@ export default function HouseholdList() {
             },
             {
               /*
-                The census sheet, on the household it belongs to.
-
-                This was a second table under this one — and it listed the
-                same households, because the form number IS the household
-                number. Two lists of one thing meant the office had to know
-                which one carried the answer. It is a column now.
-              */
-              header: "Census form",
-              render: (h: Household) =>
-                h.census ? (
-                  <span>
-                    <Link
-                      to={`/population/rbim/${h.census.id}`}
-                      className="font-medium text-primary hover:underline"
-                    >
-                      {h.census.status}
-                    </Link>
-                    <span className="block text-[11px] text-gray-400">
-                      {h.census.recorder?.name ?? "—"}
-                      {h.census.created_at
-                        ? ` · ${new Date(h.census.created_at).toLocaleDateString("en-PH")}`
-                        : ""}
-                    </span>
-                  </span>
-                ) : (
-                  <span className="text-gray-400">Not censused</span>
-                ),
-            },
-            {
-              /*
-                A count that opens.
-
-                Every name inline made each row three lines tall and pushed
-                the address into a column an inch wide — a registry of two
-                hundred households became unscannable to answer a question
-                asked of one. So the number stays in the table and the names
-                are one click away.
+                A count, not a button. Opening the household is the eye in
+                Actions — one place to click, the same place on every row,
+                beside Edit.
               */
               header: "Members",
               render: (h: Household) => {
                 const count = (h.residents ?? []).length;
 
-                if (count === 0) {
-                  return <span className="text-gray-400">Nobody yet</span>;
-                }
-
-                return (
-                  <button
-                    type="button"
-                    onClick={() => setViewing(h)}
-                    className="cursor-pointer rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
-                  >
+                return count === 0 ? (
+                  <span className="text-gray-400">Nobody yet</span>
+                ) : (
+                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
                     {count} {count === 1 ? "person" : "people"}
-                  </button>
+                  </span>
                 );
               },
             },
             {
-              header: "",
+              header: "Actions",
               render: (h: Household) => (
-                <button
-                  type="button"
-                  onClick={() => openEdit(h)}
-                  title="Edit household"
-                  aria-label="Edit household"
-                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-gray px-3 py-1.5 text-xs font-semibold text-dark transition-colors hover:border-primary hover:text-primary"
-                >
-                  <FiEdit2 className="h-3.5 w-3.5" /> Edit
-                </button>
+                <span className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setViewing(h)}
+                    title="View who lives here"
+                    aria-label={`View who lives in household ${h.household_number}`}
+                    className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-gray text-gray-500 transition-colors hover:border-primary hover:text-primary"
+                  >
+                    <FiEye className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openEdit(h)}
+                    title="Edit household"
+                    aria-label={`Edit household ${h.household_number}`}
+                    className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-gray text-gray-500 transition-colors hover:border-primary hover:text-primary"
+                  >
+                    <FiEdit2 className="h-4 w-4" />
+                  </button>
+                </span>
               ),
             },
           ]}
@@ -233,13 +253,13 @@ export default function HouseholdList() {
           numbered
           total={total}
           searchable
-          searchPlaceholder="Search by household number, owner or address…"
+          searchPlaceholder="Search by Household Number, Owner, Street or Zone / Purok…"
           getSearchText={(h) =>
             `${h.household_number} ${h.zone_purok ?? ""} ${h.street_address ?? ""} ${
               h.head ? `${h.head.first_name} ${h.head.last_name}` : ""
             }`
           }
-          filters={[{ label: "Zone", getValue: (h) => h.zone_purok ?? "" }]}
+          filters={[{ label: "Zone / Purok", getValue: (h) => h.zone_purok ?? "" }]}
           loading={loading}
           page={page}
           lastPage={lastPage}
@@ -258,6 +278,7 @@ export default function HouseholdList() {
         open={viewing !== null}
         onClose={() => setViewing(null)}
         title={viewing ? `${viewing.household_number} — who lives here` : ""}
+        size="wide"
       >
         {viewing && (
           <div>
@@ -273,56 +294,39 @@ export default function HouseholdList() {
               opened for — so sex, age and what they are to the head travel
               with the name.
             */}
-            <ul className="space-y-2">
-              {[...(viewing.residents ?? [])]
-                .sort((a, b) => {
-                  // The head first, then the oldest down — a household reads
-                  // the way it is spoken about.
-                  if (a.id === viewing.head?.id) return -1;
-                  if (b.id === viewing.head?.id) return 1;
-                  return String(a.birthdate ?? "").localeCompare(String(b.birthdate ?? ""));
-                })
-                .map((person) => {
-                  const age = ageFromBirthdate(String(person.birthdate ?? ""));
+            {/*
+              Every member, the head first, each with their own Resident ID
+              standing and the action that fits it — see ResidentIdRoster.
+            */}
+            <ResidentIdRoster
+              heading="Members and their Resident IDs"
+              people={[
+                ...[...(viewing.residents ?? [])]
+                  .sort((a, b) => {
+                    // The head first, then the oldest down — a household reads
+                    // the way it is spoken about.
+                    if (a.id === viewing.head?.id) return -1;
+                    if (b.id === viewing.head?.id) return 1;
+                    return String(a.birthdate ?? "").localeCompare(String(b.birthdate ?? ""));
+                  })
+                  .map((person) => {
+                    const age = ageFromBirthdate(String(person.birthdate ?? ""));
+                    const isHead = person.id === viewing.head?.id || person.relation_to_head === "Head";
 
-                  return (
-                    <li
-                      key={person.id}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray px-3 py-2.5"
-                    >
-                      <div className="min-w-0">
-                        <Link
-                          to={`/population/residents/${person.id}`}
-                          className="block text-sm font-semibold text-primary hover:underline"
-                        >
-                          {personName(person)}
-                        </Link>
-                        <p className="mt-0.5 text-xs text-gray-500">
-                          {[
-                            person.resident_number,
-                            person.gender,
-                            age !== null ? `${age} years old` : null,
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </p>
-                      </div>
-
-                      {person.relation_to_head && (
-                        <span
-                          className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                            person.relation_to_head === "Head"
-                              ? "bg-primary text-white"
-                              : "bg-primary/10 text-primary"
-                          }`}
-                        >
-                          {person.relation_to_head}
-                        </span>
-                      )}
-                    </li>
-                  );
-                })}
-            </ul>
+                    return {
+                      id: person.id,
+                      name: personName(person),
+                      detail: [person.resident_number, person.gender, age !== null ? `${age} years old` : null].filter(Boolean).join(" · "),
+                      badge: isHead ? "Household Head" : (person.relation_to_head ?? undefined),
+                      highlight: isHead,
+                    };
+                  }),
+                /* A head recorded here but not living here is still somebody whose ID the office may manage. */
+                ...(viewing.head && !(viewing.residents ?? []).some((r) => r.id === viewing.head?.id)
+                  ? [{ id: viewing.head.id, name: personName(viewing.head), detail: viewing.head.resident_number, badge: "Household Head", highlight: true }]
+                  : []),
+              ]}
+            />
 
             {/*
               A head who is not among the members is somebody who moved out
@@ -347,7 +351,7 @@ export default function HouseholdList() {
           <FormField label="Household number" required>
             <input value={number} onChange={(e) => setNumber(e.target.value)} required className={inputClasses} placeholder="HH-2026-0009" />
           </FormField>
-          <FormField label="Zone" required>
+          <FormField label="Zone / Purok" required>
             <select value={zone} onChange={(e) => setZone(e.target.value)} required className={inputClasses}>
               <option value="">Select…</option>
               {/*
@@ -376,6 +380,7 @@ export default function HouseholdList() {
           <FormField label="Household head (owner)" hint="Search a resident — they become the identified owner of this household" plain>
             <ResidentPicker value={head} onChange={setHead} />
           </FormField>
+          <DraftNotice draft={draft} />
           <button
             type="submit"
             disabled={saving}

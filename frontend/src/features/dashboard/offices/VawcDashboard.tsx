@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { usePulse } from "../../../shared/hooks/usePulse";
 import { useSettledState } from "../../../shared/hooks/useSettledState";
-import { DashboardBodySkeleton } from "../../../shared/ui/Skeleton";
+import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
 import Card from "../../../shared/ui/Card";
 import StatTile from "../../../shared/ui/StatTile";
 import PageHeader from "../../../shared/ui/PageHeader";
@@ -42,18 +42,32 @@ export default function VawcDashboard() {
   /* And within a second when somebody else touches one. */
   usePulse("vawc_cases", () => setTick((t) => t + 1));
 
-  /* Flipped when the first fetch SETTLES — success or failure alike. Keyed
-     off "is the data still null", a request that fails would leave the
-     skeleton pulsing for ever with nothing to read. */
-  const [ready, setReady] = useState(false);
+  /* Its skeleton until the first answer, then the page — see PageLoad. */
+  const pageLoad = usePageLoad();
 
   useEffect(() => {
     vawcApi.statistics()
-      .then((response) => setStats(response.data.data))
-      .catch(() => undefined)
-      .catch(noteOffline)
-      .finally(() => setReady(true));
+      .then((response) => {
+        setStats(response.data.data);
+        noteOffline({ response: true });
+        pageLoad.done();
+      })
+      .catch((error) => {
+        /*
+         * No line: the page, with the notice that says why its figures are
+         * missing — they are never kept on this device, so there is nothing
+         * to wait for. The old `.catch(() => undefined).catch(noteOffline)`
+         * swallowed the error before the second catch could see it, so the
+         * notice never appeared at all.
+         */
+        noteOffline(error);
+        if (!(error as { response?: unknown })?.response) pageLoad.done();
+        else pageLoad.fail(error);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick]);
+
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => setTick((t) => t + 1)} />;
 
   return (
     <div>
@@ -81,10 +95,6 @@ export default function VawcDashboard() {
         routed to Lupon mediation.
       </div>
 
-      {!ready ? (
-        <DashboardBodySkeleton tiles={4} tileColumns={4} cards={2} cardColumns={2} />
-      ) : (
-        <>
       <RevealGroup className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile label="Active Cases" value={stats?.total_cases_active ?? 0} icon={FiShield} tone="danger" />
         <StatTile label="Cases This Year" value={stats?.total_cases_year ?? 0} icon={FiClock} />
@@ -140,8 +150,6 @@ export default function VawcDashboard() {
           </div>
         </Card>
       </div>
-        </>
-      )}
     </div>
   );
 }

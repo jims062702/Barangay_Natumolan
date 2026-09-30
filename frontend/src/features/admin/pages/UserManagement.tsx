@@ -1,6 +1,7 @@
 import NeedsConnection from "../../../shared/offline/NeedsConnection";
 import { FiEdit2, FiPlus } from "react-icons/fi";
 import Card from "../../../shared/ui/Card";
+import DraftNotice from "../../../shared/ui/DraftNotice";
 import Modal from "../../../shared/ui/Modal";
 import PageHeader from "../../../shared/ui/PageHeader";
 import FormField, { inputClasses } from "../../../shared/ui/FormField";
@@ -9,6 +10,7 @@ import { useAccountAdmin } from "../hooks/useAccountAdmin";
 import { AccountTable } from "../components/AccountTable";
 import { EditAccountModal } from "../components/EditAccountModal";
 import { SelfAccountModal } from "../components/SelfAccountModal";
+import { PageLoading } from "../../../shared/ui/PageLoad";
 
 export default function UserManagement({
   /*
@@ -22,14 +24,16 @@ export default function UserManagement({
   const ctx = useAccountAdmin({ kind });
   const {
     user, createOpen, setCreateOpen, name, setName, email, setEmail, password, setPassword,
-    role, setRole, openSelf, create,
+    role, setRole, openSelf, create, openCreate, createDraft,
   offline,
   } = ctx;
+
+  if (ctx.pageLoad.state !== "ready") return <PageLoading load={ctx.pageLoad} onRetry={() => ctx.load()} />;
 
   return (
     <div>
       <PageHeader
-        title={kind === "staff" ? "Staff User Accounts" : "Resident Portal Accounts"}
+        title={kind === "staff" ? "Staff Accounts" : "Resident Accounts"}
         subtitle={
           kind === "staff"
             ? "Create and manage office staff accounts."
@@ -41,7 +45,7 @@ export default function UserManagement({
           kind === "staff" ? (
             <button
               type="button"
-              onClick={() => setCreateOpen(true)}
+              onClick={openCreate}
               className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
             >
               <FiPlus className="h-4 w-4" aria-hidden="true" /> New staff account
@@ -103,6 +107,7 @@ export default function UserManagement({
               ))}
             </select>
           </FormField>
+          <DraftNotice draft={createDraft} passwords />
           <button type="submit" className="w-full cursor-pointer rounded-full bg-primary py-2.5 text-sm font-semibold text-white hover:bg-primary-dark">
             Create account
           </button>

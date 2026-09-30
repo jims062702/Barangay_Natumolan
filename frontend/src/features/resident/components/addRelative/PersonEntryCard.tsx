@@ -211,7 +211,7 @@ export function PersonEntryCard({ ctx, index, entry, relation, resident }: {
                 placeholder="Jr., Sr., III"
               />
             </FormField>
-            <FormField label="Phone number" hint="Philippine mobile — 10 digits after +63">
+            <FormField label="Contact Number" hint="Philippine mobile — 10 digits after +63">
               <PhoneInput
                 value={entry.form.contact_number}
                 onChange={(v) => patchForm(index, { contact_number: v })}

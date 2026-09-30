@@ -7,7 +7,7 @@ import useActiveSection from "../hooks/useActiveSection";
 import AccountMenu from "./AccountMenu";
 import { scrollToLandingSection } from "../lib/landingSection";
 import { navLinks, sectionIds } from "../data/navLinks";
-import logo from "../../../assets/logo/logo.svg";
+import logo from "../../../assets/logo/barangay-logo.png";
 
 export default function Navbar() {
   const scrollY = useScrollPosition();
@@ -19,7 +19,14 @@ export default function Navbar() {
   const onLanding = pathname === "/";
   // Keyed on the route: this layout never remounts, so without it the section
   // observer would keep watching the (absent) sections of the previous page.
-  const active = useActiveSection(sectionIds, pathname);
+  const watched = useActiveSection(sectionIds, pathname);
+  /*
+   * A post's own page belongs to News. There are no sections here to watch,
+   * so the highlight used to stay on whatever was lit when the landing page
+   * was left — right when arriving from the News section, but "Home" on a
+   * post opened straight from a shared link or refreshed.
+   */
+  const active = pathname.startsWith("/news/") ? "news" : watched;
 
   // Transparent over the hero; solid glass when scrolled, off the landing
   // page, or when the mobile menu is open.

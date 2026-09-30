@@ -32,7 +32,6 @@ const STATUS_TONES: Record<string, string> = {
   Filed: "bg-warning/10 text-warning",
   Mediation: "bg-primary/10 text-primary",
   Conciliation: "bg-primary/10 text-primary",
-  Arbitration: "bg-warning/10 text-warning",
   Settled: "bg-success/10 text-success",
   Dismissed: "bg-gray text-gray-500",
   Referred: "bg-danger/10 text-danger",
@@ -46,6 +45,12 @@ const STATUS_TONES: Record<string, string> = {
   Executed: "bg-primary/10 text-primary",
   // Health
   Missed: "bg-danger/10 text-danger",
+  /* A pregnancy completed by delivery. Active and Closed are shared with
+     the cases above. */
+  Delivered: "bg-success/10 text-success",
+  /* A dose owed by the DOH schedule: within its four weeks, then past them. */
+  Due: "bg-warning/10 text-warning",
+  Overdue: "bg-danger/10 text-danger",
   Rescheduled: "bg-warning/10 text-warning",
   // Population events
   Verified: "bg-success/10 text-success",
@@ -66,6 +71,34 @@ const STATUS_TONES: Record<string, string> = {
   Safe: "bg-success/10 text-success",
   "At Risk": "bg-warning/10 text-warning",
   Critical: "bg-danger/10 text-danger",
+  "Ongoing concern": "bg-warning/10 text-warning",
+  "Immediate danger": "bg-danger/10 text-danger",
+  // VAWC — Barangay Protection Orders. "In effect" and "Expired" are what an
+  // Issued order is on a given day; the rest are where an application stands.
+  "Not Yet Applied": "bg-gray text-gray-500",
+  "Application Prepared": "bg-warning/10 text-warning",
+  Applied: "bg-primary/10 text-primary",
+  Issued: "bg-success/10 text-success",
+  "In effect": "bg-success/10 text-success",
+  Expired: "bg-gray text-gray-500",
+  "Not Issued": "bg-danger/10 text-danger",
+  "Referred for TPO/PPO": "bg-primary/10 text-primary",
+  // VAWC — referrals
+  "Unable to Reach": "bg-danger/10 text-danger",
+  "Declined by Client": "bg-gray text-gray-500",
+  Immediate: "bg-danger/10 text-danger",
+  "Within 24 hours": "bg-warning/10 text-warning",
+  Routine: "bg-secondary text-gray-500",
+  /* Complaints begun online, and the people waiting on a census.
+     "For Office Verification" is WORK WAITING, not a neutral state — grey
+     would put it beside Archived and Cancelled on the queue it heads. */
+  "For Office Verification": "bg-warning/10 text-warning",
+  Registered: "bg-success/10 text-success",
+  Declined: "bg-gray text-gray-500",
+  Withdrawn: "bg-gray text-gray-500",
+  // VAWC — the one dialogue
+  "Agreement reached": "bg-success/10 text-success",
+  "No agreement": "bg-gray text-gray-500",
 };
 
 export default function StatusBadge({ status }: { status: string }) {

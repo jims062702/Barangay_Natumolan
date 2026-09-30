@@ -146,7 +146,7 @@ export function PostTable({ ctx }: { ctx: PostDeskState }) {
         numbered
         total={total}
         searchable
-        searchPlaceholder="Search by title, author or category…"
+        searchPlaceholder="Search by Title, Author, Category or Text…"
         getSearchText={(a) =>
           `${a.title} ${a.category} ${a.status} ${a.byline ?? a.author_name ?? ""} ${a.excerpt ?? ""} ${a.body ?? ""}`
         }

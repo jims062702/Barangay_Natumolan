@@ -32,11 +32,45 @@ const VAWC_KEYWORDS = [
   "child abuse", "lascivious",
 ];
 
+/*
+ * NOBODY REPORTS BEING BEATEN IN LEGAL LANGUAGE.
+ *
+ * The list above catches the words a lawyer uses. A woman at the counter
+ * says "my husband hit me", and in this barangay she is at least as likely
+ * to say "gibunalan ko sa akong bana" or "binugbog ako ng asawa ko" — so the
+ * screen that exists to keep these out of Lupon mediation waved them
+ * through.
+ *
+ * Matched as a PAIR — harm done to somebody in a domestic relationship —
+ * because "he hit my fence with his truck" is a property complaint and does
+ * belong to the Lupon. JurisdictionScreen::HARM and ::DOMESTIC, word for
+ * word.
+ */
+const HARM = [
+  "hit me", "hits me", "beat me", "beats me", "beaten", "punch", "slap",
+  "strangl", "choke", "kick me", "hurt me", "hurts me", "threaten to kill",
+  "sinaktan", "sinasaktan", "binugbog", "bugbog", "binubugbog", "saktan",
+  "gibunalan", "gisumbag", "gikulata", "gipangbunalan", "pambubugbog",
+];
+
+const DOMESTIC = [
+  "husband", "wife", "spouse", "partner", "live-in", "livein", "boyfriend",
+  "girlfriend", "ex-husband", "ex-wife", "father of my", "mother of my",
+  "asawa", "bana", "kapikas", "nobyo", "nobya", "kinasal",
+  "my child", "my son", "my daughter", "anak", "bata", "minor",
+];
+
 /** True when any of the texts reads as violence against women or children. */
 export function mentionsVawc(...texts: (string | null | undefined)[]): boolean {
   const text = texts.filter(Boolean).join(" ").toLowerCase();
 
-  return VAWC_KEYWORDS.some((keyword) => text.includes(keyword));
+  if (VAWC_KEYWORDS.some((keyword) => text.includes(keyword))) {
+    return true;
+  }
+
+  /* Harm AND a domestic relationship, together. */
+  return HARM.some((word) => text.includes(word))
+    && DOMESTIC.some((who) => text.includes(who));
 }
 
 export interface ComplaintCheck {

@@ -3,6 +3,7 @@ import PageHeader from "../../../shared/ui/PageHeader";
 import { usePortalRequests } from "../hooks/usePortalRequests";
 import { RequestTable } from "../components/requests/RequestTable";
 import { NewRequestModal } from "../components/requests/NewRequestModal";
+import { PageLoading } from "../../../shared/ui/PageLoad";
 
 /**
  * Everything the resident has asked the barangay for — one list.
@@ -22,8 +23,10 @@ import { NewRequestModal } from "../components/requests/NewRequestModal";
 export default function Requests() {
   const ctx = usePortalRequests();
   const {
-    setCreateOpen,
+    openCreate,
   } = ctx;
+
+  if (ctx.pageLoad.state !== "ready") return <PageLoading load={ctx.pageLoad} onRetry={() => ctx.load()} />;
 
   return (
     <div>
@@ -33,10 +36,10 @@ export default function Requests() {
         actions={
           <button
             type="button"
-            onClick={() => setCreateOpen(true)}
+            onClick={openCreate}
             className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
           >
-            <FiPlus className="h-4 w-4" aria-hidden="true" /> Request a certificate
+            <FiPlus className="h-4 w-4" aria-hidden="true" /> Request certificates
           </button>
         }
       />

@@ -14,6 +14,7 @@ import { RowsSkeleton } from "../../../shared/ui/Skeleton";
 import ShortcutComposer, { type Shortcut } from "../components/ShortcutComposer";
 import { chatApi } from "../api";
 import type { ChatConversation, ChatMessage } from "../types";
+import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
 
 /**
  * The live chat desk — the Barangay Clerk's page.
@@ -21,6 +22,12 @@ import type { ChatConversation, ChatMessage } from "../types";
  * A two-pane inbox: everyone waiting on the left, the open conversation on the
  * right. It refreshes on a timer rather than a socket, matching the widget on
  * the public site.
+ *
+ * AS MANY CONVERSATIONS AT ONCE AS COME IN (2026-09-30). The Clerk takes
+ * whoever is waiting and moves between them; each keeps its own half-written
+ * reply, so switching never sends one resident's answer to another. A
+ * conversation the resident stopped answering closes by itself a day after
+ * the last reply — the thread says when.
  */
 
 /** Faster than the usual staff cadence: someone is sitting there waiting. */
@@ -28,6 +35,12 @@ const THREAD_POLL_MS = 4000;
 
 const timeOf = (value?: string | null) =>
   value ? new Date(value).toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit" }) : "";
+
+/** "Oct 1, 3:15 PM" — when, in the barangay's own time. */
+const whenOf = (value: string) =>
+  new Date(value).toLocaleString("en-PH", {
+    timeZone: "Asia/Manila", month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+  });
 
 /** "3m ago" — how long this person has been waiting, at a glance. */
 function waitedFor(since?: string | null): string {
@@ -43,29 +56,34 @@ function waitedFor(since?: string | null): string {
 export default function LiveChat() {
   const { offline, noteOffline } = useNeedsConnection();
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
-  const [filter, setFilter] = useState<"open" | "Waiting" | "Closed">("open");
+  const [filter, setFilter] = useState<"open" | "mine" | "Waiting" | "Closed">("open");
   const [activeId, setActiveId] = useState<number | null>(null);
   const [active, setActive] = useState<ChatConversation | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [reply, setReply] = useState("");
+  /*
+   * A half-written reply PER CONVERSATION. With one box shared by every
+   * thread, a reply started for one resident and a click on another sent
+   * the first resident's answer to the second.
+   */
+  const [drafts, setDrafts] = useState<Record<number, string>>({});
   const [sending, setSending] = useState(false);
   const { user } = useAuth();
+  /* The thread on screen, for answers that arrive after the Clerk has moved on. */
+  const shownId = useRef<number | null>(null);
   /*
    * The canned answers behind @certificate/… and @officials/…. Fetched once
    * per visit rather than per keystroke: the roster and the service guides
    * change a few times a year, and the desk needs the menu to open instantly.
    */
   const [shortcuts, setShortcuts] = useState<Shortcut[]>([]);
-  /*
-   * The one conversation this agent is in, if any. The desk is one Clerk
-   * answering one person at a time — two threads at once means both visitors
-   * get half an answer slowly, and the queue behind them hears nothing.
-   */
-  const [busyWith, setBusyWith] = useState<{ id: number; name: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  /* Its skeleton until the first answer — see PageLoad. */
+  const pageLoad = usePageLoad();
   const threadRef = useRef<HTMLDivElement | null>(null);
   // Rings only when the number of people waiting goes UP.
   const waitingRef = useRef<number | null>(null);
+  // …or when a resident this Clerk is with writes in a thread not on screen.
+  const unreadRef = useRef<number | null>(null);
 
   const loadList = async () => {
     try {
@@ -73,19 +91,26 @@ export default function LiveChat() {
       const rows: ChatConversation[] = response.data.data.data ?? [];
       setConversations(rows);
 
-      // Whoever is already mine and still open. Read from the list rather
-      // than a second request — it is the same data.
-      const mine = rows.find((c) => c.status === "Active" && c.assigned_to === user?.id);
-      setBusyWith(mine ? { id: mine.id, name: mine.visitor_name ?? "someone" } : null);
-
       const waiting = rows.filter((c) => c.status === "Waiting").length;
-      if (waitingRef.current !== null && waiting > waitingRef.current) {
+      const unread = rows
+        .filter((c) => c.status === "Active" && c.assigned_to === user?.id && c.id !== shownId.current)
+        .reduce((sum, c) => sum + (c.unread ?? 0), 0);
+      if (
+        (waitingRef.current !== null && waiting > waitingRef.current)
+        || (unreadRef.current !== null && unread > unreadRef.current)
+      ) {
         playNotificationSound();
       }
       waitingRef.current = waiting;
+      unreadRef.current = unread;
+      pageLoad.done();
     } catch (err) {
       /* The desk is never read from a copy on this device — see NeedsConnection. */
       noteOffline(err);
+      /* No line: the desk, with the notice that says why it is empty. Any
+         other failure ends the skeleton with the reason. */
+      if (!(err as { response?: unknown })?.response) pageLoad.done();
+      else pageLoad.fail(err);
     } finally {
       setLoading(false);
     }
@@ -106,10 +131,14 @@ export default function LiveChat() {
   const loadThread = async (id: number) => {
     try {
       const response = await chatApi.deskConversation(id);
+      /* The Clerk may have opened another thread while this was on its way:
+         an answer for the old one must not fill the new one's pane — the
+         reply box sends to whichever conversation is on screen. */
+      if (shownId.current !== id) return;
       setActive(response.data.data.conversation);
       setMessages(response.data.data.messages);
     } catch (err) {
-      toast(errorMessage(err), "error");
+      if (shownId.current === id) toast(errorMessage(err), "error");
     }
   };
 
@@ -119,8 +148,14 @@ export default function LiveChat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
-  // The list keeps up on its own so a new visitor appears without a refresh.
-  useAutoRefresh(() => void loadList(), REFRESH.staff, { evenWhenHidden: true });
+  /* The ones this staff member is in the middle of. */
+  const isMine = (c: ChatConversation) => c.status === "Active" && c.assigned_to === user?.id;
+  const handling = conversations.filter(isMine).length;
+
+  // The list keeps up on its own so a new visitor appears without a refresh —
+  // as fast as the open thread while the Clerk is with people, since a reply
+  // in any of their other threads shows up here first.
+  useAutoRefresh(() => void loadList(), handling > 0 ? THREAD_POLL_MS : REFRESH.staff, { evenWhenHidden: true });
 
   // The open conversation refreshes faster — someone is waiting on the reply.
   useEffect(() => {
@@ -131,15 +166,22 @@ export default function LiveChat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId]);
 
+  /* To the newest line when there IS a newer line, or another thread — not on
+     every refresh, which pulled the Clerk down from whatever they were reading. */
+  const lastLine = messages[messages.length - 1]?.id ?? null;
   useEffect(() => {
     threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages]);
+  }, [lastLine, activeId]);
 
   const open = (conversation: ChatConversation) => {
+    shownId.current = conversation.id;
     setActiveId(conversation.id);
     setActive(conversation);
     setMessages([]);
   };
+
+  const reply = active ? drafts[active.id] ?? "" : "";
+  const setReply = (id: number, value: string) => setDrafts((all) => ({ ...all, [id]: value }));
 
   const claim = async () => {
     if (!active) return;
@@ -154,13 +196,15 @@ export default function LiveChat() {
   };
 
   const send = async () => {
-    const body = reply.trim();
-    if (!body || !active) return;
+    if (!active) return;
+    const to = active.id;
+    const body = (drafts[to] ?? "").trim();
+    if (!body) return;
     setSending(true);
     try {
-      await chatApi.reply(active.id, { body });
-      setReply("");
-      await Promise.all([loadThread(active.id), loadList()]);
+      await chatApi.reply(to, { body });
+      setReply(to, "");
+      await Promise.all([loadThread(to), loadList()]);
     } catch (err) {
       toast(errorMessage(err), "error");
     } finally {
@@ -190,6 +234,10 @@ export default function LiveChat() {
 
   const waiting = conversations.filter((c) => c.status === "Waiting").length;
   const closed = active?.status === "Closed";
+  /* Somebody else on the desk has this one: it is theirs to answer. */
+  const someoneElses = !!active?.assigned_to && active.assigned_to !== user?.id;
+
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => void loadList()} />;
 
   return (
     <div>
@@ -202,9 +250,10 @@ export default function LiveChat() {
         <NeedsConnection what="the chat desk" why="A conversation only works while both sides can hear each other." />
       )}
 
-      {waiting > 0 && (
+      {(waiting > 0 || handling > 0) && (
         <p className="mb-4 rounded-2xl bg-warning/10 px-4 py-3 text-sm font-medium text-dark">
-          {waiting} {waiting === 1 ? "person is" : "people are"} waiting for a reply.
+          {waiting > 0 && `${waiting} ${waiting === 1 ? "person is" : "people are"} waiting for a reply. `}
+          {handling > 0 && `You are in ${handling} ${handling === 1 ? "conversation" : "conversations"}.`}
         </p>
       )}
 
@@ -215,6 +264,7 @@ export default function LiveChat() {
             {(
               [
                 ["open", "Open"],
+                ["mine", "Mine"],
                 ["Waiting", "Waiting"],
                 ["Closed", "Closed"],
               ] as const
@@ -231,18 +281,6 @@ export default function LiveChat() {
               </button>
             ))}
           </div>
-
-          {/*
-            The desk answers one person at a time. Saying so — with the name
-            — is what stops a Clerk opening a second thread, typing a
-            reply, and only then being refused by the server.
-          */}
-          {busyWith && (
-            <p className="mb-2 rounded-xl bg-primary/10 px-3.5 py-2.5 text-xs leading-relaxed text-dark">
-              You are with <strong>{busyWith.name}</strong>. Close that conversation when you
-              are done and the next person in the queue comes through.
-            </p>
-          )}
 
           {loading ? (
             <RowsSkeleton rows={5} what="the conversations" />
@@ -261,10 +299,6 @@ export default function LiveChat() {
                       activeId === conversation.id
                         ? "border-primary bg-primary/5"
                         : "border-gray hover:border-primary/40"
-                    } ${
-                      // Readable, still openable — the Clerk may need to
-                      // see what is waiting. Replying is what is refused.
-                      busyWith && busyWith.id !== conversation.id ? "opacity-50" : ""
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -286,6 +320,12 @@ export default function LiveChat() {
                     {conversation.is_resident && (
                       <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-primary">
                         <FiUser className="h-3 w-3" aria-hidden="true" /> Registered resident
+                      </span>
+                    )}
+                    {/* Whose it is, once somebody has it. */}
+                    {conversation.status === "Active" && (
+                      <span className="mt-1 block text-[11px] font-medium text-gray-500">
+                        {conversation.assigned_to === user?.id ? "Yours" : `With ${conversation.agent_name ?? "another staff member"}`}
                       </span>
                     )}
 
@@ -360,6 +400,12 @@ export default function LiveChat() {
                     Handled by: <strong className="text-dark">{active.agent_name}</strong>
                   </span>
                 )}
+                {/* The desk has answered; the resident has a day to reply. */}
+                {active.closes_at && !closed && (
+                  <span>
+                    Closes by itself: <strong className="text-dark">{whenOf(active.closes_at)}</strong>, unless they reply
+                  </span>
+                )}
               </div>
 
               <div
@@ -404,12 +450,17 @@ export default function LiveChat() {
 
               {closed ? (
                 <p className="mt-3 rounded-xl bg-secondary px-4 py-3 text-center text-sm text-gray-500">
-                  This conversation is closed. The visitor can start a new one from the website.
+                  This conversation is closed. The resident can follow up on it, and it comes back here.
+                </p>
+              ) : someoneElses ? (
+                <p className="mt-3 rounded-xl bg-secondary px-4 py-3 text-center text-sm text-gray-500">
+                  {active.agent_name ?? "Another staff member"} is handling this conversation — one person answers each resident.
                 </p>
               ) : (
                 <ShortcutComposer
+                  key={active.id}
                   value={reply}
-                  onChange={setReply}
+                  onChange={(value) => setReply(active.id, value)}
                   onSend={() => void send()}
                   sending={sending}
                   shortcuts={shortcuts}

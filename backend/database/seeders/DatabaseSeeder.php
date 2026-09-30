@@ -241,7 +241,7 @@ class DatabaseSeeder extends Seeder
         }
 
         // Ana: exactly what a newly registered resident gets — the standard
-        // Lastname + MMDDYY password, and no access until she enters the code.
+        // Lastname + birth year password, and no access until she enters the code.
         $ana = $residents[2];
         $ana->update(['email' => 'resident.ana@natumolan.local']);
 
@@ -423,14 +423,15 @@ class DatabaseSeeder extends Seeder
         $sec = $this->staff['Lupon Secretary'];
 
         // Case in mediation with an upcoming hearing
+        $filed1 = now()->subDays(6)->toDateString();
         $case1 = Lupon\CaseFile::create([
-            'case_number' => 'KP-2026-0001',
+            'case_number' => Lupon\CaseFile::nextCaseNumber($filed1),
             'case_title' => 'Unpaid debt between neighbors',
             'case_classification' => 'Debt',
             'complainant_id' => $residents[12]->id,
             'jurisdiction_status' => 'Accepted',
             'current_stage' => 'Mediation',
-            'date_filed' => now()->subDays(6)->toDateString(),
+            'date_filed' => $filed1,
             'assigned_lupon_secretary' => $sec->id,
         ]);
         $case1->respondents()->sync([$residents[19]->id]);
@@ -451,14 +452,15 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // Settled case inside the 10-day repudiation window
+        $filed2 = now()->subDays(20)->toDateString();
         $case2 = Lupon\CaseFile::create([
-            'case_number' => 'KP-2026-0002',
+            'case_number' => Lupon\CaseFile::nextCaseNumber($filed2),
             'case_title' => 'Boundary fence disagreement',
             'case_classification' => 'Land Dispute',
             'complainant_id' => $residents[15]->id,
             'jurisdiction_status' => 'Accepted',
             'current_stage' => 'Settled',
-            'date_filed' => now()->subDays(20)->toDateString(),
+            'date_filed' => $filed2,
             'date_resolved' => now()->subDays(4)->toDateString(),
             'assigned_lupon_secretary' => $sec->id,
         ]);
@@ -591,8 +593,11 @@ class DatabaseSeeder extends Seeder
         $case = Vawc\CaseFile::create([
             'case_code' => 'VAWC-2026-0001',
             'survivor_id' => $placeholder->id,
-            'violence_type' => 'Psychological',
-            'relationship_to_offender' => 'Spouse (demo data)',
+            'reported_by_type' => 'Victim-Survivor',
+            'violence_type' => 'Threat',
+            'relationship_to_offender' => 'Spouse',
+            'currently_in_danger' => 'No',
+            'protection_needed' => 'No',
             'children_involved' => true,
             'children_count' => 1,
             'immediate_needs' => 'Demo: counseling referral',
@@ -604,18 +609,24 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $case->referrals()->create([
-            'referral_agency' => 'Counseling Service',
+            'referral_agency' => 'MSWDO / CSWDO',
+            'referral_reason' => 'Psychosocial support',
+            'urgency' => 'Routine',
+            'referral_status' => 'Accepted',
+            'referred_by' => $officer->id,
             'receiving_person' => 'MSWDO Counselor (demo)',
-            'services_requested' => 'Psychosocial counseling session',
+            'notes' => 'Demo: psychosocial counseling session.',
             'referral_date' => now()->subDays(6)->toDateString(),
             'followup_schedule' => now()->addDays(3)->toDateString(),
         ]);
 
         $case->followups()->create([
             'followup_date' => now()->subDays(2)->toDateString(),
-            'followup_type' => 'Phone Call',
+            'followup_type' => 'Phone',
+            'conducted_by' => $officer->name,
             'safety_status' => 'Safe',
-            'bpo_compliance' => 'No BPO',
+            'protection_order_status' => 'No BPO',
+            'new_incident' => false,
             'notes' => 'Demo follow-up note.',
             'next_followup_date' => now()->addDays(5)->toDateString(),
             'recorded_by' => $officer->id,

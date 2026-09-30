@@ -113,6 +113,7 @@ class BackfillCensusDetails extends Command
                 ? (int) $member->q35_stay_years
                 : null,
             'birth_place' => $member->q6_birthplace ?: null,
+            'nationality' => \App\Support\Nationality::fromCode($member->q7_nationality, $member->q7_nationality_other),
             'civil_status' => in_array($marital, ['Single', 'Married', 'Widowed', 'Separated'], true)
                 ? $marital
                 : null,

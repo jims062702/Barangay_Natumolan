@@ -29,6 +29,8 @@ export interface ChatConversation {
   reopened_at?: string | null;
   /** When it was last closed, so the agent knows the gap they are answering across. */
   last_closed_at?: string | null;
+  /** When it closes by itself if the resident does not reply — null while the desk owes the reply. */
+  closes_at?: string | null;
 }
 
 export interface ChatMessage {
@@ -51,6 +53,17 @@ export interface WidgetMessage {
   from: "bot" | "user";
   text: string;
   buttons?: ChatButton[];
+  /**
+   * False only when RASA said it did not understand — the one no-answer that
+   * says something about what was typed. Unset otherwise, including when the
+   * fallback search found nothing (that is the guides, not the person).
+   */
+  understood?: boolean;
+  /**
+   * Shown on this page only, never written to the device: a question about
+   * violence or danger, and the answers to it. See lib/chatLog.ts.
+   */
+  unsaved?: boolean;
 }
 
 export interface RasaReply {

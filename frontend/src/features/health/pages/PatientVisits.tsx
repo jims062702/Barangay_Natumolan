@@ -3,6 +3,8 @@ import { FiPlus, FiPrinter } from "react-icons/fi";
 import { errorMessage } from "../../../shared/lib/api";
 import { toast } from "../../../shared/lib/toast";
 import { confirmAction } from "../../../shared/lib/confirm";
+import { useModalDraft } from "../../../shared/lib/useModalDraft";
+import DraftNotice from "../../../shared/ui/DraftNotice";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { usePulse } from "../../../shared/hooks/usePulse";
 import Card from "../../../shared/ui/Card";
@@ -16,6 +18,7 @@ import { healthApi } from "../api";
 import { ItrConsultationForm } from "../components/ItrConsultationForm";
 import { blankItr, itrPayload, type ItrDraft } from "../lib/itr";
 import type { HealthVisit } from "../types";
+import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
 
 export default function PatientVisits() {
   const [rows, setRows] = useState<HealthVisit[]>([]);
@@ -25,6 +28,8 @@ export default function PatientVisits() {
   // So the footer can say WHICH rows are on screen, not only the page.
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  /* Its skeleton until the first answer — see PageLoad. */
+  const pageLoad = usePageLoad();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [patient, setPatient] = useState<Resident | null>(null);
@@ -56,6 +61,8 @@ export default function PatientVisits() {
         setLastPage(r.data.data.last_page ?? 1);
         setTotal(r.data.data.total ?? 0);
       })
+      .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
+      .catch(() => undefined)
       .finally(() => setLoading(false));
   };
 
@@ -75,6 +82,26 @@ export default function PatientVisits() {
    */
   usePulse("health", () => load(true));
 
+  /* The consultation being written, kept until it is recorded or discarded —
+     the patient does not have to repeat their complaint because the dialog
+     closed. */
+  const visitDraft = useModalDraft<{ patient: Resident | null; itr: ItrDraft }>(
+    "new-patient-visit",
+    createOpen,
+    { patient, itr: draft },
+    (kept) => {
+      setPatient(kept.patient ?? null);
+      setDraft({ ...blankItr(), ...kept.itr });
+    },
+    {
+      blank: { patient: null, itr: blankItr() },
+      reset: () => {
+        setPatient(null);
+        setDraft(blankItr());
+      },
+    },
+  );
+
   const create = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!(await confirmAction({ title: "Record this patient visit?", confirmText: "Yes, record" }))) return;
@@ -83,6 +110,7 @@ export default function PatientVisits() {
         itrPayload(draft, patient?.id),
         { offline: { label: `Patient visit — ${patient ? patient.first_name + " " + patient.last_name : "unnamed patient"}` } },
       );
+      visitDraft.clear();
       setCreateOpen(false);
       /* Cleared together. A form that opens holding the last patient's
          readings is how one person's blood pressure lands on another. */
@@ -95,10 +123,12 @@ export default function PatientVisits() {
     }
   };
 
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => load()} />;
+
   return (
     <div>
       <PageHeader
-        title="Patient Visits & Triage"
+        title="Patient Visits"
         subtitle="Consultations, vital signs, and referrals at the Barangay Health Station"
         actions={
           <div className="flex gap-2 print-hide">
@@ -126,15 +156,6 @@ export default function PatientVisits() {
           </div>
         }
       />
-
-      {/* Only on paper: a sheet in a family folder has to say what it is
-          and which day it covers, which the screen says in its header. */}
-      <div className="print-only mb-4 hidden">
-        <p className="text-base font-bold">Barangay Natumolan Health Station</p>
-        <p className="text-sm">
-          Patient consultations{date ? ` — ${new Date(date).toLocaleDateString("en-PH")}` : ""}
-        </p>
-      </div>
 
       <Card className="print-plain">
         <div className="mb-4 flex print-hide items-center gap-3">
@@ -180,7 +201,7 @@ export default function PatientVisits() {
           numbered
           total={total}
           searchable
-          searchPlaceholder="Search by patient or reason…"
+          searchPlaceholder="Search by Patient or Reason…"
           getSearchText={(v) =>
             `${v.patient ? `${v.patient.first_name} ${v.patient.last_name}` : ""} ${v.visit_reason}`
           }
@@ -213,7 +234,8 @@ export default function PatientVisits() {
             onPatient={setPatient}
           />
 
-          <div className="sm:col-span-2 lg:col-span-3">
+          <div className="space-y-2 sm:col-span-2 lg:col-span-3">
+            <DraftNotice draft={visitDraft} />
             <button
               type="submit"
               disabled={!patient}

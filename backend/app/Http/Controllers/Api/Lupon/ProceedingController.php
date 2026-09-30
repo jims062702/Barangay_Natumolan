@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\Lupon\RecordConciliationRequest;
 use App\Http\Requests\Lupon\RecordMediationRequest;
 use App\Models\Lupon\CaseFile;
+use App\Support\ManilaTime;
 
 /**
  * The two proceedings a dispute passes through: mediation by the Punong
@@ -52,12 +53,25 @@ class ProceedingController extends BaseController
         ]);
 
         if ($validated['outcome'] === 'Settlement') {
-            $case->update(['current_stage' => 'Settled']);
+            $case->update([
+                'current_stage' => 'Settled',
+                /* Every closed case carries the words that closed it. */
+                'closure_reason' => $validated['proceedings_notes']
+                    ?: 'Settled before the Pangkat on ' . $validated['conciliation_date'] . '.',
+            ]);
         } else {
             /* Dismissed. There is no arbitration branch: a matter this Lupon
                cannot settle is closed here, not escalated into a stage the
-               barangay has no power to run. */
-            $case->update(['current_stage' => 'Dismissed', 'date_resolved' => now()->toDateString()]);
+               barangay has no power to run.
+
+               The minutes ARE the reason, and the form now insists on them:
+               "Dismissed" with nothing beside it is a case nobody can
+               explain to the complainant who comes back asking. */
+            $case->update([
+                'current_stage' => 'Dismissed',
+                'date_resolved' => ManilaTime::today(),
+                'closure_reason' => $validated['proceedings_notes'],
+            ]);
         }
 
         return $this->success($case->fresh(), 'Conciliation recorded');

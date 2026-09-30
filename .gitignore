@@ -16,3 +16,10 @@
 
 __pycache__/
 *.pyc
+
+# The Rasa Developer Edition license key — a secret, like .env.
+#
+# It was committed in the first commit, and the repository is public: the key
+# in that history must be treated as exposed and replaced with a new one from
+# Rasa. Ignoring it here only stops it being committed again.
+rasa/license.txt

@@ -5,6 +5,7 @@ import PeriodFilter from "../../../shared/ui/PeriodFilter";
 import { useLuponDocket } from "../hooks/useLuponDocket";
 import { CaseTable } from "../components/docket/CaseTable";
 import { ComplaintIntakeModal } from "../components/docket/ComplaintIntakeModal";
+import { PageLoading } from "../../../shared/ui/PageLoad";
 
 export default function CaseList() {
   const ctx = useLuponDocket();
@@ -12,10 +13,12 @@ export default function CaseList() {
     period, windowLabel, years, periodCounts, total, blocked, setIntakeOpen, changePeriod,
   } = ctx;
 
+  if (ctx.pageLoad.state !== "ready") return <PageLoading load={ctx.pageLoad} onRetry={() => ctx.load()} />;
+
   return (
     <div>
       <PageHeader
-        title="Katarungang Pambarangay — Case Docket"
+        title="Case Docket"
         subtitle="Complaint intake, jurisdiction screening, mediation, and settlement"
         actions={
           <button

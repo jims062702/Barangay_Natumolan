@@ -8,34 +8,53 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * One line in the midwife's running list: who came today, and what for.
+ * One prenatal record — a line of the station's prenatal register.
  *
- * A DAY REGISTER, not a case file. `MaternalRecord` beside this holds the
- * pregnancy — registration, expected delivery, risk indicators — one row per
- * pregnancy. This is one row per VISIT, which is what gets written at the
- * table, and keeping them apart is what preserves the sequence.
+ * The paper's columns: Date, Zone, Name, Age, WT, BP, HT, LMP, EDC, MOS,
+ * Contact #. Every one is kept as it was entered — "110/70", "57.8",
+ * "8 mos" — and nothing is concluded from them.
  *
- * Age and zone are stored rather than read from the register, because the
- * list is read back as history: "she was 17 at this visit" is the fact that
- * mattered then, and recomputing it from today would rewrite every old line.
+ * It belongs to a PREGNANCY, not just to a mother: that is what makes
+ * "Prenatal Visits" the visits of this pregnancy and not of her whole life.
+ * Its visit number (#1, #2, …) is its place among that pregnancy's records
+ * in date order — worked out, never typed. See PregnancyRegister.
  */
 class PrenatalVisit extends Model
 {
     protected $table = 'prenatal_visits';
 
     protected $fillable = [
+        'pregnancy_id',
         'mother_id',
         'visit_date',
         'age',
         'zone_purok',
+        'weight_kg',
+        'blood_pressure',
+        'height_cm',
+        'lmp',
+        'edc',
+        'months_of_pregnancy',
         'contact_number',
         'complaint',
         'recorded_by',
+        'updated_by',
     ];
 
     protected function casts(): array
     {
-        return ['visit_date' => 'date'];
+        return [
+            'visit_date' => 'date:Y-m-d',
+            'lmp' => 'date:Y-m-d',
+            'edc' => 'date:Y-m-d',
+            'weight_kg' => 'decimal:2',
+            'height_cm' => 'decimal:2',
+        ];
+    }
+
+    public function pregnancy(): BelongsTo
+    {
+        return $this->belongsTo(MaternalRecord::class, 'pregnancy_id');
     }
 
     public function mother(): BelongsTo
@@ -46,5 +65,10 @@ class PrenatalVisit extends Model
     public function recorder(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recorded_by');
+    }
+
+    public function updater(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 }

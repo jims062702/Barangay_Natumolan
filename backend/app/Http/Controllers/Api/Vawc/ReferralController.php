@@ -19,19 +19,18 @@ class ReferralController extends BaseController
     /** 2.5 — every referral across the desk, with its response state. */
     public function index(Request $request)
     {
-        $query = Referral::with('vawcCase:id,case_code,violence_type,status');
+        $query = Referral::with(['vawcCase:id,case_code,violence_type,status', 'referrer:id,name']);
 
         if ($request->filled('referral_agency')) {
             $query->where('referral_agency', $request->referral_agency);
         }
 
-        if ($request->filled('state')) {
-            match ($request->state) {
-                'Completed' => $query->where('is_completed', true),
-                'Awaiting acknowledgment' => $query->whereNull('acknowledgment_date')->where('is_completed', false),
-                'In progress' => $query->whereNotNull('acknowledgment_date')->where('is_completed', false),
-                default => null,
-            };
+        if ($request->filled('referral_status')) {
+            $query->where('referral_status', $request->referral_status);
+        }
+
+        if ($request->filled('urgency')) {
+            $query->where('urgency', $request->urgency);
         }
 
         // Referrals whose agreed follow-up date has arrived and that are
@@ -52,13 +51,14 @@ class ReferralController extends BaseController
     {
         $validated = $request->validated();
 
+        /* Whoever records it is who referred her — shown, not typed. */
         $referral = $case->referrals()->create($validated + [
-            'referral_date' => now()->toDateString(),
+            'referred_by' => auth()->id(),
         ]);
 
         AccessLog::record($case->id, 'referral_added', $validated['referral_agency']);
 
-        return $this->success($referral, 'Referral created', 201);
+        return $this->success($referral->fresh()->load('referrer:id,name'), 'Referral created.', 201);
     }
 
     public function update(Request $request, CaseFile $case, Referral $referral)
@@ -67,13 +67,13 @@ class ReferralController extends BaseController
             return $this->notFound('Referral does not belong to this case');
         }
 
-        $validated = $request->validate(UpdateReferralRequest::RULES);
+        $validated = $request->validate(UpdateReferralRequest::rulesFor());
 
         $referral->update($validated);
 
-        AccessLog::record($case->id, 'referral_updated', 'Referral #' . $referral->id);
+        AccessLog::record($case->id, 'referral_updated', $referral->referral_agency . ': ' . $referral->referral_status);
 
-        return $this->success($referral, 'Referral updated');
+        return $this->success($referral->fresh()->load('referrer:id,name'), 'Referral updated.');
     }
 
     /** Update a referral from the desk-wide list (no case id in the path). */
@@ -83,9 +83,9 @@ class ReferralController extends BaseController
 
         $referral->update($validated);
 
-        AccessLog::record($referral->vawc_case_id, 'referral_updated', 'Referral #' . $referral->id);
+        AccessLog::record($referral->vawc_case_id, 'referral_updated', $referral->referral_agency . ': ' . $referral->referral_status);
 
-        $referral->load('vawcCase:id,case_code,violence_type,status');
+        $referral->load(['vawcCase:id,case_code,violence_type,status', 'referrer:id,name']);
 
         return $this->success($referral, 'Referral updated');
     }

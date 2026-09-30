@@ -57,6 +57,8 @@ class Resident extends Model
          */
         'birthdate_is_estimated',
         'birth_place',
+        /* Q7, in words: "Filipino", or what they are ("Japanese"). App\Support\Nationality. */
+        'nationality',
         'civil_status',
         'spouse_id',
         'occupation',
@@ -68,6 +70,8 @@ class Resident extends Model
         'zone_purok',
         'address',
         'educational_attainment',
+        /* RBIM Q32: "Barangay Natumolan", another place, or "Not a registered voter". */
+        'registered_voter_in',
         'demographic_classification',
         'is_active',
         'life_status',
@@ -255,11 +259,6 @@ class Resident extends Model
     }
 
     /**
-     * Age-based sectors for this resident today (mirrors the registration form):
-     *   0–14 Child · 15–17 Child + Youth · 18–30 Youth · 31–59 Adult · 60+ Senior.
-     * A resident can fall in more than one (the 15–17 overlap).
-     */
-    /**
      * The next record number to issue.
      *
      * Here rather than in a controller because there is now more than one
@@ -283,17 +282,22 @@ class Resident extends Model
     }
 
     /**
-     * Every age bracket this resident is currently in.
+     * The ONE age bracket this resident is in today:
      *
-     * More than one on purpose. A three-year-old is a Child AND one of the
-     * children under five, and a sixteen-year-old is a Child under RA 7610
-     * and Youth under RA 8044 at the same time — the two laws overlap, and a
-     * register that picked one would leave somebody off a list they are
-     * entitled to be on.
+     *   0–4 Children Under Five · 5–14 Child · 15–30 Youth · 31–59 Adult
+     *   60+ Senior Citizen
+     *
+     * One, as the office asked. It used to be more than one — a three-year-old
+     * on both the under-five and the Child lists, a sixteen-year-old both
+     * Child (RA 7610) and Youth (RA 8044) — and the register read "Child,
+     * Youth" beside a person the office calls one or the other. Each birthday
+     * moves them to the next bracket and off the last.
      *
      * Senior Citizen carries no registration state. Whether they have their
      * OSCA card is a separate answer the census asks (Q31); the bracket is
      * only about the birthday.
+     *
+     * @return string[] one bracket, or none without a birthdate
      */
     public function ageSectors(): array
     {
@@ -302,13 +306,10 @@ class Resident extends Model
             return [];
         }
         if ($age < 5) {
-            return ['Children Under Five', 'Child'];
+            return ['Children Under Five'];
         }
         if ($age <= 14) {
             return ['Child'];
-        }
-        if ($age <= 17) {
-            return ['Child', 'Youth'];
         }
         if ($age <= 30) {
             return ['Youth'];

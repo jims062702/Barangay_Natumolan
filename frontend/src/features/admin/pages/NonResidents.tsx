@@ -8,6 +8,7 @@ import DataTable from "../../../shared/ui/DataTable";
 import PageHeader from "../../../shared/ui/PageHeader";
 import SearchInput from "../../../shared/ui/SearchInput";
 import { adminApi } from "../api";
+import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
 
 /**
  * The non-residents on the register, and whether they have an account.
@@ -47,6 +48,8 @@ export default function NonResidents() {
   const [total, setTotal] = useState(0);
   const [counts, setCounts] = useState<{ total: number; with_account: number }>();
   const [loading, setLoading] = useState(true);
+  /* Its skeleton until the first answer — see PageLoad. */
+  const pageLoad = usePageLoad();
 
   const load = (silent = false) => {
     if (!silent) setLoading(true);
@@ -57,6 +60,7 @@ export default function NonResidents() {
         setTotal(r.data.data.total ?? 0);
         setCounts(r.data.data.counts);
       })
+      .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
       .catch(noteOffline)
       .finally(() => setLoading(false));
   };
@@ -72,6 +76,8 @@ export default function NonResidents() {
 
   /* The register moves when the Population Office adds somebody. */
   usePulse("residents", () => load(true));
+
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => load()} />;
 
   return (
     <div>
@@ -101,7 +107,7 @@ export default function NonResidents() {
               setSearch(value);
               setPage(1);
             }}
-            placeholder="Search by name or record number…"
+            placeholder="Search by Name or Record Number…"
             label="Search non-residents"
             className="max-w-sm flex-1"
           />
@@ -122,7 +128,7 @@ export default function NonResidents() {
             },
             { header: "Type", render: (r: NonResident) => r.record_type },
             {
-              header: "Contact",
+              header: "Contact Number",
               render: (r: NonResident) => r.contact_number || "—",
             },
             {

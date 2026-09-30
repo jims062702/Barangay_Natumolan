@@ -2,6 +2,7 @@ import type { Certificate } from "../../../shared/types";
 import { buildCertificateHtml } from "./certificateTemplates";
 import type { Catalogue } from "../types";
 import type { CouncilMember, PrintableCertificate } from "./certificate/types";
+import { holderOf } from "./holder";
 
 /**
  * Opens the barangay's own form, filled in, and prints it.
@@ -24,7 +25,8 @@ export function openPrintView(
   if (!win) return;
 
   win.document.write(
-    buildCertificateHtml(certificate as unknown as PrintableCertificate, council, {
+    /* The holder, whether on the register or typed in at the counter. */
+    buildCertificateHtml({ ...certificate, resident: holderOf(certificate) } as unknown as PrintableCertificate, council, {
       letterhead: spec?.letterhead ?? "plain",
       office: spec?.office ?? "Punong Barangay",
     }),

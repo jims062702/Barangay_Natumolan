@@ -55,6 +55,16 @@ Schedule::command('tokens:purge-idle', ['--hours' => 3])
     ->withoutOverlapping()
     ->onOneServer();
 
+/*
+ * A live conversation the resident stopped answering closes a day after the
+ * Clerk's last reply (IdleConversations). The desk and the widget apply the
+ * same rule whenever they load; this is for the hours nobody has either open.
+ */
+Schedule::command('chat:close-idle')
+    ->hourly()
+    ->withoutOverlapping()
+    ->onOneServer();
+
 /* The record of work sent from offline devices, kept only as long as a
    device could still resend it. See PurgeOfflineJobs. */
 Schedule::command('offline-jobs:purge')

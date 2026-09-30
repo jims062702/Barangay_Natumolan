@@ -20,7 +20,18 @@ class ServiceRequestController extends BaseController
 
     public function index(Request $request)
     {
-        $query = ServiceRequest::with(['resident', 'assignedUser']);
+        /* The certificate's typed-in person, for a walk-in the register does
+           not list yet — the request itself has nobody to name. */
+        $query = ServiceRequest::with([
+            'resident', 'assignedUser',
+            /* Qualified: `certificate` is a latestOfMany, which joins the table
+               to itself, and a bare column list is ambiguous there. */
+            'certificate' => fn ($q) => $q->select(
+                'certificates_clearances.id',
+                'certificates_clearances.service_request_id',
+                'certificates_clearances.unlisted_person',
+            ),
+        ]);
         
         if ($request->has('office')) {
             $query->where('office', $request->office);

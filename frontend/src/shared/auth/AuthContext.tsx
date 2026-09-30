@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { isAxiosError } from "axios";
-import { clearAllDrafts } from "../lib/formDraft";
+import { clearAllDrafts, setDraftOwner } from "../lib/formDraft";
 import { isOffline } from "../offline/connectivity";
 import {
   cachedProfile,
@@ -85,9 +85,47 @@ export function homePathFor(user: User): string {
   return user.role === "Resident" ? "/resident" : "/dashboard";
 }
 
+/*
+ * Which office this device last signed in as — for one thing only: drawing
+ * the right dashboard skeleton while a refresh is still asking the server
+ * who is signed in. Each office's dashboard has its own shape, and without
+ * this the check drew a guessed one that the real one then replaced.
+ *
+ * The office and role, nothing else; it goes when the session does.
+ */
+const SESSION_HINT = "bn-session-hint";
+
+export function sessionHint(): { office: string; role: string } | null {
+  try {
+    const raw = localStorage.getItem(SESSION_HINT);
+    if (!raw) return null;
+    const [office, role] = raw.split("|");
+
+    return { office, role };
+  } catch {
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
+  /* Whose form drafts may be read and written — nobody's, signed out. */
+  useEffect(() => {
+    setDraftOwner(user?.id ?? null);
+  }, [user]);
+
+  /* Kept in step with the session; see sessionHint. */
+  useEffect(() => {
+    try {
+      if (user) localStorage.setItem(SESSION_HINT, `${user.office}|${user.role}`);
+      else if (!loading) localStorage.removeItem(SESSION_HINT);
+    } catch {
+      /* No storage: the dashboard skeleton is the Main Office's until the
+         session answers. */
+    }
+  }, [user, loading]);
 
   useEffect(() => {
     const verify = async () => {
@@ -215,6 +253,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    /* First, before the server is even asked: the next person at this desk
+       must not see this office's dashboard skeleton. */
+    try {
+      localStorage.removeItem(SESSION_HINT);
+      /* And this account's conversation with the chatbot, kept for a day
+         (features/chat/lib/chatLog.ts): not for the next person to read. */
+      localStorage.removeItem("bn-chat-log");
+    } catch {
+      /* No storage: nothing was kept. */
+    }
     try {
       await authApi.logout();
     } catch {

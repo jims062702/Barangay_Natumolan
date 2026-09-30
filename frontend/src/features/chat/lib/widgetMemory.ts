@@ -44,3 +44,62 @@ export function senderId(): string {
 
 /** The live conversation survives a page reload; a closed one is forgotten. */
 export const LIVE_KEY = "bn-chat-live-token";
+
+/** "1" when the panel was made bigger — a setting, nothing said in it. */
+export const EXPANDED_KEY = "bn-chat-expanded";
+
+/**
+ * "Open the chat again when I get back." Set by Login as Resident, read
+ * once by the widget on the page the sign-in lands on.
+ *
+ * A flag and nothing more. The conversation is not carried across a sign-in:
+ * what a guest said is kept as the guest's (lib/chatLog.ts), and the account
+ * starts its own.
+ */
+export const REOPEN_KEY = "bn-chat-reopen";
+
+/** Reads the flag and clears it, so it opens the chat exactly once. */
+export function takeReopen(): boolean {
+  const set = remembered(REOPEN_KEY) === "1";
+  if (set) remember(REOPEN_KEY, null);
+
+  return set;
+}
+
+/**
+ * The suggested question a guest pressed after their limit, to answer once
+ * they have signed in as a resident.
+ *
+ * Only ever a SUGGESTION — a button the chatbot offered, like "Office
+ * hours". The box is closed at the limit, so nothing the person typed can
+ * end up here. Kept half an hour: a question pressed yesterday is not what
+ * somebody signing in today came to ask.
+ */
+const PENDING_KEY = "bn-chat-pending";
+const PENDING_FOR_MS = 30 * 60 * 1000;
+
+export interface PendingQuestion {
+  question: string;
+  display: string;
+}
+
+export function rememberPending(pending: PendingQuestion): void {
+  remember(PENDING_KEY, JSON.stringify({ ...pending, at: Date.now() }));
+}
+
+/** Reads the question and clears it, so it is asked exactly once. */
+export function takePending(): PendingQuestion | null {
+  const raw = remembered(PENDING_KEY);
+  if (!raw) return null;
+  remember(PENDING_KEY, null);
+
+  try {
+    const p = JSON.parse(raw) as Partial<PendingQuestion> & { at?: number };
+    if (typeof p.question !== "string" || typeof p.display !== "string") return null;
+    if (!p.at || Date.now() - p.at > PENDING_FOR_MS) return null;
+
+    return { question: p.question, display: p.display };
+  } catch {
+    return null;
+  }
+}

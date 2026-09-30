@@ -3,6 +3,8 @@
 namespace App\Services\Lupon;
 
 use App\Models\Lupon\Settlement;
+use App\Support\ManilaTime;
+use Carbon\Carbon;
 
 /**
  * The compliance/execution state machine, shared by the per-case screen
@@ -30,7 +32,16 @@ final class SettlementActions
                 $settlement->update(['status' => 'Final']);
                 break;
             case 'repudiate':
-                if (today()->gt($settlement->repudiation_deadline)) {
+                /*
+                 * MANILA'S DATE DECIDES, not the app's.
+                 *
+                 * `app.timezone` is UTC and runs eight hours behind the
+                 * hall, so between midnight and 8am Manila this read
+                 * yesterday — and a settlement whose ten days had lapsed
+                 * could still be repudiated that morning. The window the
+                 * KP law gives is counted in the barangay's own days.
+                 */
+                if (Carbon::parse(ManilaTime::today())->gt($settlement->repudiation_deadline)) {
                     throw new SettlementActionRefused('Repudiation period has lapsed — settlement is final');
                 }
                 $settlement->update(['status' => 'Repudiated']);

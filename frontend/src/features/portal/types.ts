@@ -72,7 +72,7 @@ export interface CertificateService {
   certificate_type: string;
   /*
    * Null where the ordinance prices by purpose rather than by document.
-   * A Barangay Clearance is ₱20 for a filing fee and ₱200 for a Mayor's
+   * A Barangay Clearance is ₱30 for local employment and ₱200 for a Mayor's
    * Permit, so there is no one number to quote — and quoting one would be
    * telling most residents the wrong amount before they walk over.
    */

@@ -57,17 +57,46 @@ class RequestController extends PortalController
     {
         $validated = $request->validated();
 
-        $serviceRequest = ServiceRequest::create([
-            'request_number' => ServiceRequest::nextNumber(),
-            'resident_id' => $this->residentId(),
+        /*
+         * One certificate (the chat widget's form) or several asked for in
+         * one visit. Several share a transaction code, and are made together
+         * or not at all — half a request is one the resident would send
+         * again, and the half that went through would then be there twice.
+         */
+        $several = isset($validated['items']);
+        $items = $several ? $validated['items'] : [[
             'service_type' => $validated['service_type'],
-            'office' => $validated['office'] ?? 'Main Office',
-            'request_type' => 'Online',
-            'status' => 'Pending',
-            'purpose' => $certificates->asksPurpose($validated['service_type']) ? ($validated['purpose'] ?? null) : null,
-        ]);
+            'purpose' => $validated['purpose'] ?? null,
+            'template_fields' => $validated['template_fields'] ?? [],
+        ]];
+        $code = count($items) > 1 ? ServiceRequest::newTransactionCode() : null;
 
-        $certificate = $certificates->raise($serviceRequest, $validated['template_fields'] ?? []);
+        [$requests, $raised] = DB::transaction(function () use ($items, $validated, $code, $certificates) {
+            $requests = [];
+            $raised = [];
+
+            foreach ($items as $item) {
+                $serviceRequest = ServiceRequest::create([
+                    'request_number' => ServiceRequest::nextNumber(),
+                    'transaction_code' => $code,
+                    'resident_id' => $this->residentId(),
+                    'service_type' => $item['service_type'],
+                    'office' => $validated['office'] ?? 'Main Office',
+                    'request_type' => 'Online',
+                    'status' => 'Pending',
+                    'purpose' => $certificates->asksPurpose($item['service_type']) ? ($item['purpose'] ?? null) : null,
+                ]);
+
+                $requests[] = $serviceRequest;
+                $raised[] = $certificates->raise($serviceRequest, $item['template_fields'] ?? []);
+            }
+
+            return [$requests, $raised];
+        });
+
+        $serviceRequest = $requests[0];
+        $certificate = $raised[0];
+        $what = collect($requests)->pluck('service_type')->implode(', ');
 
         /*
          * If it came from a live conversation, say so in the conversation.
@@ -82,25 +111,44 @@ class RequestController extends PortalController
 
             $conversation?->addMessage(
                 'system',
-                'Request ' . $serviceRequest->request_number . ' — '
-                    . $serviceRequest->service_type . ' — was raised from this chat.'
+                'Request ' . collect($requests)->pluck('request_number')->implode(', ') . ' — '
+                    . $what . ' — was raised from this chat.'
             );
         }
 
         // Ping the front desk so the clerk sees (and hears) the new request.
         $residentName = $serviceRequest->resident?->full_name ?? 'A resident';
+        /* One ping for one visit, however many certificates it asks for. */
         Notification::notifyFrontDesk(
             'new_request',
-            'New online request: ' . $serviceRequest->service_type,
-            $residentName . ' submitted a ' . $serviceRequest->service_type
-                . ' request (' . $serviceRequest->request_number . '). Purpose: ' . $serviceRequest->purpose,
+            count($requests) > 1
+                ? 'New online request: ' . count($requests) . ' certificates'
+                : 'New online request: ' . $serviceRequest->service_type,
+            count($requests) > 1
+                ? $residentName . ' asked for ' . $what . ' in one request (' . $code . ': '
+                    . collect($requests)->pluck('request_number')->implode(', ') . ').'
+                : $residentName . ' submitted a ' . $what
+                    . ' request (' . $serviceRequest->request_number . '). Purpose: ' . $serviceRequest->purpose,
             $certificate ? 'certificate' : 'service_request',
             $certificate?->id ?? $serviceRequest->id
         );
 
-        $serviceRequest->load('certificate');
+        foreach ($requests as $r) {
+            $r->load('certificate');
+        }
 
-        return $this->success($serviceRequest, 'Request submitted — you will be notified of updates', 201);
+        /* The one-certificate form keeps the answer it always had. */
+        if (! $several) {
+            return $this->success($serviceRequest, 'Request submitted — you will be notified of updates', 201);
+        }
+
+        return $this->success(
+            ['transaction_code' => $code, 'requests' => $requests],
+            count($requests) > 1
+                ? count($requests) . ' certificates requested together — you will be notified of updates'
+                : 'Request submitted — you will be notified of updates',
+            201
+        );
     }
 
     public function show(ServiceRequest $serviceRequest)

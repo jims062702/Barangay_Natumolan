@@ -1,16 +1,17 @@
-import { Suspense, type ComponentProps } from "react";
+import { Fragment, Suspense, type ComponentProps, type ReactNode } from "react";
 import {
-  AppShellSkeleton,
   LoginSkeleton,
   PublicPageSkeleton,
 } from "../shared/ui/Skeleton";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from "react-router-dom";
+import { censusFormKey } from "../features/rbim/lib/formKey";
 import { AuthProvider } from "../shared/auth/AuthContext";
 import ProtectedRoute from "./ProtectedRoute";
 import FormValidationStyler from "./FormValidationStyler";
 import IdleSignOut from "../features/account/components/IdleSignOut";
 import ErrorBoundary from "./ErrorBoundary";
 import NotFound from "./NotFound";
+import MovedTo from "./MovedTo";
 import MainLayout from "./layouts/MainLayout";
 
 // The public landing page loads eagerly — it is what most residents open.
@@ -19,14 +20,30 @@ import { lazyRoute } from "./lazyRoute";
 
 // Everything else is lazy-loaded (code-split): visitors download only the
 // code for the page they open, which keeps the public site small and fast.
-const DashboardLayout = lazyRoute(() => import("./layouts/DashboardLayout"));
+/*
+ * NOT lazily loaded, deliberately.
+ *
+ * Every signed-in page in this system is inside this layout, so splitting
+ * it off bought nothing and cost a whole extra waiting stage: the session
+ * resolved behind a drawn shell, then the LAYOUT was fetched behind the
+ * same drawn shell, and only then did the real sidebar appear. A hard
+ * reload showed two different skeletons one after the other, which is what
+ * the office reported — and the second wait was for 22 KB that every one
+ * of these pages needs anyway.
+ */
+import DashboardLayout from "./layouts/DashboardLayout";
 const LoginPage = lazyRoute(() => import("../features/account/pages/LoginPage"));
 const VerifyCertificate = lazyRoute(() => import("../features/public/pages/VerifyCertificate"));
+const VerifyResidentId = lazyRoute(() => import("../features/public/pages/VerifyResidentId"));
+const ReportVawc = lazyRoute(() => import("../features/public/pages/ReportVawc"));
+const RequestCertificate = lazyRoute(() => import("../features/public/pages/RequestCertificate"));
+const FileComplaint = lazyRoute(() => import("../features/public/pages/FileComplaint"));
 const NewsDetail = lazyRoute(() => import("../features/public/pages/NewsDetail"));
 
 // Office dashboards
 const Dashboard = lazyRoute(() => import("../features/dashboard/pages/Dashboard"));
 const ConsolidatedReport = lazyRoute(() => import("../features/dashboard/pages/ConsolidatedReport"));
+const OfficeReport = lazyRoute(() => import("../features/dashboard/pages/OfficeReport"));
 
 // Resident portal
 const PortalDashboard = lazyRoute(() => import("../features/portal/pages/Dashboard"));
@@ -36,6 +53,8 @@ const PortalProfile = lazyRoute(() => import("../features/portal/pages/Profile")
 
 // Shared core (staff)
 const LuponRecords = lazyRoute(() => import("../features/portal/pages/LuponRecords"));
+const PortalFileComplaint = lazyRoute(() => import("../features/portal/pages/FileComplaint"));
+const PortalVawcReport = lazyRoute(() => import("../features/portal/pages/VawcReport"));
 const PortalHealthRecords = lazyRoute(() => import("../features/portal/pages/HealthRecords"));
 const ResidentList = lazyRoute(() => import("../features/resident/pages/ResidentList"));
 const ResidentCreate = lazyRoute(() => import("../features/resident/pages/ResidentCreate"));
@@ -52,26 +71,33 @@ const VawcCasesList = lazyRoute(() => import("../features/vawc/pages/CaseList"))
 const VawcCaseDetail = lazyRoute(() => import("../features/vawc/pages/CaseDetail"));
 const VawcDocuments = lazyRoute(() => import("../features/vawc/pages/Documents"));
 const VawcReports = lazyRoute(() => import("../features/vawc/pages/Reports"));
+const VawcOnlineReports = lazyRoute(() => import("../features/vawc/pages/OnlineReports"));
 
 // Lupon Tagapamayapa
 const LuponCasesList = lazyRoute(() => import("../features/lupon/pages/CaseList"));
 const LuponCaseDetail = lazyRoute(() => import("../features/lupon/pages/CaseDetail"));
 const LuponHearings = lazyRoute(() => import("../features/lupon/pages/Hearings"));
+const LuponHearingCalendar = lazyRoute(() => import("../features/lupon/pages/HearingCalendar"));
+const LuponHearingSession = lazyRoute(() => import("../features/lupon/pages/HearingSession"));
 const LuponSettlements = lazyRoute(() => import("../features/lupon/pages/Settlements"));
 const LuponReports = lazyRoute(() => import("../features/lupon/pages/Reports"));
+const LuponOnlineComplaints = lazyRoute(() => import("../features/lupon/pages/OnlineComplaints"));
 
 // Population Office
 const HouseholdList = lazyRoute(() => import("../features/population/pages/HouseholdList"));
 const CensusForm = lazyRoute(() => import("../features/rbim/pages/CensusForm"));
 const RecordsVerification = lazyRoute(() => import("../features/population/pages/RecordsVerification"));
 const SectorLists = lazyRoute(() => import("../features/population/pages/SectorLists"));
-const Zones = lazyRoute(() => import("../features/population/pages/Zones"));
 const ResidentAccounts = lazyRoute(() => import("../features/population/pages/ResidentAccounts"));
 
 // Health Station
 const PatientVisits = lazyRoute(() => import("../features/health/pages/PatientVisits"));
 const Immunization = lazyRoute(() => import("../features/health/pages/Immunization"));
-const MaternalChild = lazyRoute(() => import("../features/health/pages/MaternalChild"));
+const ChildHealth = lazyRoute(() => import("../features/health/pages/ChildHealth"));
+const MaternalHealth = lazyRoute(() => import("../features/health/pages/MaternalHealth"));
+const MotherRecord = lazyRoute(() => import("../features/health/pages/MotherRecord"));
+const PrenatalRecords = lazyRoute(() => import("../features/health/pages/PrenatalRecords"));
+const HealthReports = lazyRoute(() => import("../features/health/pages/HealthReports"));
 
 // Sangguniang Kabataan (landing content)
 const HeroSlides = lazyRoute(() => import("../features/content/pages/HeroSlides"));
@@ -93,26 +119,54 @@ function PageLoader() {
   return <PublicPageSkeleton />;
 }
 
-/**
- * The dashboard shell, with the skeleton that matches it.
+/*
+ * There is no Shell() boundary any more.
  *
- * Its own boundary, so the app shell is shown for the pages that HAVE an app
- * shell and for nothing else. One Suspense over the whole router put a
- * sidebar and a row of stat tiles in front of the sign-in page.
+ * It existed to wait for the layout chunk, which is no longer a chunk. The
+ * page inside the layout still waits behind its own Suspense (see
+ * DashboardLayout), and that one draws the shape of the page being opened
+ * inside the REAL sidebar — so the chrome no longer swaps halfway through.
  */
-function Shell() {
-  return (
-    <Suspense fallback={<AppShellSkeleton />}>
-      <DashboardLayout />
-    </Suspense>
-  );
+
+/**
+ * A page opened by id is a new page for each id.
+ *
+ * Without it, following a link from one resident to another — a parent, a
+ * spouse — kept the first one's page on screen while the second loaded,
+ * because the route and the component were the same. Keyed on the id, the
+ * second opens as itself: its own skeleton, then its own record.
+ */
+function ByRecord({ children }: { children: ReactNode }) {
+  const { id } = useParams();
+
+  return <Fragment key={id}>{children}</Fragment>;
+}
+
+/**
+ * A census form, opened by id — and a NEW census form that has just saved
+ * its first draft, which moves to that draft's address WITHOUT reopening.
+ *
+ * The form saves itself as a draft (useCensusSubmit). A brand-new sheet has
+ * no id until the first save, and moving from /population/rbim/new to
+ * /population/rbim/12 used to reopen the page from scratch — which is how
+ * the first press of Preview form saved the draft and then showed nothing.
+ * The form carries its own key across that one move (censusFormKey in the
+ * navigation state), so the office keeps typing in the same page; any other
+ * arrival — another draft, a fresh /new — opens as itself.
+ */
+function CensusRecord({ children }: { children: ReactNode }) {
+  const { id } = useParams();
+  const location = useLocation();
+  const carried = (location.state as { censusFormKey?: string } | null)?.censusFormKey;
+
+  return <Fragment key={censusFormKey(id, location.key, carried)}>{children}</Fragment>;
 }
 
 /** Who may open a part of the app, with the dashboard shell around it. */
 function Guarded(props: Omit<ComponentProps<typeof ProtectedRoute>, "children">) {
   return (
     <ProtectedRoute {...props}>
-      <Shell />
+      <DashboardLayout />
     </ProtectedRoute>
   );
 }
@@ -142,6 +196,23 @@ export default function App() {
             }
           />
           <Route path="/verify" element={<VerifyCertificate />} />
+          {/* Where a Barangay Resident ID's QR leads. */}
+          <Route path="/id/:code" element={<VerifyResidentId />} />
+          {/* VAWC Online Complaint — residents only, about a resident (2026-09-29). */}
+          <Route path="/vawc-complaint" element={<ReportVawc />} />
+          {/* Online Certificate Request — residents only, by their Resident ID, no account needed. */}
+          <Route path="/request-certificate" element={<RequestCertificate />} />
+          {/* Its first address, still arriving from links already sent. */}
+          <Route path="/report-vawc" element={<Navigate to="/vawc-complaint" replace />} />
+          {/*
+            Beginning a KP complaint without signing in.
+
+            Its own address rather than a section of the landing page: it
+            is a long form with an upload on it, somebody may be sent the
+            link by the office, and a complaint half-typed should survive
+            a scroll. It files nothing — see the page.
+          */}
+          <Route path="/file-complaint" element={<FileComplaint />} />
 
           {/* Resident portal */}
           <Route path="/resident" element={<Guarded residentOnly />}>
@@ -163,13 +234,18 @@ export default function App() {
               sidebar child lands somewhere real — and a resident can bookmark
               "cases against me" rather than a tab state.
             */}
-            <Route path="lupon" element={<LuponRecords />} />
-            <Route path="lupon/filed" element={<LuponRecords />} />
-            <Route path="lupon/against-me" element={<LuponRecords />} />
-            <Route path="lupon/hearings" element={<LuponRecords />} />
-            <Route path="lupon/history" element={<LuponRecords />} />
+            <Route path="lupon" element={<LuponRecords key="lupon" />} />
+            <Route path="lupon/filed" element={<LuponRecords key="filed" />} />
+            <Route path="lupon/against-me" element={<LuponRecords key="against-me" />} />
+            <Route path="lupon/hearings" element={<LuponRecords key="hearings" />} />
+            <Route path="lupon/history" element={<LuponRecords key="history" />} />
             {/* The address the old single list lived at. */}
             <Route path="lupon/cases" element={<Navigate to="/resident/lupon/filed" replace />} />
+            {/* Filing one, and the reference numbers it gives back. Not
+                under lupon/ with the cases: a complaint begun here is not
+                a case, and the sidebar should not imply it is. */}
+            <Route path="file-complaint" element={<PortalFileComplaint />} />
+            <Route path="vawc-report" element={<PortalVawcReport />} />
             {/* Read only — the page says so, and the API offers no writer. */}
             <Route path="health" element={<PortalHealthRecords />} />
             <Route path="announcements" element={<PortalAnnouncements />} />
@@ -199,7 +275,7 @@ export default function App() {
               unreliable. `*` carries the rest of the path across, so a link
               to a particular person still lands on that person.
             */}
-            <Route path="/residents/*" element={<Navigate to="/population/residents" replace />} />
+            <Route path="/residents/*" element={<MovedTo to="/population/residents" />} />
             <Route path="/population/residents" element={<ResidentList />} />
             {/* Their own list: relatives who live elsewhere are on the
                 register but are not constituents, and mixing them into
@@ -212,11 +288,11 @@ export default function App() {
               whichever of the two it belongs on, so however you arrive, the
               address ends up true.
             */}
-            <Route path="/population/residents/non-residents/:id" element={<ResidentDetail />} />
-            <Route path="/population/residents/non-residents/:id/edit" element={<ResidentEdit />} />
+            <Route path="/population/residents/non-residents/:id" element={<ByRecord><ResidentDetail /></ByRecord>} />
+            <Route path="/population/residents/non-residents/:id/edit" element={<ByRecord><ResidentEdit /></ByRecord>} />
             <Route path="/population/residents/create" element={<ResidentCreate />} />
-            <Route path="/population/residents/:id" element={<ResidentDetail />} />
-            <Route path="/population/residents/:id/edit" element={<ResidentEdit />} />
+            <Route path="/population/residents/:id" element={<ByRecord><ResidentDetail /></ByRecord>} />
+            <Route path="/population/residents/:id/edit" element={<ByRecord><ResidentEdit /></ByRecord>} />
           </Route>
 
           {/* Counter verification — "is this person registered, and do they
@@ -245,28 +321,36 @@ export default function App() {
           </Route>
 
           {/*
-            The consolidated return, SEGREGATED BY DEPARTMENT.
-
-            Its own guard because it is not the Main Office's alone any more:
-            each desk reads its OWN section, and the VAWC desk in particular
-            has a return to file that it was transcribing off its screens by
-            hand. WHICH section a desk gets is decided by the server from the
-            office it signed in as — widening this gate widens nothing else.
-
-            The Clerk stays out: certificates are their work, and a
-            consolidated return is not a document for the counter.
+            The consolidated return — the Secretary's and the Punong
+            Barangay's, gathering every office. No desk opens it: each keeps a
+            report of its own. The Clerk is Main Office too, so is turned away
+            by role.
           */}
           <Route
             element={
               <Guarded
                 staffOnly
-                allowedOffices={["Main Office", "VAWC", "Lupon", "Health Station"]}
+                allowedOffices={["Main Office"]}
                 allowedRoles={["Punong Barangay"]}
                 deniedRoles={["Clerk"]}
               />
             }
           >
             <Route path="/reports/consolidated" element={<ConsolidatedReport />} />
+          </Route>
+
+          {/*
+            An office's OWN report, for the two that had none. Same page for
+            both; which office's figures it shows is decided by the server
+            from the account signed in, not by the address.
+          */}
+          <Route element={<Guarded staffOnly allowedOffices={["Health Station"]} />}>
+            {/* The station summary, and the record books' monthly and
+                yearly reports — chosen with one filter. */}
+            <Route path="/health/reports" element={<HealthReports />} />
+          </Route>
+          <Route element={<Guarded staffOnly allowedOffices={["Population"]} />}>
+            <Route path="/population/reports" element={<OfficeReport />} />
           </Route>
 
           {/* Certificates & clearances — the clerk runs the counter end to
@@ -288,15 +372,19 @@ export default function App() {
           {/* VAWC Office — isolated */}
           <Route element={<Guarded staffOnly allowedOffices={["VAWC"]} />}>
             <Route path="/vawc/cases" element={<VawcCasesList />} />
-            <Route path="/vawc/cases/:id" element={<VawcCaseDetail />} />
+            <Route path="/vawc/cases/:id" element={<ByRecord><VawcCaseDetail /></ByRecord>} />
             <Route path="/vawc/documents" element={<VawcDocuments />} />
             <Route path="/vawc/reports" element={<VawcReports />} />
+            <Route path="/vawc/online-reports" element={<VawcOnlineReports />} />
           </Route>
 
           {/* Lupon — Lupon office + Punong Barangay */}
           <Route element={<Guarded staffOnly allowedOffices={["Lupon"]} allowedRoles={["Punong Barangay"]} />}>
             <Route path="/lupon/cases" element={<LuponCasesList />} />
-            <Route path="/lupon/cases/:id" element={<LuponCaseDetail />} />
+            {/* The queue in front of the docket. Same guard, because
+                accepting one of these IS filing a case. */}
+            <Route path="/lupon/online-complaints" element={<LuponOnlineComplaints />} />
+            <Route path="/lupon/cases/:id" element={<ByRecord><LuponCaseDetail /></ByRecord>} />
             <Route path="/lupon/settlements" element={<LuponSettlements />} />
             <Route path="/lupon/reports" element={<LuponReports />} />
           </Route>
@@ -309,7 +397,27 @@ export default function App() {
             which is why this is its own guard rather than a wider Lupon one.
           */}
           <Route element={<Guarded staffOnly allowedOffices={["Lupon", "Main Office"]} allowedRoles={["Punong Barangay"]} deniedRoles={["Clerk"]} />}>
-            <Route path="/lupon/hearings" element={<LuponHearings />} />
+            <Route path="/lupon/hearings" element={<LuponHearings key="all" />} />
+            {/* What has been forwarded to this desk and has no sitting yet.
+                Its own address because it is the first thing the Secretary
+                and the Lupon open: the work somebody handed them. */}
+            <Route path="/lupon/hearings/for-summons" element={<LuponHearings key="for-summons" section="for-summons" />} />
+            {/* Ahead and behind. These were a dropdown on the page — state,
+                not places — so neither could be linked to and both reported
+                the same address as today's list. */}
+            {/* The Punong Barangay's month, read-only. They preside and
+                record nothing, so a table of buttons they may not press is
+                the wrong shape; the Lupon watches the same screen. */}
+            <Route path="/lupon/hearings/calendar" element={<LuponHearingCalendar />} />
+            <Route path="/lupon/hearings/upcoming" element={<LuponHearings key="upcoming" section="upcoming" />} />
+            <Route path="/lupon/hearings/past" element={<LuponHearings key="past" section="past" />} />
+            {/* The two registers the room keeps beside the calendar. Their
+                own addresses, because the office is asked to produce them
+                months later and a link is how they are found again. */}
+            <Route path="/lupon/hearings/cancelled" element={<LuponHearings key="cancelled" section="cancelled" />} />
+            <Route path="/lupon/hearings/cfa" element={<LuponHearings key="cfa" section="cfa" />} />
+            {/* The sitting itself: minutes taken with the parties present. */}
+            <Route path="/lupon/hearings/:id/session" element={<ByRecord><LuponHearingSession /></ByRecord>} />
           </Route>
 
           {/* Population Office */}
@@ -318,22 +426,44 @@ export default function App() {
             {/* The census list lives on the Households page now. The old
                 address still works, so a bookmark or an old link lands
                 where the list actually is. */}
-            <Route path="/population/rbim" element={<Navigate to="/population/households" replace />} />
-            <Route path="/population/rbim/new" element={<CensusForm />} />
-            <Route path="/population/rbim/:id" element={<CensusForm />} />
+            <Route path="/population/rbim" element={<Navigate to="/population/residents" replace />} />
+            <Route path="/population/rbim/new" element={<CensusRecord><CensusForm /></CensusRecord>} />
+            <Route path="/population/rbim/:id" element={<CensusRecord><CensusForm /></CensusRecord>} />
             <Route path="/population/sectors" element={<SectorLists />} />
-            <Route path="/population/accounts" element={<ResidentAccounts />} />
+            {/* People who filed online as residents and are not on the
+                register. Nothing here is a resident record — the census
+                is still the only route onto the register. */}
+            {/* The two lists the sidebar opens into; the bare address — on the
+                dashboard and in older links — lands on the one to work. */}
+            <Route path="/population/accounts" element={<Navigate to="/population/accounts/not-activated" replace />} />
+            <Route path="/population/accounts/not-activated" element={<ResidentAccounts key="pending" activation="pending" />} />
+            <Route path="/population/accounts/activated" element={<ResidentAccounts key="done" activation="done" />} />
           </Route>
 
           {/* Health Station — isolated */}
           <Route element={<Guarded staffOnly allowedOffices={["Health Station"]} />}>
             <Route path="/health/visits" element={<PatientVisits />} />
             <Route path="/health/immunization" element={<Immunization />} />
-            <Route path="/health/maternal-child" element={<MaternalChild />} />
-            {/* The barangay's zones and the BHW covering each. The station's
-                own staff are the BHWs, so the station keeps the list; every
-                office still READS it through /zones. */}
-            <Route path="/health/zones" element={<Zones />} />
+            {/*
+              The three record books. "Maternal & Child" was one page keeping
+              one record per mother and one per child; its address still lands
+              somewhere useful, and so do the short-lived /records and
+              per-book report addresses.
+            */}
+            <Route path="/health/maternal-child" element={<Navigate to="/health/child-health" replace />} />
+            <Route path="/health/child-health" element={<ChildHealth />} />
+            <Route path="/health/maternal" element={<MaternalHealth />} />
+            <Route path="/health/maternal/pregnancy/:id" element={<ByRecord><MotherRecord /></ByRecord>} />
+            <Route path="/health/prenatal" element={<PrenatalRecords />} />
+            <Route path="/health/child-health/records" element={<Navigate to="/health/child-health" replace />} />
+            <Route path="/health/maternal/records" element={<Navigate to="/health/maternal" replace />} />
+            <Route path="/health/prenatal/records" element={<Navigate to="/health/prenatal" replace />} />
+            <Route path="/health/child-health/reports/monthly" element={<Navigate to="/health/reports?report=child&period=monthly" replace />} />
+            <Route path="/health/child-health/reports/yearly" element={<Navigate to="/health/reports?report=child&period=yearly" replace />} />
+            <Route path="/health/maternal/reports/monthly" element={<Navigate to="/health/reports?report=maternal&period=monthly" replace />} />
+            <Route path="/health/maternal/reports/yearly" element={<Navigate to="/health/reports?report=maternal&period=yearly" replace />} />
+            <Route path="/health/prenatal/reports/monthly" element={<Navigate to="/health/reports?report=prenatal&period=monthly" replace />} />
+            <Route path="/health/prenatal/reports/yearly" element={<Navigate to="/health/reports?report=prenatal&period=yearly" replace />} />
           </Route>
 
           {/* Sangguniang Kabataan — manages public landing content */}
@@ -351,10 +481,10 @@ export default function App() {
 
           {/* System administration */}
           <Route element={<Guarded staffOnly allowedRoles={["Admin"]} />}>
-            <Route path="/admin/users" element={<UserManagement />} />
+            <Route path="/admin/users" element={<UserManagement key="staff" />} />
             {/* The same register, asked a different question. Its own address
                 so it can be linked to, bookmarked and put in the sidebar. */}
-            <Route path="/admin/residents" element={<UserManagement kind="resident" />} />
+            <Route path="/admin/residents" element={<UserManagement key="resident" kind="resident" />} />
             {/* Register entries, not accounts — see the page for why. */}
             <Route path="/admin/non-residents" element={<NonResidents />} />
           </Route>

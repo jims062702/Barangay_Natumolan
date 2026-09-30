@@ -123,7 +123,7 @@ export function OtherParentFields({ ctx, parent, patch }: {
               <option value="Male">Male</option>
             </select>
           </FormField>
-          <FormField label="Contact number">
+          <FormField label="Contact Number">
             <input
               value={parent.contact_number}
               onChange={(e) => patch({ contact_number: e.target.value })}

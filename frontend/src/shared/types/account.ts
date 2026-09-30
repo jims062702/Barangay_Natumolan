@@ -29,4 +29,6 @@ export interface AppNotification {
   message: string;
   is_read: boolean;
   created_at: string;
+  /** The page the notice is about — the bell opens it. Null: it leads nowhere. */
+  link?: string | null;
 }

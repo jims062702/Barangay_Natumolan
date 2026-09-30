@@ -163,7 +163,7 @@ export function EntryParents({ ctx, index, entry, resident }: {
                 className={inputClasses}
               />
             </FormField>
-            <FormField label="Phone number" hint="Philippine mobile — 10 digits after +63">
+            <FormField label="Contact Number" hint="Philippine mobile — 10 digits after +63">
               <PhoneInput
                 value={entry.outsideParent.contact_number}
                 onChange={(v) =>

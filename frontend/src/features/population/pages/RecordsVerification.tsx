@@ -256,7 +256,7 @@ export default function RecordsVerification() {
           <SearchInput
             value={query}
             onChange={setQuery}
-            placeholder="Search by name or resident number…"
+            placeholder="Search by Name or Resident Number…"
             label="Search the registry"
             autoFocus
           />
@@ -320,7 +320,7 @@ export default function RecordsVerification() {
               <>
                 Issue one from{" "}
                 <Link
-                  to="/population/accounts"
+                  to="/population/accounts/not-activated"
                   className="font-semibold text-primary hover:underline"
                 >
                   Portal Accounts

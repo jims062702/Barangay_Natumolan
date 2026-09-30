@@ -2,13 +2,15 @@
 
 namespace App\Models\Lupon;
 
+use App\Services\Lupon\FilingFeeDeadlines;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use App\Models\Account\User;
 use App\Models\Resident\Resident;
-use App\Support\SequenceNumber;
+use App\Services\Lupon\PartyNotice;
+use Illuminate\Support\Facades\DB;
 
 class CaseFile extends Model
 {
@@ -30,6 +32,45 @@ class CaseFile extends Model
         'luponCase.respondents:id,first_name,middle_name,last_name',
     ];
 
+    /**
+     * A change of stage reaches the parties' bells.
+     *
+     * On the model rather than in each controller: six different screens
+     * move a case between stages (mediation recorded, settled at a sitting,
+     * sent to conciliation, a settlement recorded or repudiated…), and a
+     * notice written into five of them is a party left uninformed by the
+     * sixth. PartyNotice decides what, if anything, is said — nothing before
+     * the summons is served, and never anything about a referral.
+     */
+    protected static function booted(): void
+    {
+        /*
+         * Filed means the filing fee is owed from now, and the three calendar
+         * days start — see FilingFeeDeadlines. Every way a case is filed (the
+         * counter, an online complaint accepted) comes through here.
+         */
+        static::creating(function (CaseFile $case) {
+            if (($case->current_stage ?? 'Filed') === 'Filed' && $case->payment_status === null) {
+                $case->payment_status = FilingFeeDeadlines::UNPAID;
+                $case->payment_required_at = now();
+                $case->payment_due_at = FilingFeeDeadlines::dueFrom(now());
+            }
+        });
+
+        static::created(function (CaseFile $case) {
+            if ($case->payment_status === FilingFeeDeadlines::UNPAID) {
+                FilingFeeDeadlines::record($case, 'fee_required', 'Filing fee required; pay by '
+                    . FilingFeeDeadlines::dueWords($case->payment_due_at) . ' (end of day), or the case closes unpaid.');
+            }
+        });
+
+        static::updated(function (CaseFile $case) {
+            if ($case->wasChanged('current_stage')) {
+                app(PartyNotice::class)->stageChanged($case);
+            }
+        });
+    }
+
     protected $fillable = [
         'case_number',
         'case_title',
@@ -45,8 +86,18 @@ class CaseFile extends Model
         'current_stage',
         'date_filed',
         'date_resolved',
+        /* Why it was withdrawn, or what the certification to court rests on.
+           Left off this list it was silently dropped, and the register kept
+           "Withdrawn" with no sentence beside it. */
+        'closure_reason',
         'notes',
         'assigned_lupon_secretary',
+        /* The filing fee's own state and its three days — apart from the
+           stage on purpose. See FilingFeeDeadlines. */
+        'payment_status',
+        'payment_required_at',
+        'payment_due_at',
+        'auto_closed_at',
     ];
 
     protected function casts(): array
@@ -54,6 +105,9 @@ class CaseFile extends Model
         return [
             'date_filed' => 'date',
             'date_resolved' => 'date',
+            'payment_required_at' => 'datetime',
+            'payment_due_at' => 'datetime',
+            'auto_closed_at' => 'datetime',
         ];
     }
 
@@ -119,10 +173,13 @@ class CaseFile extends Model
         return $this->complainant_address;
     }
 
-    /** How the office reaches them. */
+    /**
+     * How the office reaches them: the number given for THIS case first (an
+     * online complaint carries the one they typed), then their record's.
+     */
     public function getComplainantDisplayContactAttribute(): ?string
     {
-        return $this->complainant?->contact_number ?: $this->complainant_contact;
+        return $this->complainant_contact ?: $this->complainant?->contact_number;
     }
 
     /**
@@ -164,6 +221,74 @@ class CaseFile extends Model
             ->withTimestamps();
     }
 
+    /**
+     * Cases whose summons has been PRINTED — the paper exists, so the
+     * parties may be told.
+     *
+     * The line between the Lupon's desk and the parties' portal. Until the
+     * Barangay Secretary prints the summons the case is the Lupon's
+     * paperwork: a respondent does not learn of a complaint from a phone
+     * notification before there is a summons to hand them.
+     *
+     * It used to be proof of SERVICE that opened the portal. The office
+     * asked for the notice to go with the printed summons instead — the
+     * paper and the notice leave the barangay together — and proof of
+     * service is still recorded on the hearing afterwards.
+     */
+    public function scopeSummonsIssued($query)
+    {
+        return $query->whereHas('hearings', fn ($h) => $h->where('summons_issued', true));
+    }
+
+    public function summonsWasIssued(): bool
+    {
+        return $this->hearings()->where('summons_issued', true)->exists();
+    }
+
+    public function summonsWasServed(): bool
+    {
+        return $this->hearings()->whereNotNull('summons_served_date')->exists();
+    }
+
+    /**
+     * Has a sitting before the Lupon been held and ended without agreement?
+     *
+     * What the Certificate to File Action rests on. A settled sitting does
+     * not count, and neither does one still to be held: the certificate
+     * states that the barangay's process was tried, and a court can refuse
+     * one that says so before the Lupon ever sat.
+     */
+    public function conciliationWasTried(): bool
+    {
+        return $this->hearings()
+            ->where('hearing_type', 'Conciliation')
+            ->where('status', 'Completed')
+            ->where(function ($q) {
+                $q->whereNull('outcome')->orWhere('outcome', '!=', 'Agreement');
+            })
+            ->exists();
+    }
+
+    /**
+     * NATURE OF THE CASE — the one list, for the counter, the online form
+     * and the docket alike. The case's title follows it (see StoreCaseRequest
+     * and OnlineComplaintController::accept), so the two never disagree.
+     */
+    public const NATURES = [
+        'Assault', 'Theft', 'Property Damage', 'Libel', 'Ejectment', 'Debt', 'Family Dispute', 'Land Dispute', 'Others',
+    ];
+
+    /** Closed by the system: the filing fee was not paid within its three days. */
+    public const CLOSED_UNPAID = 'Closed — Unpaid';
+
+    /** Ends: nothing more is scheduled, and the fee can no longer change. */
+    public const CLOSED_STAGES = ['Settled', 'Dismissed', 'Referred', 'CFA', 'Withdrawn', self::CLOSED_UNPAID];
+
+    public function isClosed(): bool
+    {
+        return in_array($this->current_stage, self::CLOSED_STAGES, true);
+    }
+
     /** Resident ids of every party — used to notify them of hearings. */
     public function partyResidentIds(): array
     {
@@ -175,10 +300,28 @@ class CaseFile extends Model
             ->all();
     }
 
-    /** KP-2026-0001 — one above the highest ever issued, never a row count. */
-    public static function nextCaseNumber(): string
+    /**
+     * 2026-08-08-01 — the Lupon's own numbering: the date the case was
+     * filed, then which case of THAT MONTH it is.
+     *
+     * The count starts again each month, and it is one above the highest
+     * already issued in the month — never a row count, for the reason
+     * SequenceNumber gives: a case removed must not hand its number to the
+     * next one. Two digits, as the office writes it; the hundredth case of a
+     * month simply gets three.
+     *
+     * @param string $dateFiled "Y-m-d", Manila's date
+     */
+    public static function nextCaseNumber(string $dateFiled): string
     {
-        return SequenceNumber::next('lupon_cases', 'case_number', 'KP-' . date('Y') . '-', 4);
+        $month = substr($dateFiled, 0, 7);
+
+        $highest = DB::table('lupon_cases')
+            ->where('case_number', 'like', $month . '-__-%')
+            ->selectRaw("MAX(CAST(SUBSTRING_INDEX(case_number, '-', -1) AS UNSIGNED)) AS highest")
+            ->value('highest');
+
+        return $dateFiled . '-' . str_pad((string) (((int) $highest) + 1), 2, '0', STR_PAD_LEFT);
     }
 
     public function assignedLuponSecretary(): BelongsTo

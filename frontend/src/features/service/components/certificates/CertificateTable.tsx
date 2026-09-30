@@ -1,7 +1,7 @@
 import { FiEye } from "react-icons/fi";
 import Card from "../../../../shared/ui/Card";
 import DataTable from "../../../../shared/ui/DataTable";
-import { personName } from "../../../../shared/lib/names";
+import { holderName, holderOf, isUnlisted } from "../../lib/holder";
 import StatusBadge from "../../../../shared/ui/StatusBadge";
 import RowAction, { RowActions } from "../../../../shared/ui/RowAction";
 import type { Certificate } from "../../../../shared/types";
@@ -46,7 +46,7 @@ export function CertificateTable({ ctx }: { ctx: CertificateDeskState }) {
       <DataTable
         columns={[
           {
-            header: "Certificate #",
+            header: "Certificate Number",
             render: (c: Certificate) => (
               <button
                 type="button"
@@ -77,11 +77,17 @@ export function CertificateTable({ ctx }: { ctx: CertificateDeskState }) {
             render: (c: Certificate) => (
               <div className="min-w-0">
                 <p className="font-medium text-dark">
-                  {c.resident ? personName(c.resident) : "—"}
+                  {holderName(c)}
+                  {/* Said on the row, so the BPO's list is where they end up. */}
+                  {isUnlisted(c) && (
+                    <span className="ml-1.5 rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                      Not yet listed
+                    </span>
+                  )}
                 </p>
-                {(c.resident?.zone_purok || c.resident?.contact_number) && (
+                {(holderOf(c)?.zone_purok || c.resident?.contact_number) && (
                   <p className="mt-0.5 text-[11px] text-gray-500">
-                    {[c.resident.zone_purok, c.resident.contact_number]
+                    {[holderOf(c)?.zone_purok, c.resident?.contact_number]
                       .filter(Boolean)
                       .join(" · ")}
                   </p>
@@ -89,7 +95,20 @@ export function CertificateTable({ ctx }: { ctx: CertificateDeskState }) {
               </div>
             ),
           },
-          { header: "Type", render: (c: Certificate) => c.certificate_type },
+          {
+            header: "Type",
+            render: (c: Certificate) => (
+              <span className="block">
+                <span>{c.certificate_type}</span>
+                {/* Asked for together with others — the same visit. */}
+                {(c.transaction_size ?? 0) > 1 && (
+                  <span className="mt-0.5 inline-block whitespace-nowrap rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-gray-600">
+                    1 of {c.transaction_size} in one transaction
+                  </span>
+                )}
+              </span>
+            ),
+          },
           {
             /*
               How it was asked for, on the list rather than a modal away.
@@ -176,7 +195,7 @@ export function CertificateTable({ ctx }: { ctx: CertificateDeskState }) {
         numbered
         total={total}
         searchable
-        searchPlaceholder="Search by name, certificate number or reference…"
+        searchPlaceholder="Search by Name, Certificate Number, Reference Number or Certificate Type…"
         /*
           The purok and the number are searchable too, so a clerk ringing
           round the ones ready to claim can pull up a whole purok at once
@@ -186,9 +205,9 @@ export function CertificateTable({ ctx }: { ctx: CertificateDeskState }) {
           [
             c.certificate_number,
             c.reference_number,
-            c.resident ? personName(c.resident) : "",
+            holderName(c),
             c.certificate_type,
-            c.resident?.zone_purok ?? "",
+            holderOf(c)?.zone_purok ?? "",
             c.resident?.contact_number ?? "",
             c.service_request?.request_type ?? "",
           ].join(" ")

@@ -1,3 +1,4 @@
+import DraftNotice from "../../../shared/ui/DraftNotice";
 import Modal from "../../../shared/ui/Modal";
 import FormField, { inputClasses } from "../../../shared/ui/FormField";
 import { DOCUMENT_TYPES } from "../lib/recordForm";
@@ -7,7 +8,7 @@ import type { RecordArchiveState } from "../hooks/useRecordArchive";
  * Writing or changing a record.
  */
 export function RecordFormModal({ ctx }: { ctx: RecordArchiveState }) {
-  const { formOpen, closeForm, editing, save, draft, set } = ctx;
+  const { formOpen, closeForm, editing, save, draft, set, formDraft } = ctx;
 
   return (
     <Modal
@@ -82,6 +83,7 @@ export function RecordFormModal({ ctx }: { ctx: RecordArchiveState }) {
             className={inputClasses}
           />
         </FormField>
+        <DraftNotice draft={formDraft} />
         <button
           type="submit"
           className="w-full cursor-pointer rounded-full bg-primary py-2.5 text-sm font-semibold text-white hover:bg-primary-dark"

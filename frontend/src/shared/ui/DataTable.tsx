@@ -105,6 +105,20 @@ interface DataTableProps<T> {
    */
   searchPlaceholder?: string;
   getSearchText?: (row: T) => string;
+  /**
+   * Hand the search to the SERVER instead of filtering the loaded rows.
+   *
+   * For a paginated list whose owner can ask the API. The local filter only
+   * ever saw the page on screen, and hid the pager while it worked — so a
+   * record on page 3 answered "No matches" from page 1, which is a search
+   * telling somebody a thing does not exist when it does.
+   *
+   * Given this, the box's text goes to the owner (who re-queries), nothing
+   * is filtered here, and the pager stays because the pages are now pages
+   * of the RESULTS. `searchValue` keeps the box in step with the owner.
+   */
+  onSearch?: (text: string) => void;
+  searchValue?: string;
   /** Optional dropdown filters shown next to the search box. */
   filters?: FilterDef<T>[];
 }
@@ -124,9 +138,16 @@ export default function DataTable<T>({
   searchable = false,
   searchPlaceholder = "Search…",
   getSearchText,
+  onSearch,
+  searchValue,
   filters,
 }: DataTableProps<T>) {
-  const [query, setQuery] = useState("");
+  const [localQuery, setLocalQuery] = useState("");
+  /* One box, two owners: the server when `onSearch` is given, this table
+     otherwise. */
+  const serverSearch = onSearch !== undefined;
+  const query = serverSearch ? (searchValue ?? "") : localQuery;
+  const setQuery = serverSearch ? onSearch : setLocalQuery;
   // The "go to page" box, opened from the gap between page numbers.
   const [jumping, setJumping] = useState(false);
   const [jumpTo, setJumpTo] = useState("");
@@ -148,7 +169,7 @@ export default function DataTable<T>({
   const visibleRows = useMemo(() => {
     let out = rows;
     const q = query.trim().toLowerCase();
-    if (searchable && q && getSearchText) {
+    if (!serverSearch && searchable && q && getSearchText) {
       out = out.filter((r) => getSearchText(r).toLowerCase().includes(q));
     }
     (filters ?? []).forEach((filter, index) => {
@@ -156,9 +177,12 @@ export default function DataTable<T>({
       if (chosen) out = out.filter((r) => filter.getValue(r) === chosen);
     });
     return out;
-  }, [rows, query, filterValues, searchable, getSearchText, filters]);
+  }, [rows, query, filterValues, searchable, getSearchText, filters, serverSearch]);
 
-  const filtering = query.trim() !== "" || Object.values(filterValues).some(Boolean);
+  /* A SERVER search does not count as filtering: the pages it returns are
+     pages of the results, so the pager is right to stay. */
+  const filtering =
+    (!serverSearch && query.trim() !== "") || Object.values(filterValues).some(Boolean);
 
   /*
    * On a phone the table is replaced by one card per row (see below). Action
@@ -207,7 +231,7 @@ export default function DataTable<T>({
       {hasToolbar && (
         // Stacked on a phone: a search box and two dropdowns side by side leave
         // each about 110px wide, too narrow to read or to tap accurately.
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="print-hide mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           {searchable && (
             <SearchInput
               value={query}
@@ -243,7 +267,7 @@ export default function DataTable<T>({
         columns, so Status and the action buttons — the whole reason to open a
         list — sat off-screen behind a horizontal scrollbar nobody finds.
       */}
-      <div className="space-y-3 sm:hidden">
+      <div className="space-y-3 sm:hidden print:hidden">
         {notice === "loading" && (
           <>
             <span role="status" aria-live="polite" className="sr-only">
@@ -302,7 +326,7 @@ export default function DataTable<T>({
           ))}
       </div>
 
-      <div className="hidden overflow-x-auto rounded-xl border border-gray sm:block">
+      <div className="hidden overflow-x-auto rounded-xl border border-gray sm:block print:block print:overflow-visible">
         <table className="min-w-full divide-y divide-gray bg-white text-left text-sm">
           <thead className="bg-secondary">
             <tr>
@@ -318,7 +342,10 @@ export default function DataTable<T>({
                 <th
                   key={index}
                   scope="col"
-                  className={`px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500 ${column.className ?? ""}`}
+                  className={`px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500 ${
+                    /* Buttons, not data: nothing to read on paper. */
+                    isActionColumn(column) ? "print-hide" : ""
+                  } ${column.className ?? ""}`}
                 >
                   {column.header}
                 </th>
@@ -385,7 +412,10 @@ export default function DataTable<T>({
                   </td>
                 )}
                 {columns.map((column, index) => (
-                  <td key={index} className={`px-4 py-3 align-middle ${column.className ?? ""}`}>
+                  <td
+                    key={index}
+                    className={`px-4 py-3 align-middle ${isActionColumn(column) ? "print-hide" : ""} ${column.className ?? ""}`}
+                  >
                     {column.render(row)}
                   </td>
                 ))}
@@ -398,7 +428,7 @@ export default function DataTable<T>({
       {/* Server pagination — hidden while a client-side search/filter is active
           (the page numbers would be misleading against a filtered subset). */}
       {!filtering && page !== undefined && lastPage !== undefined && lastPage > 1 && onPageChange && (
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-sm sm:justify-end">
+        <div className="print-hide mt-4 flex flex-wrap items-center justify-center gap-2 text-sm sm:justify-end">
           {/*
             Which rows these are, not just which page. A clerk checking a
             purok against a paper list needs the position in the whole set —

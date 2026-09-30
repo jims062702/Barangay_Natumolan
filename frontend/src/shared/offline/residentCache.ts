@@ -25,6 +25,8 @@ export interface CachedResident {
   resident_number: string;
   record_type: string | null;
   life_status: string | null;
+  /* Rows cached before it was sent have none; see LAST_SYNC. */
+  gender?: string | null;
   first_name: string;
   middle_name: string | null;
   last_name: string;
@@ -32,6 +34,7 @@ export interface CachedResident {
   birthdate: string | null;
   birthdate_is_estimated: boolean | null;
   birth_place: string | null;
+  nationality?: string | null;
   civil_status: string | null;
   zone_purok: string | null;
   address: string | null;
@@ -45,7 +48,13 @@ interface StoredResident extends CachedResident {
   search: string;
 }
 
-const LAST_SYNC = "residents.synced_at";
+/*
+ * ".v2": the rows gained `gender`, so a mother can be looked for among women
+ * only. A new key makes every device take the register once, whole, instead
+ * of only what changed — the rows it already holds would otherwise never
+ * learn it.
+ */
+const LAST_SYNC = "residents.synced_at.v2";
 const SERVER_TOTAL = "residents.server_total";
 
 /**
@@ -163,6 +172,8 @@ export async function syncResidents(options: { force?: boolean } = {}): Promise<
 export interface OfflineSearchOptions {
   /** Only bonafide residents, or only non-residents — as the picker asks. */
   recordType?: "Resident" | "Non-resident";
+  /** Only women (or men) — as the server's own filter. */
+  gender?: "Female" | "Male";
   limit?: number;
 }
 
@@ -195,6 +206,10 @@ export async function searchResidentsOffline(
     }
 
     if (options.recordType === "Non-resident" && row.record_type !== "Non-resident") {
+      continue;
+    }
+
+    if (options.gender && row.gender !== options.gender) {
       continue;
     }
 

@@ -22,21 +22,23 @@ Route::get('dashboard/pending-items', [SummaryController::class, 'pendingItems']
 Route::get('dashboard/requested-services', [SummaryController::class, 'requestedServices'])
     ->middleware('office:Main Office,PB');
 /*
-| The consolidated return, SEGREGATED BY DEPARTMENT.
+| The consolidated return — the SECRETARY'S and the PUNONG BARANGAY'S.
 |
-| The Secretary writes the barangay's report and the Punong Barangay signs
-| it, so both read all three sections. Each desk also reads its OWN — the
-| VAWC desk has its own return to file and was transcribing figures off its
-| screens by hand, which is where a submitted number goes wrong.
-|
-| Which sections a desk gets is decided in the controller from its office,
-| not from the query string, so widening this gate widens nothing else.
-|
-| The Clerk is still out: certificates are their work, and a consolidated
-| return is not a document for the counter.
+| It gathers every office's figures (Lupon, VAWC, Health, Population, the
+| Clerk's certificates) because those two answer for the barangay as a whole.
+| No desk opens it; each keeps its own report. The Clerk is Main Office too,
+| so is turned away by role.
 */
 Route::get('reports/consolidated', [ConsolidatedReportController::class, 'show'])
-    ->middleware(['office:Main Office,PB,Lupon,VAWC,Health Station', 'deny_role:Clerk']);
+    ->middleware(['office:Main Office,PB', 'deny_role:Clerk']);
+
+/*
+| An office's OWN report, built from the same figures as its section of the
+| consolidated return so the two cannot disagree. For the offices that had
+| no report page: Health and Population.
+*/
+Route::get('reports/office', [ConsolidatedReportController::class, 'office'])
+    ->middleware('office:Health Station,Population');
 
 // Punong Barangay executive view — the whole-barangay picture.
 Route::get('dashboard/executive', [ExecutiveController::class, 'show'])

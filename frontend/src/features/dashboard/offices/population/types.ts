@@ -9,6 +9,21 @@ export interface MonthPoint {
   on_the_register: number;
 }
 
+export interface Headcount {
+  total: number;
+  male: number;
+  female: number;
+  /** In the population, in neither sex column: the register has no sex for them. */
+  sex_not_recorded: number;
+  /** 18 and over. */
+  adults: number;
+  /** 17 and under. */
+  minors: number;
+  /** In the population, in neither age column: no birthdate on the register. */
+  age_not_recorded: number;
+  as_of: string;
+}
+
 export interface Analytics {
   total_population: number;
   total_households: number;
@@ -16,6 +31,8 @@ export interface Analytics {
   portal_accounts: number;
   population_by_age_group: Record<string, number>;
   population_by_gender: Record<string, number>;
+  /** The four figures every barangay report asks for — see Analytics::headcount. */
+  headcount?: Headcount;
   population_by_zone: { zone_purok: string; count: number }[];
   events_this_year: { event_type: string; count: number }[];
   register_by_month: MonthPoint[];

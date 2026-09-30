@@ -3,9 +3,28 @@ import { useAuth } from "../../../shared/auth/AuthContext";
 import { type Period, ALL_TIME, periodParams } from "../../../shared/ui/PeriodFilter";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { usePulse } from "../../../shared/hooks/usePulse";
+import { useModalDraft } from "../../../shared/lib/useModalDraft";
 import { blankAttendee, asTime } from "../lib/sessions";
 import { councilApi } from "../api";
 import type { Session, Attendee } from "../types";
+
+interface SessionFields {
+  sessionType: "Regular" | "Special";
+  sessionDate: string;
+  calledAt: string;
+  adjournedAt: string;
+  venue: string;
+  agenda: string;
+  minutes: string;
+  status: "Draft" | "For Approval";
+  attendees: Attendee[];
+}
+
+const newSession = (): SessionFields => ({
+  sessionType: "Regular", sessionDate: "", calledAt: "", adjournedAt: "", venue: "Barangay Hall",
+  agenda: "", minutes: "", status: "Draft", attendees: [blankAttendee()],
+});
+import { usePageLoad } from "../../../shared/ui/PageLoad";
 
 /**
  * The state and handlers of <Sessions>, so its sections can share them.
@@ -20,6 +39,8 @@ export function useSessionRecords() {
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  /* The page's skeleton until the first answer — see PageLoad. */
+  const pageLoad = usePageLoad();
 
   const [period, setPeriod] = useState<Period>(ALL_TIME);
   const [windowLabel, setWindowLabel] = useState<string | null>(null);
@@ -60,6 +81,8 @@ export function useSessionRecords() {
         setYears(r.data.data.years ?? []);
         setPeriodCounts(r.data.data.period_counts);
       })
+      .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
+      .catch(() => undefined)
       .finally(() => setLoading(false));
   };
 
@@ -83,36 +106,62 @@ export function useSessionRecords() {
     setPage(1);
   };
 
+  const fill = (f: SessionFields) => {
+    setSessionType(f.sessionType);
+    setSessionDate(f.sessionDate);
+    setCalledAt(f.calledAt);
+    setAdjournedAt(f.adjournedAt);
+    setVenue(f.venue);
+    setAgenda(f.agenda);
+    setMinutes(f.minutes);
+    setStatus(f.status);
+    setAttendees(f.attendees?.length ? f.attendees : [blankAttendee()]);
+  };
+  /* The session as the form opened on it: blank for a new one. */
+  const [original, setOriginal] = useState<SessionFields>(newSession);
+
   const startNew = () => {
     setEditing(null);
-    setSessionType("Regular");
-    setSessionDate("");
-    setCalledAt("");
-    setAdjournedAt("");
-    setVenue("Barangay Hall");
-    setAgenda("");
-    setMinutes("");
-    setStatus("Draft");
-    setAttendees([blankAttendee()]);
+    setOriginal(newSession());
+    fill(newSession());
     setError("");
     setOpen(true);
   };
+
+  /*
+   * The minutes being written, kept until saved or discarded — a new session
+   * under one name, each session's edit under its own. An adopted session
+   * cannot be changed, so nothing is kept for it. An edit's version is the
+   * session as it was opened: newer minutes are never overwritten by old
+   * typing.
+   */
+  const draft = useModalDraft<SessionFields>(
+    editing ? (editing.status === "Adopted" ? null : `edit-session:${editing.id}`) : "new-session",
+    open,
+    { sessionType, sessionDate, calledAt, adjournedAt, venue, agenda, minutes, status, attendees },
+    (kept) => fill({ ...original, ...kept }),
+    { blank: original, reset: () => fill(original), version: editing ? JSON.stringify(original) : null },
+  );
 
   const startEdit = async (row: Session) => {
     /* The list carries counts, not the attendance sheet — fetched here so
        opening a session to read it does not cost every other row a join. */
     const full = (await councilApi.session(row.id)).data.data as Session;
 
+    const fields: SessionFields = {
+      sessionType: full.session_type,
+      sessionDate: full.session_date.slice(0, 10),
+      calledAt: asTime(full.called_to_order_at),
+      adjournedAt: asTime(full.adjourned_at),
+      venue: full.venue ?? "Barangay Hall",
+      agenda: full.agenda ?? "",
+      minutes: full.minutes ?? "",
+      status: full.status === "Adopted" ? "For Approval" : full.status,
+      attendees: full.attendees?.length ? full.attendees : [blankAttendee()],
+    };
     setEditing(full);
-    setSessionType(full.session_type);
-    setSessionDate(full.session_date.slice(0, 10));
-    setCalledAt(asTime(full.called_to_order_at));
-    setAdjournedAt(asTime(full.adjourned_at));
-    setVenue(full.venue ?? "Barangay Hall");
-    setAgenda(full.agenda ?? "");
-    setMinutes(full.minutes ?? "");
-    setStatus(full.status === "Adopted" ? "For Approval" : full.status);
-    setAttendees(full.attendees?.length ? full.attendees : [blankAttendee()]);
+    setOriginal(fields);
+    fill(fields);
     setError("");
     setOpen(true);
   };
@@ -144,6 +193,7 @@ export function useSessionRecords() {
       if (editing) await councilApi.updateSession(editing.id, payload, waiting);
       else await councilApi.createSession(payload, waiting);
 
+      draft.clear();
       setOpen(false);
       load();
     } catch (err: unknown) {
@@ -168,13 +218,14 @@ export function useSessionRecords() {
     setAttendees((list) => list.map((a, n) => (n === i ? { ...a, ...patch } : a)));
 
   return {
+    pageLoad,
     user, canAdopt, rows, setRows, page, setPage, lastPage, setLastPage, total, setTotal,
     loading, setLoading, period, setPeriod, windowLabel, setWindowLabel, years, setYears,
     periodCounts, setPeriodCounts, open, setOpen, editing, setEditing, saving, setSaving,
     error, setError, sessionType, setSessionType, sessionDate, setSessionDate, calledAt,
     setCalledAt, adjournedAt, setAdjournedAt, venue, setVenue, agenda, setAgenda, minutes,
     setMinutes, status, setStatus, attendees, setAttendees, load, changePeriod, startNew,
-    startEdit, save, adopt, setAttendee,
+    startEdit, save, adopt, setAttendee, draft,
   };
 }
 

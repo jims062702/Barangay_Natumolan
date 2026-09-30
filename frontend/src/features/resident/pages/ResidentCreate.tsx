@@ -4,6 +4,7 @@ import PageHeader from "../../../shared/ui/PageHeader";
 import NewHouseholdModal from "../components/NewHouseholdModal";
 import ResidentFormFields from "../components/ResidentFormFields";
 import { useResidentIntake } from "../hooks/useResidentIntake";
+import { RESIDENTS_HOME } from "../lib/paths";
 import { HouseholdMemberCard } from "../components/intake/HouseholdMemberCard";
 import { IntakeReview } from "../components/intake/IntakeReview";
 
@@ -39,7 +40,7 @@ export default function ResidentCreate() {
       <PageHeader
         crumbs={[
           { label: "Dashboard", to: "/dashboard" },
-          { label: "Residents", to: "/residents" },
+          { label: "Residents", to: RESIDENTS_HOME },
           { label: "Register Resident" },
         ]}
         title={step === "preview" ? "Check before registering" : "Register Resident"}
@@ -75,8 +76,8 @@ export default function ResidentCreate() {
             <p className="mb-4 rounded-xl bg-primary/10 px-4 py-2.5 text-xs leading-relaxed text-dark">
               <strong>A portal account is created automatically.</strong> If an email address is
               entered below, this resident is emailed their sign-in details right away. Their
-              password is their <strong>last name + the month and year they were
-              born</strong> — e.g. Gasang062002 —
+              password is their <strong>last name + the year they were born</strong>, only the
+              first letter a capital — e.g. Gasang2002 —
               and they activate the account themselves with a code we email them at first sign-in.
             </p>
 

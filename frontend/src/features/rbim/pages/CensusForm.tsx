@@ -1,7 +1,8 @@
-import { FiPlus, FiArrowLeft } from "react-icons/fi";
+import { FiPlus, FiArrowLeft, FiTrash2 } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import Card from "../../../shared/ui/Card";
 import PageHeader from "../../../shared/ui/PageHeader";
+import { PageLoading } from "../../../shared/ui/PageLoad";
 import StatusBadge from "../../../shared/ui/StatusBadge";
 import { BLANK_MEMBER } from "../lib/constants";
 import { useCensusForm } from "../hooks/useCensusForm";
@@ -11,6 +12,13 @@ import { HouseholdQuestions } from "../components/census/HouseholdQuestions";
 import { ConsentSection } from "../components/census/ConsentSection";
 import { RegistrationPreview } from "../components/census/RegistrationPreview";
 import { MissingForRegistration } from "../components/census/MissingForRegistration";
+import { RESIDENTS_HOME } from "../../resident/lib/paths";
+import { DraftAvailable } from "../components/census/DraftAvailable";
+import { DraftStatus } from "../components/census/DraftStatus";
+import { confirmAction } from "../../../shared/lib/confirm";
+import { errorMessage } from "../../../shared/lib/api";
+import { toast } from "../../../shared/lib/toast";
+import { rbimApi } from "../api";
 
 /**
  * The RBIM baseline census form.
@@ -30,12 +38,33 @@ export default function CensusForm() {
   const ctx = useCensusForm();
   const {
     editing, codes, members, setMembers, status, censusNo, gaps, registering, notOnSheet,
-    saving, loading, bringOntoForm, missingFromSheet, save, submitForm,
+    bringOntoForm, missingFromSheet, submitForm, pageLoad, retryLoad, id, navigate, holdSaves,
   } = ctx;
 
-  if (loading) {
-    return <p className="p-6 text-sm text-gray-500">Loading the census form…</p>;
-  }
+  /*
+   * Discarding a draft is deliberate: asked first, and only for a Draft
+   * (a submitted census is part of the record). Saving is held while it is
+   * deleted, so the form does not save itself back into existence.
+   */
+  const discard = async () => {
+    if (!(await confirmAction({
+      title: "Discard this draft?",
+      text: `Census form ${censusNo || ""} and everything typed on it will be deleted. This cannot be undone.`,
+      confirmText: "Discard draft",
+    }))) return;
+
+    holdSaves(true);
+    try {
+      const r = await rbimApi.deleteCensus(id);
+      toast(r.data.message);
+      navigate(RESIDENTS_HOME);
+    } catch (err) {
+      holdSaves(false);
+      toast(errorMessage(err), "error");
+    }
+  };
+
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={retryLoad} />;
 
   const m = codes.member;
   const h = codes.household;
@@ -48,15 +77,29 @@ export default function CensusForm() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {editing && <StatusBadge status={status} />}
+            {editing && status === "Draft" && (
+              <button
+                type="button"
+                onClick={() => void discard()}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-gray bg-white px-4 py-2 text-sm font-semibold text-gray-600 transition-colors hover:border-danger hover:text-danger"
+              >
+                <FiTrash2 className="h-4 w-4" aria-hidden="true" /> Discard draft
+              </button>
+            )}
+            {/* Back where the census was started — Residents & Households,
+                not the Households list. */}
             <Link
-              to="/population/rbim"
+              to={RESIDENTS_HOME}
               className="inline-flex items-center gap-2 rounded-full border border-gray bg-white px-4 py-2 text-sm font-semibold text-dark transition-colors hover:border-primary"
             >
-              <FiArrowLeft className="h-4 w-4" aria-hidden="true" /> All forms
+              <FiArrowLeft className="h-4 w-4" aria-hidden="true" /> Residents &amp; Households
             </Link>
           </div>
         }
       />
+
+      {/* A new sheet, and this account has one it has not finished: Continue Draft. */}
+      {!editing && <DraftAvailable />}
 
       {/*
         What Submit found missing, at the top where the office is looking.
@@ -80,7 +123,9 @@ export default function CensusForm() {
       */}
       <RegistrationPreview ctx={ctx} m={m} />
 
-      <form onSubmit={save} className="space-y-4">
+      {/* Enter in a box does nothing: there is no "save" for it to press.
+          The one way through is Preview form, below. */}
+      <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
         {/* ------------------- A. IDENTIFICATION ------------------- */}
         <IdentificationSection ctx={ctx} />
 
@@ -148,19 +193,17 @@ export default function CensusForm() {
 
         {/* ------------------- ACTIONS ------------------- */}
         {/*
-          Two, because there are two things the office does: keep typing, and
-          register the household. There is no third — no hand-over, because
-          the hand-over was the BHW carrying paper through the door, and no
-          separate review, because the office typing the sheet IS the review.
+          ONE action: the form is read back, then registered.
+
+          "Save as draft" is gone — the office asked for it off. A form is
+          typed in from the paper and submitted in one sitting; its answers
+          are saved as part of Preview, so what is registered is what is on
+          screen. With no connection the form is still kept on this device
+          and sent when the line returns — registering it waits for the line.
         */}
-        <div className="flex flex-wrap justify-end gap-2">
-          <button
-            type="submit"
-            disabled={saving}
-            className="cursor-pointer rounded-full border border-gray bg-white px-8 py-3 text-sm font-semibold text-dark transition-colors hover:border-primary hover:text-primary disabled:opacity-60"
-          >
-            {saving ? "Saving…" : editing ? "Save changes" : "Save as draft"}
-          </button>
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          {/* Where the draft stands — "Draft saved" only once the server said so. */}
+          <DraftStatus ctx={ctx} />
 
           {/*
             Shown on a new form too.
@@ -178,7 +221,7 @@ export default function CensusForm() {
           <button
             type="button"
             onClick={submitForm}
-            disabled={saving || registering}
+            disabled={registering}
             className="cursor-pointer rounded-full bg-success px-8 py-3 text-sm font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-60"
           >
             {status === "Submitted" ? "Preview and submit again" : "Preview form"}

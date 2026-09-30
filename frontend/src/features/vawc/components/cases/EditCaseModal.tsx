@@ -1,9 +1,13 @@
+import DraftNotice from "../../../../shared/ui/DraftNotice";
 import Modal from "../../../../shared/ui/Modal";
 import FormField, { inputClasses } from "../../../../shared/ui/FormField";
 import PhoneInput from "../../../../shared/ui/PhoneInput";
 import ResidentPicker from "../../../resident/components/ResidentPicker";
-import { VIOLENCE_TYPES } from "../../lib/caseOptions";
+import {
+  RELATIONSHIPS, OTHER, REPORTER_TYPES, FAMILY_REPORTERS, REPORTER_RELATIONSHIPS,
+} from "../../lib/caseOptions";
 import ResidentMultiPicker from "../../../resident/components/ResidentMultiPicker";
+import { ViolenceChoice } from "./ViolenceChoice";
 import type { CaseRegistryState } from "../../hooks/useCaseRegistry";
 
 /**
@@ -12,7 +16,7 @@ import type { CaseRegistryState } from "../../hooks/useCaseRegistry";
 export function EditCaseModal({ ctx }: { ctx: CaseRegistryState }) {
   const {
     editing, setEditing, saveEdit, editSurvivor, setEditSurvivor, editDependents,
-    editReportedByOther, setEditReportedByOther, editForm, setEdit, setEditDependents,
+    editReportedByOther, editForm, setEdit, setEditDependents, editDraft,
   } = ctx;
 
   return (
@@ -26,73 +30,101 @@ export function EditCaseModal({ ctx }: { ctx: CaseRegistryState }) {
         <div className="sm:col-span-2 lg:col-span-3">
           <FormField
             plain
-            label="Survivor (resident record)"
+            label="Victim-Survivor (resident record)"
             required
-            hint="Re-linking a case to a different person is recorded in the access trail."
+            hint="A woman. Re-linking a case to a different person is recorded in the access trail."
           >
             <ResidentPicker
               value={editSurvivor}
               onChange={setEditSurvivor}
+              gender="Female"
               excludeIds={editDependents.map((d) => d.id)}
             />
           </FormField>
         </div>
 
-        <div className="sm:col-span-2 lg:col-span-3">
-          <label className="mb-2 flex cursor-pointer items-center gap-2 text-sm font-medium text-dark">
-            <input
-              type="checkbox"
-              checked={editReportedByOther}
-              onChange={(e) => setEditReportedByOther(e.target.checked)}
-              className="h-4 w-4 cursor-pointer accent-primary"
-            />
-            Reported by someone other than the survivor
-          </label>
+        <FormField label="Who reported the case?" required>
+          <select
+            value={editForm.reported_by_type}
+            onChange={(e) => setEdit("reported_by_type", e.target.value)}
+            required
+            className={inputClasses}
+          >
+            {REPORTER_TYPES.map((t) => <option key={t}>{t}</option>)}
+          </select>
+        </FormField>
 
-          <div className="grid gap-4 sm:grid-cols-3">
-            <FormField label="Name">
+        {/* Only when somebody else reported it — see the intake form. */}
+        {editReportedByOther && (
+          <div className="grid gap-4 rounded-xl bg-secondary/60 p-4 sm:col-span-2 sm:grid-cols-3 lg:col-span-2">
+            <FormField label="Name of the person who reported it">
               <input
                 value={editForm.reported_by_name}
-                disabled={!editReportedByOther}
                 onChange={(e) => setEdit("reported_by_name", e.target.value)}
+                maxLength={150}
                 className={inputClasses}
               />
             </FormField>
-            <FormField label="Relationship to survivor">
-              <input
-                value={editForm.reported_by_relationship}
-                disabled={!editReportedByOther}
-                onChange={(e) => setEdit("reported_by_relationship", e.target.value)}
-                className={inputClasses}
-              />
-            </FormField>
-            <FormField label="Contact number">
+            {FAMILY_REPORTERS.includes(editForm.reported_by_type) ? (
+              <FormField label="Relationship to the victim-survivor">
+                <select
+                  value={editForm.reported_by_relationship}
+                  onChange={(e) => setEdit("reported_by_relationship", e.target.value)}
+                  className={inputClasses}
+                >
+                  <option value="">Not recorded</option>
+                  {REPORTER_RELATIONSHIPS.map((r) => <option key={r}>{r}</option>)}
+                  {/* An older free-text answer stays readable until changed. */}
+                  {editForm.reported_by_relationship
+                    && !REPORTER_RELATIONSHIPS.includes(editForm.reported_by_relationship) && (
+                    <option>{editForm.reported_by_relationship}</option>
+                  )}
+                </select>
+              </FormField>
+            ) : (
+              <div className="hidden sm:block" aria-hidden="true" />
+            )}
+            <FormField label="Contact Number">
               <PhoneInput
                 value={editForm.reported_by_contact}
                 onChange={(v) => setEdit("reported_by_contact", v)}
-                disabled={!editReportedByOther}
               />
             </FormField>
           </div>
-        </div>
+        )}
 
-        <FormField label="Type of reported violence" required>
+        {/*
+          The same choice the intake takes: one or more kinds, with the acts
+          under each one optional. A case filed before the list existed is
+          loaded with the one kind it already had, so correcting it here is
+          how it gains the others it always was.
+        */}
+        <ViolenceChoice
+          kinds={editForm.violence_types}
+          acts={editForm.violence_acts}
+          onKinds={(next) => setEdit("violence_types", next)}
+          onActs={(next) => setEdit("violence_acts", next)}
+        />
+        <FormField label="Relationship of the victim-survivor to the respondent">
           <select
-            value={editForm.violence_type}
-            onChange={(e) => setEdit("violence_type", e.target.value)}
+            value={editForm.relationship_choice}
+            onChange={(e) => setEdit("relationship_choice", e.target.value)}
             className={inputClasses}
           >
-            {VIOLENCE_TYPES.map((type) => (
-              <option key={type}>{type}</option>
-            ))}
+            <option value="">Not Recorded</option>
+            {RELATIONSHIPS.map((r) => <option key={r}>{r}</option>)}
+            <option value={OTHER}>Other (Specify)</option>
           </select>
-        </FormField>
-        <FormField label="Relationship to alleged offender">
-          <input
-            value={editForm.relationship_to_offender}
-            onChange={(e) => setEdit("relationship_to_offender", e.target.value)}
-            className={inputClasses}
-          />
+          {editForm.relationship_choice === OTHER && (
+            <input
+              value={editForm.relationship_other}
+              onChange={(e) => setEdit("relationship_other", e.target.value)}
+              placeholder="Specify the relationship"
+              maxLength={100}
+              required
+              className={`${inputClasses} mt-2`}
+            />
+          )}
         </FormField>
         <FormField label="Previous incidents">
           <input
@@ -136,7 +168,8 @@ export function EditCaseModal({ ctx }: { ctx: CaseRegistryState }) {
             />
           </FormField>
         </div>
-        <div className="sm:col-span-2 lg:col-span-3">
+        <div className="space-y-2 sm:col-span-2 lg:col-span-3">
+          <DraftNotice draft={editDraft} tabOnly />
           <button
             type="submit"
             className="w-full cursor-pointer rounded-full bg-primary py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"

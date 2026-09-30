@@ -1,4 +1,3 @@
-import { FiPlus } from "react-icons/fi";
 import Card from "../../../../shared/ui/Card";
 import StatusBadge from "../../../../shared/ui/StatusBadge";
 import { formatWallClock } from "../../../../shared/lib/datetime";
@@ -10,7 +9,7 @@ import { useAuth } from "../../../../shared/auth/AuthContext";
  * Every hearing held or set, and the summons behind each.
  */
 export function HearingsCard({ ctx, caseData }: { ctx: LuponCaseState; caseData: LuponCase }) {
-  const { setHearingOpen, setMediationOpen, setConciliationOpen } = ctx;
+  const { setMediationOpen, setConciliationOpen } = ctx;
   /*
    * Recording what happened at a sitting is the Punong Barangay's, because
    * the PB is the one who sat at it. The Lupon secretary keeps the docket
@@ -30,14 +29,15 @@ export function HearingsCard({ ctx, caseData }: { ctx: LuponCaseState; caseData:
   );
 
   return (
-    <Card
-      title="Hearings & summons"
-      action={
-        <button type="button" onClick={() => setHearingOpen(true)} className="cursor-pointer text-sm font-medium text-primary hover:underline">
-          <FiPlus className="h-4 w-4" aria-hidden="true" /> Schedule
-        </button>
-      }
-    >
+    /*
+     * NO "SCHEDULE" BUTTON, and that is the point of the new flow.
+     *
+     * Confirming the filing fee puts the Punong Barangay's Tuesdays on the
+     * calendar, and a failed mediation puts the Lupon's Thursdays there.
+     * A hand-set date beside those was a second calendar: the office booked
+     * a sitting here that the summons never mentioned.
+     */
+    <Card title="Hearings & summons">
       {hearings.length === 0 ? (
         <p className="py-4 text-center text-sm text-gray-400">No hearings yet.</p>
       ) : (

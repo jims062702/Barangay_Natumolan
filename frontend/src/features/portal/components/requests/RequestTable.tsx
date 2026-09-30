@@ -15,12 +15,19 @@ export function RequestTable({ ctx }: { ctx: PortalRequestsState }) {
     total,
   } = ctx;
 
+  /* How many of the rows on this page were asked for together, by code. */
+  const together = rows.reduce<Record<string, number>>((count, r) => {
+    if (r.transaction_code) count[r.transaction_code] = (count[r.transaction_code] ?? 0) + 1;
+
+    return count;
+  }, {});
+
   return (
     <Card>
       <DataTable
         columns={[
           {
-            header: "Reference",
+            header: "Certificate / Request Number",
             /*
              * The certificate number when there is one, because that is
              * what the clerk at the counter will ask for. The request
@@ -42,7 +49,17 @@ export function RequestTable({ ctx }: { ctx: PortalRequestsState }) {
           },
           {
             header: "Service",
-            render: (r: ServiceRequest) => r.certificate?.certificate_type ?? r.service_type,
+            render: (r: ServiceRequest) => (
+              <span className="block">
+                <span>{r.certificate?.certificate_type ?? r.service_type}</span>
+                {/* Asked for in one request with others — collected together. */}
+                {r.transaction_code && (together[r.transaction_code] ?? 0) > 1 && (
+                  <span className="mt-0.5 inline-block whitespace-nowrap rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-gray-600">
+                    Requested together ({together[r.transaction_code]})
+                  </span>
+                )}
+              </span>
+            ),
           },
           {
             header: "Filed",
@@ -73,7 +90,7 @@ export function RequestTable({ ctx }: { ctx: PortalRequestsState }) {
             ),
           },
           {
-            header: "Verification ref.",
+            header: "Reference Number",
             render: (r: ServiceRequest) =>
               r.certificate?.reference_number ? (
                 <span className="font-mono text-xs text-primary">

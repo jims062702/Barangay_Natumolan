@@ -28,8 +28,8 @@ export function MissingForRegistration({ ctx }: { ctx: CensusFormState }) {
             ))}
           </ul>
           <p className="mt-2 text-xs leading-relaxed text-gray-500">
-            The boxes are starred on the form. Nothing here stops you saving a draft —
-            it is only registering that needs them.
+            The boxes are starred on the form. Fill them in, then press Preview form
+            again.
           </p>
         </>
       )}

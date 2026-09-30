@@ -24,6 +24,11 @@ class CensusMember extends Model
 
     protected $guarded = ['id'];
 
+    /* As the form's date box reads and writes it: 2002-06-30, no time. */
+    protected $casts = [
+        'q5_birthdate' => 'date:Y-m-d',
+    ];
+
     public function census(): BelongsTo
     {
         return $this->belongsTo(Census::class, 'rbim_census_id');

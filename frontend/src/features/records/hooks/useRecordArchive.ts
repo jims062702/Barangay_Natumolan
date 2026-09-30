@@ -4,9 +4,11 @@ import { errorMessage } from "../../../shared/lib/api";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { confirmAction } from "../../../shared/lib/confirm";
 import { toast } from "../../../shared/lib/toast";
+import { useModalDraft } from "../../../shared/lib/useModalDraft";
 import { type DraftForm, emptyDraft } from "../lib/recordForm";
 import { recordsApi } from "../api";
 import type { AdministrativeRecord } from "../types";
+import { usePageLoad } from "../../../shared/ui/PageLoad";
 
 /**
  * The state and handlers of <AdministrativeRecords>, so its sections can share them.
@@ -21,6 +23,8 @@ export function useRecordArchive() {
   // So the footer can say WHICH rows are on screen, not only the page.
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  /* The page's skeleton until the first answer — see PageLoad. */
+  const pageLoad = usePageLoad();
   const [showArchived, setShowArchived] = useState(false);
 
   const [formOpen, setFormOpen] = useState(false);
@@ -44,6 +48,8 @@ export function useRecordArchive() {
         setLastPage(r.data.data.last_page ?? 1);
         setTotal(r.data.data.total ?? 0);
       })
+      .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
+      .catch(() => undefined)
       .finally(() => setLoading(false));
   };
 
@@ -66,19 +72,39 @@ export function useRecordArchive() {
     setFormOpen(true);
   };
 
+  const asForm = (record: AdministrativeRecord): DraftForm => ({
+    document_type: record.document_type,
+    document_number: record.document_number,
+    document_title: record.document_title,
+    document_date: record.document_date.slice(0, 10),
+    document_content: record.document_content,
+    summary: record.summary ?? "",
+    file_reference: record.file_reference ?? "",
+  });
+
   const openEdit = (record: AdministrativeRecord) => {
     setEditing(record);
-    setDraft({
-      document_type: record.document_type,
-      document_number: record.document_number,
-      document_title: record.document_title,
-      document_date: record.document_date.slice(0, 10),
-      document_content: record.document_content,
-      summary: record.summary ?? "",
-      file_reference: record.file_reference ?? "",
-    });
+    setDraft(asForm(record));
     setFormOpen(true);
   };
+
+  /*
+   * The document being typed, kept until it is filed or discarded: a new one
+   * under one name, each edit under its record's. An edit's version is the
+   * record as it was opened, so old typing never lands on a newer save.
+   */
+  const starting = editing ? asForm(editing) : emptyDraft();
+  const formDraft = useModalDraft<DraftForm>(
+    editing ? `edit-record:${editing.id}` : "new-record",
+    formOpen,
+    draft,
+    (kept) => setDraft({ ...starting, ...kept }),
+    {
+      blank: starting,
+      reset: () => setDraft(starting),
+      version: editing ? JSON.stringify(starting) : null,
+    },
+  );
 
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -106,6 +132,7 @@ export function useRecordArchive() {
         });
         toast(`${draft.document_number} filed.`);
       }
+      formDraft.clear();
       setFormOpen(false);
       load();
     } catch (err) {
@@ -172,10 +199,11 @@ export function useRecordArchive() {
     setDraft((prev) => ({ ...prev, [key]: value }));
 
   return {
+    pageLoad,
     user, isPunongBarangay, rows, setRows, page, setPage, lastPage, setLastPage, total,
     setTotal, loading, setLoading, showArchived, setShowArchived, formOpen, setFormOpen,
     editing, setEditing, draft, setDraft, viewing, setViewing, load, closeForm, openCreate,
-    openEdit, save, approve, toggleArchive, remove, set,
+    openEdit, save, approve, toggleArchive, remove, set, formDraft,
   };
 }
 

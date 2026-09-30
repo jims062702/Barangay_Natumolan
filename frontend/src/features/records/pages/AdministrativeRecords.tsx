@@ -4,12 +4,15 @@ import { useRecordArchive } from "../hooks/useRecordArchive";
 import { RecordTable } from "../components/RecordTable";
 import { RecordFormModal } from "../components/RecordFormModal";
 import { RecordViewModal } from "../components/RecordViewModal";
+import { PageLoading } from "../../../shared/ui/PageLoad";
 
 export default function AdministrativeRecords() {
   const ctx = useRecordArchive();
   const {
     openCreate,
   } = ctx;
+
+  if (ctx.pageLoad.state !== "ready") return <PageLoading load={ctx.pageLoad} onRetry={() => ctx.load()} />;
 
   return (
     <div>

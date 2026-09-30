@@ -21,6 +21,11 @@ export interface CatalogueType {
      License, Construction. Absent from an older cached catalogue: asks. */
   asks_purpose?: boolean;
   fields: string[];
+  /**
+   * What the paper states about the PERSON — asked of the clerk only for
+   * somebody not yet on the register. Absent from an older cached catalogue.
+   */
+  person_fields?: { all: string[]; required: string[] };
 }
 
 export interface Catalogue {

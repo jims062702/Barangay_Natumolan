@@ -4,6 +4,7 @@ import PeriodFilter from "../../../shared/ui/PeriodFilter";
 import { useSessionRecords } from "../hooks/useSessionRecords";
 import { SessionTable } from "../components/sessions/SessionTable";
 import { SessionEditor } from "../components/sessions/SessionEditor";
+import { PageLoading } from "../../../shared/ui/PageLoad";
 
 /**
  * The minutes of the Sangguniang Barangay.
@@ -20,6 +21,8 @@ export default function Sessions() {
   const {
     total, period, windowLabel, years, periodCounts, changePeriod, startNew,
   } = ctx;
+
+  if (ctx.pageLoad.state !== "ready") return <PageLoading load={ctx.pageLoad} onRetry={() => ctx.load()} />;
 
   return (
     <div>

@@ -12,18 +12,6 @@ export const MONTHS = [
 ];
 
 /**
- * The years a living person could have been born in.
- *
- * Newest first: a census records far more thirty-year-olds than
- * hundred-year-olds, and a list that opens at 1906 makes the common case the
- * longest scroll.
- */
-export const BIRTH_YEARS = Array.from(
-  { length: 120 },
-  (_, i) => new Date().getFullYear() - i
-);
-
-/**
  * The form's own skip code.
  *
  * Printed in the margin — "For SKIPPED questions, write 99" — and then said

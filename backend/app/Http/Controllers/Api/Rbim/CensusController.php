@@ -47,6 +47,11 @@ class CensusController extends BaseController
             $query->where('status', $request->input('status'));
         }
 
+        /* "Your drafts" — the forms this account started (Draft Available / Continue Draft). */
+        if ($request->boolean('mine')) {
+            $query->where('recorded_by', auth()->id());
+        }
+
         if ($request->filled('search')) {
             $term = trim($request->input('search'));
             $query->where(function ($q) use ($term) {
@@ -78,7 +83,9 @@ class CensusController extends BaseController
     public function show(Census $rbimCensus): JsonResponse
     {
         $rbimCensus->load([
-            'members.resident:id,resident_number,first_name,last_name',
+            /* The birthdate and whether it is whole: a census line matched to a
+               record holding only a month and a year has to give the day. */
+            'members.resident:id,resident_number,first_name,last_name,birthdate,birthdate_is_estimated',
             'household:id,household_number,zone_purok,street_address',
             'recorder:id,name',
             'reviewer:id,name',
@@ -93,7 +100,8 @@ class CensusController extends BaseController
             return $this->forbidden('Your office does not collect the RBIM census');
         }
 
-        $validated = $request->validate(SaveCensusRequest::fields(), SaveCensusRequest::fieldMessages());
+        /* A new form is always a draft. */
+        $validated = $request->validate(SaveCensusRequest::fields(null, true), SaveCensusRequest::fieldMessages());
 
         $census = DB::transaction(function () use ($validated, $request) {
             $members = $validated['members'] ?? [];
@@ -134,7 +142,10 @@ class CensusController extends BaseController
          * would not stop any of that happening — it would only stop the
          * system hearing about it.
          */
-        $validated = $request->validate(SaveCensusRequest::fields($rbimCensus->id), SaveCensusRequest::fieldMessages());
+        $validated = $request->validate(
+            SaveCensusRequest::fields($rbimCensus->id, $rbimCensus->status === 'Draft'),
+            SaveCensusRequest::fieldMessages()
+        );
 
         DB::transaction(function () use ($validated, $rbimCensus) {
             $members = $validated['members'] ?? null;
@@ -219,6 +230,20 @@ class CensusController extends BaseController
     private function writeMembers(Census $census, array $members): void
     {
         foreach ($members as $index => $member) {
+            /*
+             * The month and year, from the date — never typed separately
+             * beside it, so the two can never disagree. They are what the
+             * RBIM codebook and its encoding sheet speak in.
+             */
+            if (! empty($member['q5_birthdate'])) {
+                $member['q5_birth_month'] = (int) substr($member['q5_birthdate'], 5, 2);
+                $member['q5_birth_year'] = (int) substr($member['q5_birthdate'], 0, 4);
+            }
+
+            /* A draft's line may not have reached its names yet; the columns hold "" until it does. */
+            $member['first_name'] = (string) ($member['first_name'] ?? '');
+            $member['last_name'] = (string) ($member['last_name'] ?? '');
+
             $census->members()->create($member + [
                 // The line number the paper uses, kept in the order given.
                 'line_no' => $member['line_no'] ?? $index + 1,

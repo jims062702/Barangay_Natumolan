@@ -7,6 +7,7 @@ import StatusBadge from "../../../../shared/ui/StatusBadge";
 import RowAction, { RowActions } from "../../../../shared/ui/RowAction";
 import { RiskBadge } from "../RiskBadge";
 import { NextDue } from "../NextDue";
+import { violenceSummary } from "../../lib/caseOptions";
 import type { CaseRegistryState } from "../../hooks/useCaseRegistry";
 import type { VawcCase } from "../../types";
 
@@ -28,7 +29,15 @@ export function CaseTable({ ctx }: { ctx: CaseRegistryState }) {
               </Link>
             ),
           },
-          { header: "Violence Type", render: (c: VawcCase) => c.violence_type },
+          /* Every kind the case is. One case is often several, and a
+             column reading "Mixed" made the desk open the file to find
+             out which. */
+          {
+            header: "Kind of violence",
+            render: (c: VawcCase) => (
+              <span className="text-xs text-dark">{violenceSummary(c.violence_types, c.violence_type)}</span>
+            ),
+          },
           /*
            * Risk and the next visit, which are what the docket is opened
            * for. Everything else on this row is filing; these two are the
@@ -69,11 +78,11 @@ export function CaseTable({ ctx }: { ctx: CaseRegistryState }) {
         numbered
         total={total}
         searchable
-        searchPlaceholder="Search by case code…"
-        getSearchText={(c) => `${c.case_code} ${c.violence_type} ${c.status} ${c.risk_level ?? ""}`}
+        searchPlaceholder="Search by Case Code, Kind of Violence or Status…"
+        getSearchText={(c) => `${c.case_code} ${violenceSummary(c.violence_types, c.violence_type)} ${c.status} ${c.risk_level ?? ""}`}
         filters={[
           { label: "Status", getValue: (c) => c.status },
-          { label: "Violence Type", getValue: (c) => c.violence_type },
+          { label: "Kind of violence", getValue: (c) => violenceSummary(c.violence_types, c.violence_type) },
           /*
            * The docket is opened to find the urgent ones. Cases nobody has
            * judged group under their own label rather than vanishing — an

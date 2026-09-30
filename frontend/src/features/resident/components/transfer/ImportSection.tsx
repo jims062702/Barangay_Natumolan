@@ -1,4 +1,4 @@
-import { FiFileText, FiAlertTriangle, FiCheck } from "react-icons/fi";
+import { FiFileText, FiAlertTriangle, FiCheck, FiInfo } from "react-icons/fi";
 import { download } from "./download";
 import type { RegisterTransferState } from "../../hooks/useRegisterTransfer";
 
@@ -16,6 +16,33 @@ export function ImportSection({ ctx }: { ctx: RegisterTransferState }) {
         row that matches somebody already on the register updates them;{" "}
         <strong className="text-dark">an empty cell changes nothing</strong> — it is read as
         &ldquo;not filled in&rdquo;, never as &ldquo;clear this&rdquo;.
+      </p>
+      {/*
+        Said up front, because the sheets arrive from enumerators who were
+        taught the RBIM form: Sex 1 and 2, marital status 1 to 7, education
+        00 to 13, and 99 for a question that did not apply. Those were
+        refused as "not one of: Male, Female" — the office had to retype a
+        whole sheet into words before it would load.
+      */}
+      <p className="mb-2 text-xs leading-relaxed text-gray-500">
+        <strong className="text-dark">RBIM codes are read for you:</strong> Sex 1 = Male, 2 =
+        Female; marital status 1–7; education 00–13 (or &ldquo;0 - No Education&rdquo;); type of
+        resident 1–3; and <strong className="text-dark">98</strong> or{" "}
+        <strong className="text-dark">99</strong> is read as a blank. Exports always write the
+        words — <em>Male</em>, not 1.
+      </p>
+      {/*
+        The encoder's sheet — lname, fname, popcomno, one row per household
+        member — is what actually arrives from the RBIM. Said by its own
+        column names, so the office recognises it as the file they have.
+      */}
+      <p className="mb-3 text-xs leading-relaxed text-gray-500">
+        <strong className="text-dark">The RBIM encoding sheet imports as it is:</strong>{" "}
+        <em>lname, fname, mname</em> are the name; <em>birthdate</em> (month) and{" "}
+        <em>subQ5</em> (year) are the date of birth; <em>street</em> is the zone;{" "}
+        <em>popcomno</em> is the household, and <em>relationship</em> 1 becomes its head, 2 the
+        head&rsquo;s spouse, 3 and 4 their children. A sheet headed with the form&rsquo;s own
+        questions (Q1. NAME, Q3. SEX…) is read too.
       </p>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -72,6 +99,11 @@ export function ImportSection({ ctx }: { ctx: RegisterTransferState }) {
             {preview.summary.errors > 0 && (
               <span className="text-danger">
                 <span className="font-bold">{preview.summary.errors}</span> with problems
+              </span>
+            )}
+            {(preview.summary.noted ?? 0) > 0 && (
+              <span className="text-amber-700">
+                <span className="font-bold">{preview.summary.noted}</span> with a note
               </span>
             )}
           </div>
@@ -134,6 +166,46 @@ export function ImportSection({ ctx }: { ctx: RegisterTransferState }) {
             </div>
           )}
 
+          {/*
+            Rows that import, but not whole: an RBIM answer with no place on
+            the register was left blank. Amber, not red — nothing is stopped,
+            but the office should know which answers did not come across.
+          */}
+          {/*
+            By KIND, not by line. Line by line, one sentence was printed a
+            hundred times over and the few notes that needed somebody were
+            lost in it. Each kind says once what happened and what to do; the
+            lines it applies to fold open beneath.
+          */}
+          {(preview.note_groups ?? []).length > 0 && (
+            <div className="mb-3 space-y-2">
+              {(preview.note_groups ?? []).map((group) => (
+                <details key={group.key} className="rounded-lg bg-warning/10 px-3 py-2 text-xs">
+                  <summary className="flex cursor-pointer list-none gap-2">
+                    <FiInfo className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-700" aria-hidden="true" />
+                    <span className="flex-1">
+                      <span className="font-semibold text-dark">
+                        {group.title} — {group.lines.length}{" "}
+                        {group.lines.length === 1 ? "line" : "lines"}
+                      </span>
+                      <span className="block text-gray-600">{group.explanation}</span>
+                      <span className="mt-0.5 block font-semibold text-primary">Show which lines</span>
+                    </span>
+                  </summary>
+                  <ul className="mt-2 max-h-48 space-y-0.5 overflow-y-auto border-t border-warning/30 pt-2 pl-5.5">
+                    {group.lines.map((l) => (
+                      <li key={l.line} className="text-gray-700">
+                        <span className="font-medium text-dark">Line {l.line}</span>
+                        {l.name ? ` · ${l.name}` : ""}
+                        {l.detail ? <span className="text-gray-500"> — {l.detail}</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ))}
+            </div>
+          )}
+
           <div className="max-h-[26rem] overflow-y-auto rounded-lg border border-gray bg-white">
             <table className="w-full text-xs">
               <tbody>
@@ -144,6 +216,8 @@ export function ImportSection({ ctx }: { ctx: RegisterTransferState }) {
                     <td className="px-3 py-1.5">
                       {r.problems.length > 0 ? (
                         <span className="text-danger">skipped</span>
+                      ) : r.action === "duplicate" ? (
+                        <span className="text-amber-700">same person as line {r.duplicate_of} — imported once</span>
                       ) : r.action === "update" ? (
                         <span className="text-gray-500">
                           updates {r.matched_number ?? "an existing record"}

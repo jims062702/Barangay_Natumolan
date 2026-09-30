@@ -12,6 +12,7 @@ use App\Models\Resident\Resident;
 use App\Services\Account\ActivationCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -30,13 +31,42 @@ class AuthController extends BaseController
     {
         $validated = $request->validated();
 
+        /*
+         * FIVE WRONG PASSWORDS, AND THE ACCOUNT WAITS FIFTEEN MINUTES
+         * (2026-09-30).
+         *
+         * A resident's starting password is their surname and the year they
+         * were born — a hundred or so guesses for anybody who knows them —
+         * and nothing stopped those guesses coming as fast as a script could
+         * send them.
+         *
+         * Counted per ACCOUNT, and only the failures: a barangay hall is one
+         * IP address (see AppServiceProvider), and somebody who signs in
+         * correctly has nothing counted against them.
+         */
+        $failures = 'login-failed:' . strtolower(trim($validated['email']));
+
+        if (RateLimiter::tooManyAttempts($failures, 5)) {
+            $minutes = max(1, (int) ceil(RateLimiter::availableIn($failures) / 60));
+
+            return $this->error(
+                'Too many incorrect passwords for this account. Try again in ' . $minutes
+                    . ($minutes === 1 ? ' minute' : ' minutes') . ', or reset your password.',
+                429,
+            );
+        }
+
         $user = User::where('email', $validated['email'])->first();
 
         if (!$user || !Hash::check($validated['password'], $user->password)) {
+            RateLimiter::hit($failures, 15 * 60);
+
             throw ValidationException::withMessages([
                 'email' => 'The provided credentials are invalid.',
             ]);
         }
+
+        RateLimiter::clear($failures);
 
         if (!$user->is_active) {
             return $this->error('User account is inactive', 403);
@@ -45,7 +75,7 @@ class AuthController extends BaseController
         /*
          * A resident's portal account is created FOR them when the Population
          * Office registers them — nobody has yet proved they own the mailbox
-         * it is addressed to, and the starting password (Lastname + MMDDYY)
+         * it is addressed to, and the starting password (Lastname + birth year)
          * is guessable by anyone who knows them. So the first sign-in is only
          * half of it: a code goes to that address, and entering it is what
          * turns the account on. No token is issued until then.

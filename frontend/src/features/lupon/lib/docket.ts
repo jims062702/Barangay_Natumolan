@@ -3,6 +3,7 @@
  */
 
 import type { LuponCase } from "../types";
+import { CLOSED_UNPAID } from "./filingFee";
 
 export const RELATIONSHIPS = ["Family", "Neighbor", "Business", "Friend", "Other"];
 
@@ -17,16 +18,20 @@ export function nextStep(c: LuponCase): { label: string; to: string } {
   if (c.jurisdiction_status === "Rejected") return { label: "Rejected — review", to: open };
   if (["Dismissed", "Referred"].includes(c.current_stage))
     return { label: `Closed — ${c.current_stage.toLowerCase()}`, to: open };
+  if (c.current_stage === CLOSED_UNPAID)
+    return { label: "Closed — filing fee not paid", to: open };
 
   switch (c.current_stage) {
+    /* The filing fee comes first: nothing on the case moves until the
+       Lupon has seen the receipt, and the summons is refused without it. */
     case "Filed":
-      return { label: "Screen & schedule mediation", to: open };
+      return (c.payments ?? []).some((p) => p.kind === "Filing" && p.status === "Paid")
+        ? { label: "Issue the summons", to: open }
+        : { label: "See the filing fee receipt, then press Paid", to: open };
     case "Mediation":
       return { label: "Record mediation outcome", to: open };
     case "Conciliation":
       return { label: "Constitute Pangkat & conciliate", to: open };
-    case "Arbitration":
-      return { label: "Record arbitration award", to: open };
     case "Settled":
       // Reaching agreement at mediation moves the stage but does not write the
       // settlement — until the terms are recorded the case is nowhere on the

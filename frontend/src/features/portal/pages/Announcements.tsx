@@ -3,9 +3,10 @@ import { FiAlertTriangle, FiCalendar, FiClock, FiMapPin, FiUser } from "react-ic
 import { Link } from "react-router-dom";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import PageHeader from "../../../shared/ui/PageHeader";
-import { KIND, POST_KINDS, URGENCY_TONE, badgeFor, kindOf, postDate, whenOf, type PostKind } from "../../content/lib/postKinds";
+import { KIND, POST_KINDS, URGENCY_TONE, badgeFor, isNew, kindOf, postDate, statusesOf, whenLabel, type PostKind } from "../../content/lib/postKinds";
 import { publicApi } from "../../public/api";
 import type { Announcement } from "../../content/types";
+import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
 
 export default function Announcements() {
   const [rows, setRows] = useState<Announcement[]>([]);
@@ -16,14 +17,22 @@ export default function Announcements() {
   const [tick, setTick] = useState(0);
   useAutoRefresh(() => setTick((t) => t + 1), REFRESH.portal);
 
+  /* Its skeleton until the first answer — see PageLoad. A new category is
+     a filter on a page already shown, and loads in place. */
+  const pageLoad = usePageLoad();
+
   useEffect(() => {
     publicApi.announcements({ params: kind ? { category: kind } : {} })
       .then((r) => {
         setRows(r.data.data.data ?? []);
         setUpcoming(r.data.data.upcoming ?? []);
+        pageLoad.done();
       })
-      .catch(() => undefined);
+      .catch((error) => pageLoad.fail(error));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick, kind]);
+
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => setTick((t) => t + 1)} />;
 
   return (
     <div>
@@ -131,7 +140,18 @@ export default function Announcements() {
                     {post.urgency}
                   </span>
                 )}
-                {whenOf(post) && <span className="text-xs text-gray-400">{whenOf(post)}</span>}
+                {/* Where it stands today, and what the date is — as on the public page. */}
+                {isNew(post) && (
+                  <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-white">New</span>
+                )}
+                {statusesOf(post).map((chip) => (
+                  <span key={chip.label} className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${chip.tone}`}>
+                    {chip.label}
+                  </span>
+                ))}
+                {whenLabel(post) && (
+                  <span className="text-xs text-gray-400">{whenLabel(post)?.prefix} {whenLabel(post)?.text}</span>
+                )}
               </div>
 
               <h2 className="mt-2 text-lg font-bold text-dark">

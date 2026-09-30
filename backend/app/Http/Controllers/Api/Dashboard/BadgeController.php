@@ -9,6 +9,7 @@ use App\Models\Lupon;
 use App\Models\Service\Certificate;
 use App\Models\Service\ServiceRequest;
 use App\Models\Vawc;
+use App\Support\ManilaTime;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -81,12 +82,15 @@ class BadgeController extends BaseController
              */
             $closed = ['Settled', 'Dismissed', 'Referred'];
 
+            /* Counted as the portal lists them: once the summons is served. */
             $badges['/resident/lupon/against-me'] = LuponCase::whereNotIn('current_stage', $closed)
                 ->whereHas('respondents', fn ($q) => $q->where('residents.id', $mine))
+                ->summonsIssued()
                 ->count();
 
             $badges['/resident/lupon/filed'] = LuponCase::whereNotIn('current_stage', $closed)
                 ->where('complainant_id', $mine)
+                ->summonsIssued()
                 ->count();
 
             /*
@@ -103,6 +107,14 @@ class BadgeController extends BaseController
             $badges['/resident/lupon/hearings'] = DB::table('lupon_hearings')
                 ->where('status', 'Scheduled')
                 ->where('scheduled_at', '>=', now()->startOfDay())
+                /* Only on cases whose summons has been printed — the same
+                   line the portal itself draws. Counting from proof of
+                   service put a number beside a menu whose list was still
+                   empty, because the case only appears once the paper
+                   exists. */
+                ->whereIn('lupon_case_id', DB::table('lupon_hearings')
+                    ->where('summons_issued', true)
+                    ->select('lupon_case_id'))
                 ->whereIn('lupon_case_id', function ($q) use ($mine) {
                     $q->select('id')->from('lupon_cases')->where('complainant_id', $mine)
                         ->union(
@@ -150,11 +162,13 @@ class BadgeController extends BaseController
         }
 
         /*
-         * The live desk, which the Clerk does not staff. Waiting conversations
-         * AND unread replies in the one being handled: both are somebody on
-         * the other end of a chat window, watching for an answer.
+         * The live desk, which the CLERK staffs — and was the one account
+         * the badge was kept from, left over from when the Secretary had it.
+         * Waiting conversations AND unread replies in the ones being handled:
+         * both are somebody on the other end of a chat window, watching for
+         * an answer. Not the Secretary's: the desk is closed to them.
          */
-        if ($frontDesk && $role !== 'Clerk') {
+        if ($frontDesk && $role !== 'Secretary') {
             $badges['/chat'] = Conversation::where('status', 'Waiting')->count()
                 + (int) Conversation::where('status', 'Active')->sum('unread_for_agent');
         }
@@ -163,23 +177,79 @@ class BadgeController extends BaseController
             // A case still moving through the KP process.
             $badges['/lupon/cases'] = Lupon\CaseFile::whereNotIn(
                 'current_stage',
-                ['Settled', 'Dismissed', 'Referred']
+                Lupon\CaseFile::CLOSED_STAGES
             )->count();
 
+            /*
+             * TODAY'S SITTINGS, not every sitting ever booked.
+             *
+             * The menu entry opens Today's Hearing, so the number beside it
+             * has to be the number of rows on that screen. Counting every
+             * Scheduled sitting put a red 8 next to a list that read "No
+             * hearings set for today" — a badge that is never right is a
+             * badge the office stops looking at.
+             */
             $badges['/lupon/hearings'] = DB::table('lupon_hearings')
                 ->where('status', 'Scheduled')
+                ->whereDate('scheduled_at', ManilaTime::today())
                 ->count();
+        }
+
+        /*
+         * CASES FORWARDED TO THIS DESK, WAITING ON A SUMMONS.
+         *
+         * The one number on this menu that is somebody's own backlog rather
+         * than the room's: nothing is on any calendar until the paper is
+         * printed, so a case sitting here is invisible everywhere else. Each
+         * desk counts only its own — the Secretary's Tuesdays-to-be and the
+         * Lupon's Thursdays-to-be are different work, and a shared figure
+         * would have each office chasing the other's.
+         */
+        /*
+         * COUNTED FROM THE PAPER, NOT FROM THE STAGE.
+         *
+         * A case carried over from the old order stands at Mediation with
+         * three Tuesdays already on the calendar and no summons ever
+         * printed — real work, and a badge keyed to the waiting stages
+         * alone walked straight past it. It said 1 above a list showing 4.
+         */
+        $waitingFor = [
+            'Main Office' => ['For Summons', 'Mediation'],
+            'Lupon' => ['For Lupon Summons', 'Conciliation'],
+            /* Admin stands in for whichever desk is short-handed, so it
+               counts both waiting rooms. */
+            'Admin' => ['For Summons', 'Mediation', 'For Lupon Summons', 'Conciliation'],
+        ];
+
+        $unprinted = "(SELECT COUNT(*) FROM lupon_hearings h
+              WHERE h.lupon_case_id = lupon_cases.id
+                AND h.summons_issued = 1
+                AND h.hearing_type = CASE
+                      WHEN lupon_cases.current_stage IN ('For Lupon Summons','Conciliation')
+                      THEN 'Conciliation' ELSE 'Mediation' END) = 0";
+
+        /* The Clerk is Main Office too, and the KP is no part of their work:
+           without this they would run this query on every sidebar refresh
+           for a menu entry they do not have. */
+        if ($role !== 'Punong Barangay' && $role !== 'Clerk' && isset($waitingFor[$office])) {
+            $badges['/lupon/hearings/for-summons'] = Lupon\CaseFile::whereIn(
+                'current_stage',
+                $waitingFor[$office]
+            )->whereRaw($unprinted)->count();
         }
 
         // Confidential by law and by design: this number leaves the VAWC desk
         // for nobody, not even the Punong Barangay.
         if ($office === 'VAWC') {
             $badges['/vawc/cases'] = Vawc\CaseFile::where('status', 'Active')->count();
+            /* Reports residents sent online, waiting to be verified. */
+            $badges['/vawc/online-reports'] = Vawc\OnlineReport::where('status', Vawc\OnlineReport::FOR_VERIFICATION)->count();
         }
 
         if ($isAdmin || $office === 'Population') {
             // Issued but never activated — the resident cannot sign in yet.
-            $badges['/population/accounts'] = DB::table('users')
+            /* On the sidebar's "Not activated" list, the one it counts. */
+            $badges['/population/accounts/not-activated'] = DB::table('users')
                 ->whereNotNull('resident_id')
                 ->whereNull('activated_at')
                 ->count();

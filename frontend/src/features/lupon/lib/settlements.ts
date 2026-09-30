@@ -49,7 +49,7 @@ export const ACTION_HELP: Record<string, string> = {
   repudiate:
     "A party rejected the settlement within 10 days for fraud, violence or intimidation. The case returns to conciliation.",
   mark_complied: "The obligations were carried out. Closes the settlement.",
-  mark_not_complied: "The deadline passed without compliance. Execution becomes available.",
+  mark_not_complied: "The obligations were not carried out. Execution becomes available.",
   execute:
     "Enforce the settlement. Within 6 months the Lupon may execute it; after that it takes a court action.",
 };

@@ -1,10 +1,7 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { FiCalendar } from "react-icons/fi";
 import Card from "../../../shared/ui/Card";
-import { RowsSkeleton } from "../../../shared/ui/Skeleton";
 import { formatWallClock } from "../../../shared/lib/datetime";
-import { portalApi } from "../api";
 import type { PortalKpCase } from "../types";
 
 /**
@@ -41,30 +38,25 @@ const GROUPS: { key: Group; label: string; tone: string }[] = [
   { key: "past", label: "Already held", tone: "text-gray-400" },
 ];
 
-export default function MyHearingsCard() {
-  const [sittings, setSittings] = useState<Sitting[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    portalApi.cases()
-      .then((r) => {
-        const cases: PortalKpCase[] = r.data.data.kp_cases ?? [];
-        setSittings(
-          cases.flatMap((c) =>
-            (c.hearings ?? []).map((h, i) => ({
-              key: `${c.case_number}-${i}`,
-              type: h.type,
-              scheduled_at: h.scheduled_at,
-              status: h.status,
-              case_number: c.case_number,
-              title: c.title,
-            })),
-          ),
-        );
-      })
-      .catch(() => undefined)
-      .finally(() => setLoading(false));
-  }, []);
+/**
+ * The resident's sittings, from the cases the portal home already fetched.
+ *
+ * It used to fetch them itself, after the page had appeared, and draw its
+ * own skeleton in the middle of a page that had finished loading — a
+ * second loading state. The home asks once, and this only lays the answer
+ * out.
+ */
+export default function MyHearingsCard({ cases }: { cases: PortalKpCase[] }) {
+  const sittings: Sitting[] = cases.flatMap((c) =>
+    (c.hearings ?? []).map((h, i) => ({
+      key: `${c.case_number}-${i}`,
+      type: h.type,
+      scheduled_at: h.scheduled_at,
+      status: h.status,
+      case_number: c.case_number,
+      title: c.title,
+    })),
+  );
 
   /*
    * Grouped on the CALENDAR DAY, not on the instant.
@@ -101,9 +93,7 @@ export default function MyHearingsCard() {
         ) : undefined
       }
     >
-      {loading ? (
-        <RowsSkeleton rows={2} what="your hearings" />
-      ) : !anything ? (
+      {!anything ? (
         <p className="flex items-center justify-center gap-2 py-6 text-center text-sm text-gray-400">
           <FiCalendar aria-hidden="true" className="h-4 w-4" />
           You have no hearing to attend.

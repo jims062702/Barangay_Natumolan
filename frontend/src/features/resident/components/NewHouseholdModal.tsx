@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { errorMessage } from "../../../shared/lib/api";
 import { confirmAction } from "../../../shared/lib/confirm";
+import { useModalDraft } from "../../../shared/lib/useModalDraft";
+import DraftNotice from "../../../shared/ui/DraftNotice";
 import Modal from "../../../shared/ui/Modal";
 import FormField, { inputClasses } from "../../../shared/ui/FormField";
 import type { Household } from "../../../shared/types";
@@ -40,6 +42,12 @@ export default function NewHouseholdModal({ open, onClose, onCreated, defaultPur
     setError("");
   }, [open, defaultPurok]);
 
+  const starting = { ...INITIAL, zone_purok: defaultPurok ?? "" };
+  const draft = useModalDraft("new-household", open, form, (kept) => setForm({ ...starting, ...kept }), {
+    blank: starting,
+    reset: () => setForm(starting),
+  });
+
   const set = (key: keyof typeof INITIAL) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => setForm((prev) => ({ ...prev, [key]: e.target.value }));
@@ -51,6 +59,7 @@ export default function NewHouseholdModal({ open, onClose, onCreated, defaultPur
     setError("");
     try {
       const response = await populationApi.createHousehold(form);
+      draft.clear();
       onCreated(response.data.data);
       onClose();
     } catch (err) {
@@ -69,7 +78,7 @@ export default function NewHouseholdModal({ open, onClose, onCreated, defaultPur
         <FormField label="Household number" required>
           <input value={form.household_number} onChange={set("household_number")} required className={inputClasses} placeholder="e.g. HH-2026-0012" />
         </FormField>
-        <FormField label="Zone" required>
+        <FormField label="Zone / Purok" required>
           <select value={form.zone_purok} onChange={set("zone_purok")} required className={inputClasses}>
             <option value="">Select…</option>
             {/* The barangay's own list — see useZones. */}
@@ -84,6 +93,7 @@ export default function NewHouseholdModal({ open, onClose, onCreated, defaultPur
         <FormField label="House type">
           <input value={form.house_type} onChange={set("house_type")} className={inputClasses} placeholder="e.g. Concrete, Semi-concrete" />
         </FormField>
+        <DraftNotice draft={draft} />
         <button
           type="submit"
           disabled={saving}

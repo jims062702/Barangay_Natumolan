@@ -1,0 +1,159 @@
+# Everyday barangay matters the system does not keep the details of.
+#
+# THESE ANSWERS SEND PEOPLE TO THE OFFICE ON PURPOSE. Garbage schedules,
+# curfews, evacuation areas and assistance programmes are decided and changed
+# by the barangay and the municipality, and the system does not hold them. A
+# chatbot that guessed would be confidently wrong about something that
+# matters; one that says where to ask is right every time. When the office
+# has these details in writing, put them in the answers here.
+topic: community
+intents:
+  - id: ask_tanod
+    label: "Barangay tanod"
+    question: "How do I reach the barangay tanod?"
+    framed:
+      who: [the tanod, the barangay tanod]
+      how_to: [reach the tanod, call the tanod]
+    answer: |-
+      The barangay tanod keep the peace in the barangay. For a disturbance happening now, go to the Barangay Hall. In an emergency, call 911.
+    related: [ask_noise_complaint, ask_file_complaint, ask_vawc_emergency]
+    en: [how do i reach the tanod, barangay tanod, call the tanod, there is a fight outside, peace and order, security in our area]
+    tl: [paano tawagan ang tanod, may away sa labas, tanod sa barangay]
+    ceb: [unsaon pagtawag sa tanod, naay away sa gawas, tanod sa barangay]
+    test: [drunk men are fighting on our street, may gulo po dito sa amin]
+
+  - id: ask_noise_complaint
+    label: "Noise and disturbance"
+    question: "How do I complain about noise from my neighbor?"
+    framed:
+      report: [noise from my neighbor, loud music, noisy neighbors, a loud videoke]
+    answer: |-
+      For noise or a disturbance happening now, go to the Barangay Hall so the tanod can respond, or call 911 in an emergency.
+
+      If it keeps happening, you can file a complaint with the Lupon Tagapamayapa, which calls both sides to a hearing.
+    related: [ask_file_complaint, ask_tanod, ask_kp_coverage]
+    en: [my neighbor is too noisy, noise complaint, loud videoke at night, my neighbor plays loud music, complain about noise]
+    tl: [maingay ang kapitbahay, videoke hanggang madaling araw, reklamo sa ingay]
+    ceb: [saba kaayo ang silingan, videoke hangtod kaadlawon, reklamo sa kasaba]
+    test: [the karaoke next door goes past midnight, sobrang ingay po ng kapitbahay namin]
+
+  - id: ask_disaster
+    label: "Typhoons and disasters"
+    question: "What do I do during a typhoon or flood?"
+    framed:
+      where: [the evacuation center, the evacuation area]
+    answer: |-
+      Follow the announcements of the barangay — posted under News & Announcements on this website — and of the municipality. Ask at the Barangay Hall where the evacuation area for your zone is. If you are in danger, call 911.
+    related: [ask_announcements, ask_tanod]
+    en: [what do i do during a typhoon, where is the evacuation center, flood in our area, disaster preparedness, evacuation area, there is a flood, where do we evacuate, we need to evacuate, the water is rising where do we go, typhoon is coming what should we do, where is the evacuation site]
+    tl: [saan ang evacuation center, may baha sa amin, ano gagawin kapag may bagyo, saan kami pupunta kapag may bagyo, baha na saan kami lilikas, saan ang evacuation]
+    ceb: [asa ang evacuation center, naay baha sa amoa, unsa buhaton kung naay bagyo, asa mi mobakwit, baha na asa mi moadto, naay bagyo asa mi]
+    test: [where should our family go if the river rises, saan po kami lilikas]
+
+  - id: ask_garbage
+    label: "Garbage collection"
+    question: "When is garbage collected?"
+    framed:
+      when: [the garbage collection, garbage pick up, the garbage truck]
+    answer: |-
+      Ask at the Barangay Hall for the garbage collection schedule in your zone — it is set by the barangay and the municipality and can change.
+    related: [ask_report_problem, ask_announcements]
+    en: [when is garbage collection, garbage schedule, what day is the garbage truck, where do i throw my garbage, waste collection]
+    tl: [kailan ang kuha ng basura, anong araw ang basura, saan itatapon ang basura]
+    ceb: [kanus-a kuhaon ang basura, unsa nga adlaw ang basura]
+    test: [our trash was not picked up this week, kailan po dumadaan ang trak ng basura]
+
+  - id: ask_curfew
+    label: "Curfew"
+    question: "Is there a curfew in the barangay?"
+    framed:
+      what: [the curfew, the curfew for minors]
+      when: [the curfew]
+    answer: |-
+      Ask at the Barangay Hall about any curfew or other ordinance in effect — ordinances are passed and changed by the Sangguniang Barangay and the municipality.
+    related: [ask_tanod, ask_officials]
+    en: [is there a curfew, curfew for minors, what time is the curfew, barangay ordinance on curfew]
+    tl: [may curfew ba, anong oras ang curfew, curfew ng mga bata]
+    ceb: [naa bay curfew, unsa oras ang curfew]
+    test: [can teenagers be outside late at night here, may curfew po ba dito]
+
+  - id: ask_report_problem
+    label: "Report a problem"
+    question: "How do I report a broken streetlight or road?"
+    framed:
+      report: [a broken streetlight, a damaged road, a clogged drainage, a broken road, a pothole]
+    answer: |-
+      Report it at the Main Office in the Barangay Hall, or send a message through the Contact section of this website. Say exactly where it is.
+    related: [ask_contact_form, ask_contact]
+    en: [how do i report a broken streetlight, the road is damaged, clogged drainage, report a problem in our street, broken water pipe on the road]
+    tl: [sira ang ilaw sa kalsada, sira ang daan, barado ang kanal]
+    ceb: [guba ang suga sa dalan, guba ang dalan, barado ang kanal]
+    test: [there is a big pothole near our house, may sirang poste po sa amin]
+
+  - id: ask_stray_animals
+    label: "Stray animals"
+    question: "What do I do about stray dogs?"
+    framed:
+      report: [stray dogs, stray animals, a dangerous dog]
+    answer: |-
+      Report stray or dangerous animals at the Barangay Hall. If someone has been bitten, wash the wound with soap and running water and go to the Health Station right away.
+    related: [ask_animal_bite, ask_report_problem]
+    en: [stray dogs in our area, there is a stray dog, dangerous dog, loose animals on the road, report stray animals]
+    tl: [maraming asong gala, may asong gala, delikadong aso]
+    ceb: [daghang iro nga libud, naay iro nga libud]
+    test: [a pack of dogs chases people on our street, may mga asong gala po dito]
+
+  - id: ask_cedula
+    label: "Cedula"
+    question: "Where can I get a cedula?"
+    framed:
+      get: [a cedula, cedula, a community tax certificate, ctc]
+      fee: [cedula, the cedula]
+    answer: |-
+      The cedula (community tax certificate) is issued by the municipal treasurer's office; barangays may also collect it on the municipality's behalf. Ask at the Main Office whether it is issued at the Barangay Hall.
+    related: [ask_certificates, ask_office_hours]
+    en: [where can i get a cedula, community tax certificate, do you issue cedula, how much is the cedula, ctc]
+    tl: [saan kukuha ng cedula, may cedula ba sa barangay]
+    ceb: [asa makuha ang cedula, naa bay cedula sa barangay]
+    test: [i need a ctc for my documents, cedula po meron ba kayo]
+
+  - id: ask_barangay_id
+    label: "Barangay ID"
+    question: "How do I get a barangay ID?"
+    framed:
+      get: [a barangay id, barangay id]
+      fee: [barangay id]
+    answer: |-
+      Ask at the Main Office whether barangay IDs are being issued and what is needed. For proof that you live here, the Certificate of Residency is ₱40, plus the ₱30 documentary stamp.
+    related: [ask_residency, ask_register_resident]
+    en: [how do i get a barangay id, barangay id application, do you issue ids, i need a barangay id]
+    tl: [paano kumuha ng barangay id, may barangay id ba]
+    ceb: [unsaon pagkuha og barangay id, naa bay barangay id]
+    test: [id card from the barangay, barangay id po paano]
+
+  - id: ask_assistance
+    label: "Financial assistance"
+    question: "Does the barangay give financial or burial assistance?"
+    framed:
+      get: [financial assistance, burial assistance, medical assistance, help for hospital bills]
+      can: [get financial assistance, ask for burial assistance]
+    answer: |-
+      Ask at the Main Office about assistance available now — programmes depend on the barangay's and the municipality's funds. Agencies giving medical, educational or burial assistance usually ask for a Certificate of Indigency, which has no fee (only the ₱30 documentary stamp).
+    related: [ask_indigency, ask_low_income]
+    en: [do you give financial assistance, burial assistance, medical assistance, help with hospital bills, cash assistance from the barangay]
+    tl: [may tulong pinansyal ba, tulong sa pagpapalibing, tulong sa ospital]
+    ceb: [naa bay tabang pinansyal, tabang sa paglubong, tabang sa hospital]
+    test: [we cannot pay the hospital bill can the barangay help, may ayuda po ba]
+
+  - id: ask_lost_found
+    label: "Lost and found"
+    question: "I found or lost something. Where do I go?"
+    framed:
+      report: [a lost wallet, a found item, something i found, a lost item]
+    answer: |-
+      Bring found items, or report a loss, at the Barangay Hall, Monday to Friday, 8:00 AM – 5:00 PM. If what you lost was a document, you may need an Affidavit of Loss for the agency that issued it.
+    related: [ask_lost_certificate, ask_other_certifications]
+    en: [i found a wallet, i lost my wallet, lost and found, i found an id on the street, where do i surrender a found item]
+    tl: [may napulot akong wallet, nawala ang wallet ko, saan isusurender ang napulot]
+    ceb: [naay nakit-an nako nga wallet, nawala akong wallet]
+    test: [someone dropped a phone in front of our store, may nawawala po akong bag]

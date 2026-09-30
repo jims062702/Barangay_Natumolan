@@ -203,7 +203,7 @@ class LookupController extends BaseController
                         // register already says lives here, and Q3 and Q4 are
                         // answers it already holds.
                         ->get(['id', 'resident_number', 'first_name', 'middle_name',
-                               'last_name', 'gender', 'birthdate'])
+                               'last_name', 'gender', 'birthdate', 'birthdate_is_estimated'])
                     : [],
                 'resident_count' => $household
                     ? Resident::where('household_id', $household->id)->whereNull('merged_into_id')->count()
@@ -222,7 +222,7 @@ class LookupController extends BaseController
             ->whereNull('merged_into_id')
             ->orderBy('last_name')
             ->get(['id', 'resident_number', 'first_name', 'middle_name', 'last_name',
-                    'record_type', 'gender', 'birthdate']);
+                    'record_type', 'gender', 'birthdate', 'birthdate_is_estimated']);
 
         $censuses = Census::where('household_id', $household->id)
             ->withCount('members')

@@ -1,3 +1,4 @@
+import DraftNotice from "../../../shared/ui/DraftNotice";
 import Modal from "../../../shared/ui/Modal";
 import FormField, { inputClasses } from "../../../shared/ui/FormField";
 import { ROLE_OFFICE } from "../lib/roles";
@@ -9,7 +10,7 @@ import type { AccountAdminState } from "../hooks/useAccountAdmin";
 export function EditAccountModal({ ctx }: { ctx: AccountAdminState }) {
   const {
     editing, setEditing, saveEdit, name, setName, email, setEmail, password, setPassword, role,
-    setRole,
+    setRole, editDraft,
   } = ctx;
 
   return (
@@ -83,6 +84,8 @@ export function EditAccountModal({ ctx }: { ctx: AccountAdminState }) {
             </select>
           </FormField>
         )}
+
+        <DraftNotice draft={editDraft} passwords />
 
         <div className="flex justify-end gap-3 border-t border-gray pt-4">
           <button

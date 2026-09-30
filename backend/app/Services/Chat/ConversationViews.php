@@ -26,6 +26,9 @@ final class ConversationViews
             /* So the widget knows to offer "ask a follow-up" rather than a
                disabled box, and can say it has been reopened before. */
             'follow_up_count' => $conversation->follow_up_count,
+            /* When it closes by itself if they do not reply — null while the
+               reply is the desk's to give. */
+            'closes_at' => IdleConversations::closesAt($conversation)?->toIso8601String(),
         ] + $this->queue($conversation);
     }
 
@@ -57,6 +60,9 @@ final class ConversationViews
             'follow_up_count' => $conversation->follow_up_count,
             'reopened_at' => $conversation->reopened_at,
             'last_closed_at' => $conversation->last_closed_at,
+
+            /* The desk has answered and the resident has not: it closes by itself then. */
+            'closes_at' => IdleConversations::closesAt($conversation)?->toIso8601String(),
         ];
     }
 
@@ -75,12 +81,13 @@ final class ConversationViews
     }
 
     /**
-     * Where this person stands in the line.
+     * Where this person stands among those nobody has answered yet.
      *
-     * One Clerk answers one person at a time, so anybody who is not first
-     * is waiting behind somebody — and a wait with no number attached feels
-     * like being ignored. Telling them they are third is the difference
-     * between waiting and wondering whether the thing is broken at all.
+     * The Clerk takes as many conversations at once as come in (2026-09-30),
+     * but takes them in turn — so anybody not yet answered is waiting behind
+     * whoever arrived first, and a wait with no number attached feels like
+     * being ignored. Telling them they are third is the difference between
+     * waiting and wondering whether the thing is broken at all.
      *
      * Ordered by ARRIVAL, never by last message: ranking on the latest
      * message would send a person to the back of the queue for asking whether

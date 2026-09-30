@@ -78,13 +78,23 @@ class TransferController extends BaseController
             );
         }
 
-        [$created, $updated, $skipped, $households, $couples] = array_values($registerImport->apply($parsed));
+        /* By name, not position: the result has grown, and a list read by
+           position quietly puts the new counts in the wrong words. */
+        $result = $registerImport->apply($parsed);
+        ['created' => $created, 'updated' => $updated, 'skipped' => $skipped,
+            'households' => $households, 'couples' => $couples] = $result;
+        $heads = $result['heads'] ?? 0;
+        $children = $result['children'] ?? 0;
+        $tagged = $result['tagged'] ?? 0;
 
         return $this->success(
-            compact('created', 'updated', 'skipped', 'households', 'couples'),
+            compact('created', 'updated', 'skipped', 'households', 'couples', 'heads', 'children', 'tagged'),
             $created . ' added, ' . $updated . ' updated'
                 . ($households ? ', ' . $households . ' household(s) created' : '')
+                . ($heads ? ', ' . $heads . ' household head(s) set' : '')
                 . ($couples ? ', ' . $couples . ' couple(s) linked' : '')
+                . ($children ? ', ' . $children . ' child(ren) linked to their parents' : '')
+                . ($tagged ? ', ' . $tagged . ' PWD/Solo Parent tag(s) added' : '')
                 . ($skipped ? ', ' . $skipped . ' skipped' : '') . '.'
         );
     }

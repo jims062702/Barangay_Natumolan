@@ -72,8 +72,11 @@ class ResidentController extends BaseController
         }
 
         if ($request->filled('sector')) {
+            /* Only a sector they are IN. A grown-out-of bracket stays on the
+               record as history (is_active false), and without this a
+               six-year-old still came up under Children Under Five. */
             $query->whereHas('sectors', function ($q) use ($request) {
-                $q->where('sector_type', $request->input('sector'));
+                $q->where('sector_type', $request->input('sector'))->where('is_active', true);
             });
         }
         
@@ -209,7 +212,9 @@ class ResidentController extends BaseController
         $resident->load([
             'household',
             'sectors' => fn ($q) => $q->where('is_active', true), // hide grown-out-of brackets
-            'serviceRequests', 'certificates',
+            /* No service requests or certificates: those are the Main
+               Office's records, not the register's, and the office that
+               keeps the register has no authority over them. */
             'account:id,email,resident_id,is_active,activated_at', // null when no portal account yet
             // Two generations up, one down, and sideways: `parents.parents
             // .children` is what turns the grandparents into aunts and uncles,
@@ -267,6 +272,10 @@ class ResidentController extends BaseController
             'suffix' => 'nullable|string|max:50',
             'gender' => 'in:Male,Female',
             'birthdate' => 'date',
+            /* False once the office enters the whole date for a record that held only a month and a year. */
+            'birthdate_is_estimated' => 'boolean',
+            /* Q7: "Filipino", or the nationality written after a 2 — see App\Support\Nationality. */
+            'nationality' => 'nullable|string|max:100',
             'civil_status' => 'nullable|string',
             /* The resident's own — see the note on store(). */
             'contact_number' => 'nullable|string',
@@ -276,6 +285,7 @@ class ResidentController extends BaseController
             'residency_status' => 'in:Permanent,Temporary,Migrant',
             'length_of_residence_years' => 'nullable|integer|min:0',
             'educational_attainment' => 'nullable|string',
+            'registered_voter_in' => 'nullable|string|max:150',
             'remarks' => 'nullable|string',
             'is_active' => 'boolean',
         ], [
@@ -290,7 +300,15 @@ class ResidentController extends BaseController
         }
         $resident->save();
 
-        $resident->load(['household', 'sectors']);
+        /*
+         * And the age brackets with it. Only the classification used to
+         * follow a corrected birthdate, so a record fixed from 2021 to 1995
+         * read "Adult" and still sat on the Children Under Five and Youth
+         * lists until somebody happened to open it.
+         */
+        $resident->reconcileAgeData();
+
+        $resident->load(['household', 'sectors' => fn ($q) => $q->where('is_active', true)]);
         LandingCache::clearStats(); // is_active/purok may have changed the counts
 
         return $this->success($resident, 'Resident updated successfully');
@@ -368,10 +386,14 @@ class ResidentController extends BaseController
          * to be applied to the rows you actually want.
          */
         $only = $request->input('record_type');
+        /* A mother is looked for among women only — filtered here, where the
+           limit is applied, for the same reason as the record type above. */
+        $sex = in_array($request->input('gender'), ['Male', 'Female'], true) ? $request->input('gender') : null;
 
         $residents = Resident::whereNull('merged_into_id')
             ->when($only === Resident::NON_RESIDENT, fn ($q) => $q->where('record_type', Resident::NON_RESIDENT))
             ->when($only === 'Resident', fn ($q) => $q->bonafide())
+            ->when($sex, fn ($q) => $q->where('gender', $sex))
             ->nameSearch($request->input('q'))
             ->orderBy('last_name')
             ->orderBy('first_name')
@@ -412,7 +434,9 @@ class ResidentController extends BaseController
             // out of one record and into the next — which is how a digit
             // gets dropped. The row already carries a birthdate and an
             // address; a phone number sits inside the same staff-only gate.
-            ->get(['id', 'resident_number', 'record_type', 'life_status', 'first_name', 'middle_name', 'last_name', 'suffix', 'birthdate', 'zone_purok', 'contact_number']);
+            //
+            // `gender` travels so a picker asked for mothers can show it.
+            ->get(['id', 'resident_number', 'record_type', 'life_status', 'gender', 'first_name', 'middle_name', 'last_name', 'suffix', 'birthdate', 'zone_purok', 'contact_number']);
 
         return $this->success($residents, 'Search results');
     }
@@ -570,6 +594,11 @@ class ResidentController extends BaseController
             )->count(),
             'Certificates issued' => $resident->certificates()->count(),
             'Health visits' => $resident->healthVisits()->count(),
+            /* A child's weighings, a mother's pregnancies and her prenatal
+               records are the station's history of that person. */
+            'Child health records' => \App\Models\Health\ChildRecord::where('child_id', $resident->id)->count(),
+            'Pregnancies' => \App\Models\Health\MaternalRecord::where('mother_id', $resident->id)->count(),
+            'Prenatal records' => \App\Models\Health\PrenatalVisit::where('mother_id', $resident->id)->count(),
         ];
     }
 }

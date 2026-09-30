@@ -1,3 +1,4 @@
+import DraftNotice from "../../../shared/ui/DraftNotice";
 import Modal from "../../../shared/ui/Modal";
 import FormField, { inputClasses } from "../../../shared/ui/FormField";
 import type { AccountAdminState } from "../hooks/useAccountAdmin";
@@ -8,7 +9,7 @@ import type { AccountAdminState } from "../hooks/useAccountAdmin";
 export function SelfAccountModal({ ctx }: { ctx: AccountAdminState }) {
   const {
     selfOpen, setSelfOpen, saveSelf, selfName, setSelfName, selfEmail, setSelfEmail,
-    currentPassword, setCurrentPassword, selfPassword, setSelfPassword,
+    currentPassword, setCurrentPassword, selfPassword, setSelfPassword, selfDraft,
   } = ctx;
 
   return (
@@ -59,6 +60,8 @@ export function SelfAccountModal({ ctx }: { ctx: AccountAdminState }) {
             </FormField>
           </div>
         </div>
+
+        <DraftNotice draft={selfDraft} passwords />
 
         <div className="flex justify-end gap-3 border-t border-gray pt-4">
           <button

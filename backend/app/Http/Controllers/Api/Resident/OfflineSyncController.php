@@ -57,9 +57,9 @@ class OfflineSyncController extends BaseController
         }
 
         $rows = $query->get([
-            'id', 'resident_number', 'record_type', 'life_status',
+            'id', 'resident_number', 'record_type', 'life_status', 'gender',
             'first_name', 'middle_name', 'last_name', 'suffix',
-            'birthdate', 'birthdate_is_estimated', 'birth_place',
+            'birthdate', 'birthdate_is_estimated', 'birth_place', 'nationality',
             'civil_status', 'zone_purok', 'address',
             'length_of_residence_years', 'contact_number',
             'updated_at',

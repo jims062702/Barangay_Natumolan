@@ -25,8 +25,20 @@ class SaveCensusRequest extends FormRequest
      * never keyed in at all. What IS required is what makes the record
      * identifiable: a household head and a name on every line.
      */
-    public static function fields(?int $ignoreId = null): array
+    /**
+     * `$draft` — the form is still a Draft (a new one always is).
+     *
+     * A draft is saved as it is typed (the form saves itself, 2026-09-29),
+     * so it must be savable before the household head or a line's surname
+     * has been reached: refusing it would lose the answers above them on a
+     * refresh. Registering (Submit) still refuses a head or a line with no
+     * name — see CensusRegistration — and a SUBMITTED census keeps them
+     * required, because people on the register came from it.
+     */
+    public static function fields(?int $ignoreId = null, bool $draft = false): array
     {
+        $named = $draft ? 'nullable' : 'required';
+
         /*
          * 99 is an answer, not a gap.
          *
@@ -65,7 +77,7 @@ class SaveCensusRequest extends FormRequest
             'address_house_lot' => 'nullable|string|max:150',
             'address_street' => 'nullable|string|max:150',
             'respondent_name' => 'nullable|string|max:150',
-            'household_head_name' => 'required|string|max:150',
+            'household_head_name' => $named . '|string|max:150',
             'total_members' => 'nullable|integer|min:0|max:99',
             'household_id' => 'nullable|exists:households,id',
 
@@ -117,8 +129,8 @@ class SaveCensusRequest extends FormRequest
             /* The member grid */
             'members' => 'nullable|array|max:30',
             'members.*.line_no' => 'nullable|integer|min:1|max:30',
-            'members.*.last_name' => 'required|string|max:100',
-            'members.*.first_name' => 'required|string|max:100',
+            'members.*.last_name' => $named . '|string|max:100',
+            'members.*.first_name' => $named . '|string|max:100',
             'members.*.middle_name' => 'nullable|string|max:100',
             /*
              * Not on the paper form. A portal account is issued against an
@@ -131,6 +143,9 @@ class SaveCensusRequest extends FormRequest
             'members.*.q2_relationship' => $in(CensusMember::RELATIONSHIPS),
             'members.*.q3_sex' => $in(CensusMember::SEXES),
             'members.*.q4_age' => 'nullable|integer|min:0|max:130',
+            /* Q5 — the date of birth. The month and year below are filled
+               in from it when the form is saved (CensusController). */
+            'members.*.q5_birthdate' => 'nullable|date_format:Y-m-d|after_or_equal:1900-01-01|before_or_equal:today',
             'members.*.q5_birth_month' => 'nullable|integer|min:1|max:12',
             'members.*.q5_birth_year' => 'nullable|integer|min:1900|max:' . date('Y'),
             // Whether this line becomes a resident record when the form is

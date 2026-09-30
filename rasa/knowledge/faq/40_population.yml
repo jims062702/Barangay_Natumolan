@@ -1,0 +1,139 @@
+# The Population Office: the register of residents and households.
+topic: population
+intents:
+  - id: ask_population
+    response: utter_population
+    label: "Population Office"
+    question: "What does the Population Office do?"
+    framed:
+      what: [the population office, the barangay population office]
+      where: [the population office, the barangay population office]
+    answer: |-
+      The Population Office keeps the barangay's register of residents and households, runs the RBIM census, records births, deaths and people moving in or out, keeps the sector lists (senior citizens, PWDs, 4Ps and others), and issues resident portal accounts.
+    related: [ask_register_resident, ask_update_household, ask_portal_account]
+    en: [what does the population office do, population office, barangay population office, who keeps the list of residents, where do i update my household]
+    tl: [ano ang ginagawa ng population office, saan ang population office]
+    ceb: [unsa ang buhat sa population office, asa ang population office]
+    test: [which office has the resident records, para saan po ang population office]
+
+  - id: ask_register_resident
+    label: "Register as a resident"
+    question: "How do I register as a resident?"
+    framed:
+      how_to: [register as a resident, register in the barangay, be a resident of natumolan, be added to the list of residents, register my family]
+    answer: |-
+      Go to the Population Office at the Barangay Hall. They fill in the RBIM census form — the Registry of Barangay Inhabitants and Migrants — with you, for everyone in your household. That is how a person is added to the barangay's register. Bring a valid ID.
+    related: [ask_registration_documents, ask_rbim, ask_portal_account]
+    en: [how do i register as a resident, register in the barangay, i just moved here how do i register, how to be a resident of natumolan, add me to the list of residents]
+    tl: [paano magparehistro bilang residente, bagong lipat ako paano magparehistro, paano maging residente]
+    ceb: [unsaon pagparehistro isip residente, bag-o lang ko nibalhin unsaon pagparehistro]
+    test: [we are a new family in the barangay, pano po maging registered dito]
+
+  - id: ask_registration_documents
+    label: "Registration documents"
+    question: "What documents are needed for resident registration?"
+    framed:
+      requirements: [resident registration, registering as a resident, the census, registration in the barangay]
+    answer: |-
+      Bring a valid ID. The census asks about every member of your household — names, birthdays, relationships, and similar details — so it helps to have those at hand, and any documents that show them. The Population Office will say if anything else is needed for your case.
+    related: [ask_register_resident, ask_rbim]
+    en: [what documents are needed for registration, requirements to register as a resident, what do i bring to register, documents for the census]
+    tl: [ano ang dadalhin para magparehistro, requirements sa pagparehistro]
+    ceb: [unsa ang dalhon para magparehistro, requirements sa pagparehistro]
+    test: [papers for adding my family to the register, ano po kailangan sa census]
+
+  - id: ask_rbim
+    label: "What is RBIM?"
+    question: "What is the RBIM census?"
+    framed:
+      what: [rbim, the rbim census, the barangay census, registry of barangay inhabitants and migrants]
+    answer: |-
+      RBIM is the Registry of Barangay Inhabitants and Migrants — the barangay's census of every household and everyone in it. The Population Office fills it in with the household, and it is how a person is added to the register.
+    related: [ask_register_resident, ask_update_household]
+    en: [what is rbim, rbim census, registry of barangay inhabitants, what is the barangay census, census in the barangay]
+    tl: [ano ang rbim, ano ang census ng barangay]
+    ceb: [unsa ang rbim, unsa ang census sa barangay]
+    test: [someone came to our house for a census, rbim po ano yun]
+
+  - id: ask_update_household
+    label: "Update my household"
+    question: "How do I update my household's information?"
+    framed:
+      how_to: [update my household, add a family member to our household, update our household record, remove someone from our household]
+    answer: |-
+      Visit the Population Office with a valid ID. They update your household's census record — people who joined or left the household, changes in details, and so on.
+    related: [ask_transfer, ask_report_birth, ask_report_death]
+    en: [update my household, add a family member to our household, change household information, someone left our household, new member of our family]
+    tl: [i-update ang household, magdagdag ng miyembro ng pamilya, may umalis sa bahay namin]
+    ceb: [i-update ang household, idugang ang miyembro sa pamilya]
+    test: [my cousin moved in with us, may bagong kasama po kami sa bahay]
+
+  - id: ask_transfer
+    label: "Moving in or out"
+    question: "I am moving. What do I do?"
+    framed:
+      how_to: [transfer my residency, move out of the barangay, report that we are moving]
+      report: [our transfer, that we moved]
+    answer: |-
+      Tell the Population Office. Moving into Natumolan, they register you through the RBIM census; moving out, they record the transfer on the register.
+    related: [ask_register_resident, ask_update_household]
+    en: [i am moving out, i am moving to another barangay, transfer of residency, we are leaving the barangay, moving to natumolan, we moved to a new house in natumolan, i am leaving natumolan for good]
+    tl: [lilipat ako ng bahay, lilipat kami sa ibang barangay, aalis kami sa barangay, lumipat na kami ng bahay]
+    ceb: [mobalhin ko, mobalhin mi sa laing barangay, nibalhin na mi og balay]
+    test: [our family relocated what should we report, lilipat na po kami]
+
+  - id: ask_report_birth
+    label: "Report a birth"
+    question: "How do I record a birth in the barangay?"
+    framed:
+      report: [a birth, my baby's birth, a newborn]
+      how_to: [register my baby, record a birth]
+    answer: |-
+      Tell the Population Office, who add the baby to your household on the barangay's register. The birth certificate itself is registered with the municipal civil registrar.
+    related: [ask_update_household, ask_immunization]
+    en: [how do i report a birth, record my baby, register a newborn in the barangay, we have a new baby]
+    tl: [paano i-report ang panganganak, bagong silang na sanggol, iparehistro ang baby]
+    ceb: [unsaon pag report sa pagkatawo, bag-ong natawo nga bata]
+    test: [add my newborn to our family record, may bagong baby po kami]
+
+  - id: ask_report_death
+    label: "Report a death"
+    question: "How do I record a death in the barangay?"
+    framed:
+      report: [a death, the death of a family member]
+      how_to: [record a death, remove a deceased from our household]
+    answer: |-
+      Tell the Population Office, who record it on the barangay's register. If you need a barangay Certification of Death, the Main Office issues it — no fee, only the ₱30 documentary stamp.
+    related: [ask_death_certification, ask_update_household]
+    en: [how do i report a death, record a death in the family, someone in our household died, remove a deceased from the list]
+    tl: [paano i-report ang pagkamatay, may namatay sa pamilya namin]
+    ceb: [unsaon pag report sa pagkamatay, naay namatay sa among pamilya]
+    test: [update the records after my father passed away, may pumanaw po sa amin]
+
+  - id: ask_senior_citizen
+    label: "Senior citizens"
+    question: "How are senior citizens listed in the barangay?"
+    framed:
+      what: [the senior citizen list, services for senior citizens]
+      how_to: [be on the senior citizen list, list my lola as a senior]
+    answer: |-
+      Everyone on the register aged 60 or older is on the barangay's senior citizen list, kept by the Population Office. The Health Station also does check-ups for seniors. For a senior citizen ID and national benefits, ask at the Barangay Hall where to apply.
+    related: [ask_sector_lists, ask_senior_checkup]
+    en: [senior citizen list, is my lolo on the senior list, senior citizens in the barangay, services for senior citizens]
+    tl: [listahan ng senior citizen, para sa mga senior, nakalista ba ang lola ko]
+    ceb: [lista sa senior citizen, para sa mga senior]
+    test: [programs for the elderly in natumolan, senior po ang tatay ko]
+
+  - id: ask_sector_lists
+    label: "PWD, 4Ps and other lists"
+    question: "Does the barangay keep lists of PWDs, 4Ps and solo parents?"
+    framed:
+      how_to: [be added to the pwd list, be listed as a solo parent, be added to the 4ps list]
+      what: [the pwd list, the solo parent list, the 4ps list, the sector lists]
+    answer: |-
+      Yes. The Population Office keeps the barangay's sector lists — senior citizens, persons with disability, 4Ps beneficiaries, solo parents and others — for barangay programmes. To be added to a list, visit the Population Office.
+    related: [ask_senior_citizen, ask_update_household]
+    en: [pwd list, 4ps list, solo parent list, am i on the pwd list, sector lists, add me to the solo parent list]
+    tl: [listahan ng pwd, listahan ng 4ps, solo parent sa barangay]
+    ceb: [lista sa pwd, lista sa 4ps, solo parent sa barangay]
+    test: [my child has a disability how do we get listed, isama po kami sa listahan ng 4ps]

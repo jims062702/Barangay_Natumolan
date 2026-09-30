@@ -12,7 +12,12 @@ export function certificateBody(
   const f = certificate.template_fields ?? {};
   const r = certificate.resident;
   const name = fullName(certificate);
-  const zone = r?.zone_purok ?? "";
+  /*
+   * The zone as the paper's own "Zone ____" blank takes it: the register
+   * names zones "Zone 1", "Zone 18A", and printed whole into that blank the
+   * certificate read "Zone Zone 1". So only the number and letter go in.
+   */
+  const zone = (r?.zone_purok ?? "").replace(/^\s*zone\s*/i, "");
   const place = "Natumolan, Tagoloan, Misamis Oriental";
 
   /* Years lived here. RBIM Q35 already asked, so the form does not. */
@@ -48,7 +53,7 @@ export function certificateBody(
               <td><b>GENDER:</b> ${filled(r?.gender, "110px")}</td>
             </tr>
             <tr>
-              <td><b>ADDRESS:</b> ${filled(r?.address || zone, "200px")}</td>
+              <td><b>ADDRESS:</b> ${filled(r?.address || (r?.zone_purok ? `${r.zone_purok}, Natumolan` : ""), "200px")}</td>
               <td><b>BIRTHDATE:</b> ${filled(birthdateLine(r), "130px")}</td>
             </tr>
             <tr>
@@ -374,15 +379,17 @@ export function certificateBody(
       };
 
     default:
-      /* "Other Certification" — the office writes the body itself. */
+      /*
+       * A type with no template of its own. "Other Certification" was the
+       * last, and is no longer issued; one printed before it went still
+       * opens here, as a plain certification with nothing invented in it.
+       */
       return {
         title: "C E R T I F I C A T I O N",
         titleStyle: "spaced",
         html: `
           <p>THIS IS TO CERTIFY THAT ${filled(name, "320px")} of legal age
           and a bonafide resident of <b>Zone</b> ${filled(zone, "130px")} ${place}.</p>
-
-          <p>${escapeHtml(f.body) || filled("", "100%")}</p>
 
           <p>This certification is being issued upon the request of the above
           named-person for ${filled(certificate.purpose, "280px")}.</p>

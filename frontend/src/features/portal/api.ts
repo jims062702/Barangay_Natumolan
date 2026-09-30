@@ -16,6 +16,13 @@ export const portalApi = {
     api.get("/portal/health", ...args),
   cases: (...args: QueryArgs) =>
     api.get("/portal/cases", ...args),
+  /* Beginning a KP complaint. The resident is already identified by their
+     account, so the form asks about the dispute and not about them. What
+     comes back is a reference number, not a case number. */
+  complaints: (...args: QueryArgs) =>
+    api.get("/portal/complaints", ...args),
+  fileComplaint: (...args: BodyArgs) =>
+    api.post("/portal/complaints", ...args),
   certificateServices: (...args: QueryArgs) =>
     api.get("/portal/certificate-services", ...args),
   dashboard: (...args: QueryArgs) =>
@@ -24,6 +31,17 @@ export const portalApi = {
     api.get("/portal/family", ...args),
   profile: (...args: QueryArgs) =>
     api.get("/portal/profile", ...args),
+  /* Their Barangay Resident ID, drawn from the register — and a check that
+     an uploaded one is valid AND theirs. */
+  /* Their VAWC reports to the VAW Desk: sent, and where each stands. */
+  vawcReports: (...args: QueryArgs) =>
+    api.get("/portal/vawc-reports", ...args),
+  sendVawcReport: (...args: BodyArgs) =>
+    api.post("/portal/vawc-reports", ...args),
+  residentCard: (...args: QueryArgs) =>
+    api.get("/portal/resident-card", ...args),
+  checkResidentCard: (...args: BodyArgs) =>
+    api.post("/portal/resident-card/check", ...args),
   updateDetails: (...args: BodyArgs) =>
     api.put("/portal/profile/details", ...args),
   requests: (...args: QueryArgs) =>

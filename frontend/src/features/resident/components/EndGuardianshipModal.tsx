@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { errorMessage } from "../../../shared/lib/api";
+import { useModalDraft } from "../../../shared/lib/useModalDraft";
+import DraftNotice from "../../../shared/ui/DraftNotice";
 import Modal from "../../../shared/ui/Modal";
 import FormField, { inputClasses } from "../../../shared/ui/FormField";
 import type { FamilyMember } from "../../../shared/types";
@@ -57,6 +59,25 @@ export default function EndGuardianshipModal({
     setError("");
   }, [guardian]);
 
+  const draft = useModalDraft(
+    guardian?.guardianship?.id ? `end-guardianship:${guardian.guardianship.id}` : null,
+    guardian !== null,
+    { reason, endedOn, note },
+    (kept) => {
+      setReason(kept.reason ?? "");
+      setEndedOn(kept.endedOn ?? "");
+      setNote(kept.note ?? "");
+    },
+    {
+      blank: { reason: "", endedOn: "", note: "" },
+      reset: () => {
+        setReason("");
+        setEndedOn("");
+        setNote("");
+      },
+    },
+  );
+
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const guardianshipId = guardian?.guardianship?.id;
@@ -73,6 +94,7 @@ export default function EndGuardianshipModal({
           note: note || undefined,
         }
       );
+      draft.clear();
       onEnded(response.data.message);
       onClose();
     } catch (err) {
@@ -129,6 +151,8 @@ export default function EndGuardianshipModal({
         <FormField label="Note" hint="Optional — anything the next clerk should know.">
           <input value={note} onChange={(e) => setNote(e.target.value)} className={inputClasses} />
         </FormField>
+
+        <DraftNotice draft={draft} />
 
         <button
           type="submit"

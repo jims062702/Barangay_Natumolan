@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import DraftNotice from "../../../../shared/ui/DraftNotice";
 import Modal from "../../../../shared/ui/Modal";
 import FormField, { inputClasses } from "../../../../shared/ui/FormField";
 import { localNow } from "../../lib/caseStages";
@@ -11,7 +12,7 @@ import type { LuponCaseState } from "../../hooks/useLuponCase";
 export function ConciliationModal({ ctx }: { ctx: LuponCaseState }) {
   const {
     conciliationOpen, setConciliationOpen, post, id, conciliationDate, pangkat,
-    conciliationOutcome, setConciliationDate, setPangkat, setConciliationOutcome,
+    conciliationOutcome, setConciliationDate, setPangkat, setConciliationOutcome, conciliationDraft, finishConciliation,
   } = ctx;
 
   return (
@@ -25,7 +26,7 @@ export function ConciliationModal({ ctx }: { ctx: LuponCaseState }) {
               pangkat_members: pangkat.map((m) => m.trim()),
               outcome: conciliationOutcome,
             }),
-            () => setConciliationOpen(false)
+            finishConciliation
           );
         }}
         className="space-y-4"
@@ -73,6 +74,7 @@ export function ConciliationModal({ ctx }: { ctx: LuponCaseState }) {
             ))}
           </select>
         </FormField>
+        <DraftNotice draft={conciliationDraft} />
         <button type="submit" className="w-full cursor-pointer rounded-full bg-primary py-2.5 text-sm font-semibold text-white hover:bg-primary-dark">
           Save conciliation
         </button>

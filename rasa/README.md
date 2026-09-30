@@ -63,3 +63,43 @@ Keep the fee amounts in `utter_certificates`/`utter_fees` in sync with
 
 The widget defaults to `http://localhost:5005`. For production, set
 `VITE_RASA_URL=https://your-rasa-host` in `frontend/.env` and rebuild.
+
+## The knowledge base — where the chatbot's answers come from
+
+**Edit `knowledge/faq/*.yml`, never `data/nlu.yml`, `data/rules.yml` or
+`domain.yml` directly.** Those three are generated, and so is
+`backend/resources/chatbot/faq.json` — the copy the website's built-in
+assistant answers from when Rasa is not running. One source, so the chatbot
+says the same thing either way.
+
+Each intent in `knowledge/faq/*.yml` has:
+
+| Field | What it is |
+|---|---|
+| `id` | the Rasa intent |
+| `label` | the button's words when another answer offers this question |
+| `answer` | what the chatbot says — facts from the system or the law only |
+| `related` | the 2–4 questions offered under this answer (these are the buttons, and they change with every question) |
+| `en` / `tl` / `ceb` | ways of asking it in English, Tagalog and Bisaya |
+| `framed` | question frames × subjects — see `knowledge/frames.yml` |
+| `test` | questions kept **out** of training, to measure the chatbot honestly |
+
+After editing:
+
+```powershell
+cd "c:\xampp\htdocs\Barangay Natumolan\rasa"
+python knowledge\generate.py                              # writes the Rasa files and faq.json
+powershell -ExecutionPolicy Bypass -File start-rasa.ps1   # retrains, then serves
+php ..\backend\tests\check_faq_matcher.php                # the PHP copy still agrees
+```
+
+`generate.py` refuses a knowledge base with a hole in it (a missing answer, a
+related question that does not exist) and removes any example that ended up
+in two intents. It also prints how the built-in assistant does on the `test`
+questions.
+
+**Fees must match `backend/app/Services/Service/CertificateCatalogue.php`**
+— the ordinance as the counter charges it. Change one, change both.
+
+**No telephone number is given anywhere** — the one on the website is a
+placeholder. When the barangay has a real number, add it to `ask_contact`.

@@ -1,4 +1,4 @@
-import { FiEdit2 } from "react-icons/fi";
+import { FiEye } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import Card from "../../../../shared/ui/Card";
 import DataTable from "../../../../shared/ui/DataTable";
@@ -10,30 +10,19 @@ import type { SettlementDocketState } from "../../hooks/useSettlementDocket";
 import type { LuponSettlement } from "../../types";
 
 /**
- * Every settlement, with the deadline that matters most.
+ * Every settlement, and how long a party still has to repudiate it.
  */
 export function SettlementTable({ ctx }: { ctx: SettlementDocketState }) {
-  const { dueOnly, setPage, setDueOnly, open, rows, total, loading, page, lastPage } = ctx;
+  const { setPage, open, rows, total, loading, page, lastPage } = ctx;
 
+  /* No "past their compliance deadline" filter: there is no deadline on a
+     settlement any more — see useSettlementDocket. */
   return (
     <Card>
-      <label className="mb-4 flex w-fit cursor-pointer items-center gap-2 text-sm text-dark">
-        <input
-          type="checkbox"
-          checked={dueOnly}
-          onChange={(e) => {
-            setPage(1);
-            setDueOnly(e.target.checked);
-          }}
-          className="h-4 w-4 cursor-pointer accent-primary"
-        />
-        Show only obligations past their compliance deadline
-      </label>
-
       <DataTable
         columns={[
           {
-            header: "Case No.",
+            header: "Case Number",
             render: (s: LuponSettlement) =>
               s.lupon_case ? (
                 <Link
@@ -47,26 +36,36 @@ export function SettlementTable({ ctx }: { ctx: SettlementDocketState }) {
               ),
           },
           {
-            header: "Parties",
+            /*
+              TWO COLUMNS, not one cell with two labelled lines.
+
+              They are the two sides of a dispute, and whoever reads this list
+              is looking down ONE of them. Stacked under a single heading each
+              name needed a label to say which side it was, both truncated at
+              half the width they deserved, and neither could be read down.
+            */
+            header: "Complainant",
             render: (s: LuponSettlement) => (
-              <div className="min-w-0 text-xs">
-                <p className="truncate text-dark">
-                  <span className="text-gray-400">Complainant:</span>{" "}
-                  {s.lupon_case?.complainant_display_name ?? "—"}
-                  {s.lupon_case?.complainant_is_resident === false && (
-                    <span className="ml-1 rounded-full bg-gray px-1.5 py-0.5 text-[10px] font-semibold text-gray-500">
-                      non-resident
-                    </span>
-                  )}
-                </p>
-                <p className="truncate text-dark">
-                  <span className="text-gray-400">Respondent:</span>{" "}
-                  {s.lupon_case?.respondent_display_names || "—"}
-                </p>
-              </div>
+              <span className="text-xs text-dark">
+                {s.lupon_case?.complainant_display_name ?? "—"}
+                {s.lupon_case?.complainant_is_resident === false && (
+                  <span className="ml-1 rounded-full bg-gray px-1.5 py-0.5 text-[10px] font-semibold text-gray-500">
+                    non-resident
+                  </span>
+                )}
+              </span>
             ),
           },
-          { header: "Type", render: (s: LuponSettlement) => s.settlement_type },
+          {
+            header: "Respondent",
+            render: (s: LuponSettlement) => (
+              <span className="text-xs text-dark">
+                {s.lupon_case?.respondent_display_names || "—"}
+              </span>
+            ),
+          },
+          /* No Type column: there is one kind of settlement now, and a column
+             reading "Amicable Settlement" on every row says nothing. */
           { header: "Agreed", render: (s: LuponSettlement) => asDate(s.date_agreed) },
           {
             header: "Repudiation deadline",
@@ -77,21 +76,12 @@ export function SettlementTable({ ctx }: { ctx: SettlementDocketState }) {
               />
             ),
           },
-          {
-            header: "Compliance due",
-            render: (s: LuponSettlement) => (
-              <Deadline
-                date={s.compliance_deadline}
-                active={["Final", "Not Complied"].includes(s.status)}
-              />
-            ),
-          },
           { header: "Status", render: (s: LuponSettlement) => <StatusBadge status={s.status} /> },
           {
             header: "Actions",
             render: (s: LuponSettlement) => (
               <RowActions>
-                <RowAction label="Manage settlement" icon={FiEdit2} onClick={() => open(s)} />
+                <RowAction label="View the settlement" icon={FiEye} onClick={() => open(s)} />
               </RowActions>
             ),
           },
@@ -101,7 +91,7 @@ export function SettlementTable({ ctx }: { ctx: SettlementDocketState }) {
         numbered
         total={total}
         searchable
-        searchPlaceholder="Search by case number, party or terms…"
+        searchPlaceholder="Search by Case Number, Complainant, Respondent or Terms…"
         getSearchText={(s) =>
           `${s.lupon_case?.case_number ?? ""} ${s.lupon_case?.case_title ?? ""} ${
             s.lupon_case?.complainant_display_name ?? ""

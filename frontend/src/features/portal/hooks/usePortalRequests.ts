@@ -2,11 +2,31 @@ import { useState, useEffect, type FormEvent } from "react";
 import { confirmAction } from "../../../shared/lib/confirm";
 import { errorMessage } from "../../../shared/lib/api";
 import { toast } from "../../../shared/lib/toast";
+import { useModalDraft } from "../../../shared/lib/useModalDraft";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import type { ServiceRequest } from "../../../shared/types";
 import { peso } from "../lib/money";
 import { portalApi } from "../api";
 import type { CertificateService } from "../types";
+
+/** The server's CertificateCatalogue::MAX_IN_TRANSACTION. */
+export const MAX_IN_TRANSACTION = 10;
+
+/** One certificate of a request: which, and what for. */
+export interface RequestItem {
+  key: string;
+  serviceType: string;
+  purpose: string;
+  businessName: string;
+  businessKind: string;
+}
+
+let itemKey = 1;
+const newItemKey = () => `r${itemKey++}`;
+const blankItem = (serviceType: string): RequestItem => ({
+  key: newItemKey(), serviceType, purpose: "", businessName: "", businessKind: "",
+});
+import { usePageLoad } from "../../../shared/ui/PageLoad";
 
 /**
  * The state and handlers of <Requests>, so its sections can share them.
@@ -17,13 +37,17 @@ export function usePortalRequests() {
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  /* The page's skeleton until the first answer — see PageLoad. */
+  const pageLoad = usePageLoad();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [services, setServices] = useState<CertificateService[]>([]);
-  const [serviceType, setServiceType] = useState("");
-  const [purpose, setPurpose] = useState("");
-  const [businessName, setBusinessName] = useState("");
-  const [businessKind, setBusinessKind] = useState("");
+  /*
+   * What is being asked for — one certificate or several, each with its own
+   * purpose. Sent together as ONE request, so a resident who needs two
+   * papers does not queue twice for them.
+   */
+  const [items, setItems] = useState<RequestItem[]>([]);
   const [saving, setSaving] = useState(false);
 
   /* The row being cancelled or resumed, so only its own button waits. */
@@ -90,6 +114,8 @@ export function usePortalRequests() {
         setLastPage(r.data.data.last_page ?? 1);
         setTotal(r.data.data.total ?? 0);
       })
+      .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
+      .catch(() => undefined)
       .finally(() => setLoading(false));
   };
 
@@ -111,48 +137,114 @@ export function usePortalRequests() {
         // Pre-selected, as the form always was — but now the choice carries
         // its fee and papers, so the default is a statement rather than a
         // blank the resident has to interpret.
-        if (list.length > 0) setServiceType(list[0].certificate_type);
+        if (list.length > 0) {
+          setItems((was) => (was.length > 0 && was.some((i) => i.serviceType)
+            ? was
+            : [blankItem(list[0].certificate_type)]));
+        }
       })
       .catch(() => setServices([]));
   }, []);
 
   useAutoRefresh(() => load(), REFRESH.portal);
 
-  const chosen = services.find((s) => s.certificate_type === serviceType);
+  const serviceOf = (type: string) => services.find((s) => s.certificate_type === type);
 
   /*
-   * The fee for what the resident has actually chosen, and null until there
-   * is enough to say. A clearance priced by purpose has no one fee to quote
-   * until a purpose is picked; an answer typed under "Others" is not on the
-   * list and takes the ordinance's catch-all, which the office may revise.
+   * The fee for what the resident has actually chosen, and null
+   * until there is enough to say. A clearance priced by purpose has no one
+   * fee to quote until a purpose is picked; an answer typed under "Others"
+   * is not on the list and takes the ordinance's catch-all, which the
+   * office may revise.
    */
-  const quotedFee = (() => {
+  const quoteFee = (item: RequestItem): number | null => {
+    const chosen = serviceOf(item.serviceType);
     if (!chosen) return null;
     if (chosen.fee !== null) return chosen.fee;
 
     const list = chosen.fee_from === "business" ? chosen.business_kinds : chosen.purposes;
-    const answer = chosen.fee_from === "business" ? businessKind : purpose;
+    const answer = chosen.fee_from === "business" ? item.businessKind : item.purpose;
 
     if (!answer.trim()) return null;
 
     return list && Object.prototype.hasOwnProperty.call(list, answer)
       ? list[answer]
       : chosen.other_fee ?? null;
-  })();
+  };
+  const stampOf = (item: RequestItem) => serviceOf(item.serviceType)?.documentary_stamp ?? 0;
+  /* The fee and the stamp — or null, not yet known. */
+  const quoteTotal = (item: RequestItem): number | null => {
+    const fee = quoteFee(item);
 
-  const stamp = chosen?.documentary_stamp ?? 0;
-  const quotedTotal = quotedFee === null ? null : quotedFee + stamp;
+    return fee === null ? null : fee + stampOf(item);
+  };
+  const quotes = items.map(quoteTotal);
+  /* The whole request's amount, once every part of it can be said. */
+  const grandTotal = quotes.every((q) => q !== null) ? quotes.reduce<number>((sum, q) => sum + (q ?? 0), 0) : null;
+
+  const patchItem = (key: string, patch: Partial<RequestItem>) =>
+    setItems((list) => list.map((item) => (item.key === key ? { ...item, ...patch } : item)));
+  const setItemType = (key: string, serviceType: string) =>
+    /* The answers belong to the certificate they were given for. */
+    patchItem(key, { serviceType, purpose: "", businessName: "", businessKind: "" });
+  const addItem = () =>
+    setItems((list) => (list.length >= MAX_IN_TRANSACTION ? list : [...list, blankItem(services[0]?.certificate_type ?? "")]));
+  const removeItem = (key: string) =>
+    setItems((list) => (list.length <= 1 ? list : list.filter((item) => item.key !== key)));
+
+  /* A request being written, kept for this resident until it is submitted. */
+  const firstType = services[0]?.certificate_type ?? "";
+  const requestDraft = useModalDraft<{ items: RequestItem[] }>(
+    "portal-new-request",
+    createOpen,
+    { items },
+    (kept) => {
+      /* A draft kept before several could be asked for: one, at the top level. */
+      const legacy = kept as unknown as { serviceType?: string; purpose?: string; businessName?: string; businessKind?: string };
+      const restored = Array.isArray(kept.items) && kept.items.length > 0
+        ? kept.items
+        : legacy.serviceType
+          ? [{ ...blankItem(legacy.serviceType), purpose: legacy.purpose ?? "", businessName: legacy.businessName ?? "", businessKind: legacy.businessKind ?? "" }]
+          : [];
+      /* A type the office no longer offers is not put back. */
+      const offered = restored.filter((i) => services.length === 0 || services.some((s) => s.certificate_type === i.serviceType));
+      if (offered.length > 0) {
+        /* Only the fields a certificate has — a draft kept before copies were
+           taken off the form may still carry them. */
+        setItems(offered.map((i) => ({
+          key: i.key || newItemKey(), serviceType: i.serviceType, purpose: i.purpose ?? "",
+          businessName: i.businessName ?? "", businessKind: i.businessKind ?? "",
+        })));
+      }
+    },
+    {
+      isEmpty: (v) => v.items.length <= 1 && v.items.every((i) =>
+        (i.serviceType === firstType || !i.serviceType) && !i.purpose && !i.businessName && !i.businessKind),
+      reset: () => setItems([blankItem(firstType)]),
+    },
+  );
+
+  const openCreate = () => {
+    if (items.length === 0) setItems([blankItem(firstType)]);
+    setCreateOpen(true);
+  };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (items.length === 0) return;
+
+    const lines = items.map((item, i) => {
+      const total = quotes[i];
+
+      return `${item.serviceType}: ` + (total !== null ? peso(total) : "amount confirmed at the counter");
+    });
 
     if (
       !(await confirmAction({
-        title: `Request a ${serviceType}?`,
-        text: quotedTotal !== null
-          ? `Amount at the counter: ${peso(quotedTotal)}`
-            + (stamp > 0 ? ` (includes the ₱${stamp.toFixed(2)} documentary stamp).` : ".")
-          : "The office will confirm the amount at the counter.",
+        title: items.length === 1 ? `Request a ${items[0].serviceType}?` : `Request these ${items.length} certificates?`,
+        text: lines.join(" · ")
+          + (grandTotal !== null && items.length > 1 ? ` — total ${peso(grandTotal)}` : "")
+          + (items.some((i) => stampOf(i) > 0) ? " (includes the documentary stamp)." : "."),
         confirmText: "Yes, submit",
       }))
     )
@@ -161,18 +253,25 @@ export function usePortalRequests() {
     setSaving(true);
     try {
       await portalApi.createRequest({
-        service_type: serviceType,
-        purpose: chosen?.asks_purpose === false ? undefined : purpose,
-        /* Only a business clearance asks; the server keeps only these two. */
-        template_fields: chosen?.fee_from === "business"
-          ? { business_name: businessName, business_kind: businessKind }
-          : undefined,
+        items: items.map((item) => {
+          const chosen = serviceOf(item.serviceType);
+
+          return {
+            service_type: item.serviceType,
+            purpose: chosen?.asks_purpose === false ? undefined : item.purpose,
+            /* Only a business clearance asks; the server keeps only these two. */
+            template_fields: chosen?.fee_from === "business"
+              ? { business_name: item.businessName, business_kind: item.businessKind }
+              : undefined,
+          };
+        }),
       });
+      requestDraft.clear();
       setCreateOpen(false);
-      setPurpose("");
-      setBusinessName("");
-      setBusinessKind("");
-      toast("Request submitted! You will be notified as it is processed.");
+      setItems([blankItem(firstType)]);
+      toast(items.length === 1
+        ? "Request submitted! You will be notified as it is processed."
+        : `${items.length} certificates requested together! You will be notified as each is processed.`);
       setPage(1);
       load(1);
     } catch (err) {
@@ -183,11 +282,11 @@ export function usePortalRequests() {
   };
 
   return {
+    pageLoad,
     rows, setRows, page, setPage, lastPage, setLastPage, total, setTotal, loading, setLoading,
-    createOpen, setCreateOpen, services, setServices, serviceType, setServiceType, purpose,
-    setPurpose, businessName, setBusinessName, businessKind, setBusinessKind, saving,
-    setSaving, busyId, setBusyId, canCancel, cancelRequest, resumeRequest, load, chosen,
-    quotedFee, stamp, quotedTotal, submit,
+    createOpen, setCreateOpen, openCreate, services, setServices, items, setItems, patchItem,
+    setItemType, addItem, removeItem, serviceOf, quoteFee, quoteTotal, stampOf, grandTotal, saving,
+    setSaving, busyId, setBusyId, canCancel, cancelRequest, resumeRequest, load, submit, requestDraft,
   };
 }
 

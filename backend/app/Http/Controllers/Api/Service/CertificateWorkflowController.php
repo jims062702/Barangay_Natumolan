@@ -8,7 +8,7 @@ use App\Models\Service\Certificate;
 use App\Models\Service\ServiceRequest;
 use App\Services\Service\CertificateWorkflow;
 
-/** The clerk's presses on a certificate: start, print, release, reprint. */
+/** The clerk's presses on a certificate: start, print, release. */
 class CertificateWorkflowController extends BaseController
 {
     public function __construct(private readonly CertificateWorkflow $workflow)
@@ -46,7 +46,7 @@ class CertificateWorkflowController extends BaseController
             $certificate->id
         );
 
-        return $this->success($certificate, 'Request accepted — now being processed');
+        return $this->success($certificate->load(Certificate::COUNTER_RELATIONS), 'Request accepted — now being processed');
     }
 
     /**
@@ -69,7 +69,7 @@ class CertificateWorkflowController extends BaseController
 
         $this->workflow->markPrinted($certificate);
 
-        return $this->success($certificate, 'Printed — the resident has been notified it is ready to claim');
+        return $this->success($certificate->load(Certificate::COUNTER_RELATIONS), 'Printed — the resident has been notified it is ready to claim');
     }
 
     /** The resident collects the document. */
@@ -81,7 +81,7 @@ class CertificateWorkflowController extends BaseController
 
         $this->workflow->markReleased($certificate);
 
-        return $this->success($certificate, 'Certificate released to the resident');
+        return $this->success($certificate->load(Certificate::COUNTER_RELATIONS), 'Certificate released to the resident');
     }
 
     /*
@@ -94,19 +94,8 @@ class CertificateWorkflowController extends BaseController
      *
      * The Cancelled STATUS stays: four certificates already carry it, and a
      * record of what happened is not the same as permission to do it again.
+     *
+     * No "log reprint" either: the office does not keep a count of copies,
+     * and a button that only adds one to a number nobody reads was removed.
      */
-    public function reprint(Certificate $certificate)
-    {
-        if (!in_array($certificate->status, ['Ready to Claim', 'Released'], true)) {
-            return $this->error('Only signed certificates can be reprinted', 400);
-        }
-
-        $certificate->increment('reprint_count');
-
-        return $this->success([
-            'certificate_number' => $certificate->certificate_number,
-            'reprint_count' => $certificate->reprint_count,
-            'reprinted_at' => now(),
-        ], 'Certificate reprinted');
-    }
 }

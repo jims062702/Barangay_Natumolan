@@ -53,7 +53,9 @@ export function SidebarGroup({
         }`}
       >
         <item.icon className="h-4.5 w-4.5 shrink-0" aria-hidden="true" />
-        <span className="flex-1 truncate text-left">{item.label}</span>
+        {/* Wraps like the children below it rather than being cut off:
+            "Child Health & Nutrition" came out as "Child Health & Nutri…". */}
+        <span className="flex-1 text-left leading-snug">{item.label}</span>
 
         {/* The count belongs on the closed row; open, each child carries its own. */}
         {!open && total > 0 && (
@@ -83,14 +85,22 @@ export function SidebarGroup({
                     : undefined
                 }
                 aria-current={child.to === activePath ? "page" : undefined}
-                className={`relative flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium transition-colors ${
+                className={`relative flex items-start gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium transition-colors ${
                   child.to === activePath
                     ? "bg-white text-primary shadow-sm"
                     : "text-white/75 hover:bg-white/10 hover:text-white"
                 }`}
               >
-                <child.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className="flex-1 truncate">{child.label}</span>
+                <child.icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                {/*
+                  A CHILD'S NAME WRAPS; it is not cut off.
+
+                  "Punong Barangay Hearing" came out as "Punong Barangay …"
+                  beside its badge — the one word that says WHOSE hearings
+                  these are was the word that got dropped. A second line
+                  costs a few pixels; a name nobody can read costs more.
+                */}
+                <span className="flex-1 leading-snug">{child.label}</span>
                 {badges[child.to] > 0 && (
                   <span className="shrink-0 rounded-full bg-danger px-2 py-0.5 text-[10px] font-bold text-white">
                     {badges[child.to] > 99 ? "99+" : badges[child.to]}

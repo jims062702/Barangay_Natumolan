@@ -14,6 +14,10 @@ export const dashboardApi = {
      the Punong Barangay signs it. */
   consolidatedReport: (...args: QueryArgs) =>
     api.get("/reports/consolidated", ...args),
+  /* An office's own report (Health, Population); which office is decided
+     by the server from the one signed in. */
+  officeReport: (...args: QueryArgs) =>
+    api.get("/reports/office", ...args),
   pendingItems: (...args: QueryArgs) =>
     api.get("/dashboard/pending-items", ...args),
   summary: (...args: QueryArgs) =>

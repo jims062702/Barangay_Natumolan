@@ -6,16 +6,40 @@ use App\Models\Service\Guide;
 use Illuminate\Support\Str;
 
 /**
- * AI-assisted resident inquiry (Shared Core module 4).
+ * AI-assisted resident inquiry (Shared Core module 4) — what the website's
+ * chatbot says when Rasa is not running.
  *
- * Currently a rule-based search over the service_guides knowledge base; an
- * LLM can be plugged in here later without changing the contract.
+ * Asked in order:
+ *
+ *   1. the barangay FAQ (FaqMatcher) — the same knowledge base Rasa is
+ *      trained on, so the answer is the same one Rasa would give
+ *   2. the service guides table, when the office has filled it in
+ *   3. neither: the "could not match" answer, with the general questions
+ *      offered under it
+ *
+ * Every answer carries `buttons` — the questions related to it — which the
+ * widget shows under the answer, so what is offered next follows what was
+ * just asked.
  */
 final class GuideAssistant
 {
-    /** @return array{answer: string, matches: \Illuminate\Support\Collection} */
+    public function __construct(private readonly FaqMatcher $faq)
+    {
+    }
+
+    /** @return array{answer: string, matches: \Illuminate\Support\Collection|array, buttons: array, intent: ?string} */
     public function answer(string $message): array
     {
+        $known = $this->faq->answer($message);
+        if ($known) {
+            return [
+                'answer' => $known['answer'],
+                'matches' => [],
+                'buttons' => $known['buttons'],
+                'intent' => $known['intent'],
+            ];
+        }
+
         $terms = collect(preg_split('/[^a-z0-9]+/i', Str::lower($message)))
             ->filter(fn ($t) => strlen($t) >= 3)
             ->unique()
@@ -46,6 +70,10 @@ final class GuideAssistant
                     . 'or browse the offices: Main Office, VAWC Desk, Lupon Tagapamayapa, '
                     . 'Population Office, and the Health Station.',
                 'matches' => [],
+                /* Somewhere to go from "could not match" — the questions the
+                   chatbot does answer, right under it. */
+                'buttons' => $this->faq->fallbackButtons(),
+                'intent' => null,
             ];
         }
 
@@ -63,6 +91,8 @@ final class GuideAssistant
         return [
             'answer' => $answer,
             'matches' => $scored->map(fn ($row) => $row['guide']),
+            'buttons' => [],
+            'intent' => null,
         ];
     }
 }

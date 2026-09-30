@@ -47,7 +47,7 @@ class Payment extends Model
         'paid_at' => 'datetime',
     ];
 
-    protected $appends = ['label'];
+    protected $appends = ['label', 'paid_by_name'];
 
     public function luponCase(): BelongsTo
     {
@@ -69,9 +69,9 @@ class Payment extends Model
         return self::LABELS[$this->kind] ?? $this->kind;
     }
 
-    /** Still owed: asked for and not yet settled. */
-    public function scopeOutstanding($query)
+    /** Who saw the receipt and pressed Paid — shown on the case. */
+    public function getPaidByNameAttribute(): ?string
     {
-        return $query->where('status', 'Requested');
+        return $this->paid_by ? $this->paidBy?->name : null;
     }
 }

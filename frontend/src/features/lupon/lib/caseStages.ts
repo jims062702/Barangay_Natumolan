@@ -26,7 +26,7 @@ export function reachedStages(caseData: LuponCase): Set<string> {
 
   const reached = new Set<string>(["Filed"]);
 
-  if (held("Mediation") || ["Mediation", "Conciliation", "Settled", "Referred"]
+  if (held("Mediation") || ["Mediation", "For Lupon Summons", "Conciliation", "Settled", "Referred"]
     .includes(caseData.current_stage)) {
     reached.add("Mediation");
   }
@@ -63,8 +63,19 @@ export const EXIT_GUIDE: Record<string, { what: string; next: string }> = {
  */
 export const STAGE_GUIDE: Record<string, { what: string; period: string }> = {
   Filed: {
-    what: "Complaint received and docketed. Screen it for jurisdiction — both the subject matter and the respondent's residence — before setting any hearing.",
-    period: "Screen and set the first hearing promptly.",
+    what: "Complaint received and docketed. When the complainant shows the official receipt for the filing fee, press Paid — that forwards the case to the Barangay Secretary.",
+    period: "Nothing is scheduled until the receipt is seen.",
+  },
+  /* The two waiting rooms. A case in one is on somebody's desk with no
+     sitting behind it, which is exactly the state the docket could not show
+     before — and the state an office most needs to be able to chase. */
+  "For Summons": {
+    what: "With the Barangay Secretary. They print the notice of hearing for the complainant and the summons for the respondent, and THAT printing books three Tuesdays with the Punong Barangay.",
+    period: "Print promptly: nothing is on any calendar until the paper exists.",
+  },
+  "For Lupon Summons": {
+    what: "The three Tuesdays are spent with no agreement, so the case is with the Lupon. They print the summons and the notice again, which books three Thursdays.",
+    period: "Print promptly: the parties have not been given the new dates yet.",
   },
   Mediation: {
     what: "The Punong Barangay personally mediates between the parties. No Pangkat yet, no lawyers — the parties speak for themselves.",
@@ -75,7 +86,7 @@ export const STAGE_GUIDE: Record<string, { what: string; period: string }> = {
     period: "15 days from the Pangkat's first meeting, extendable by 15 more.",
   },
   Settled: {
-    what: "The parties signed an amicable settlement, or the Pangkat handed down an arbitration award. Record the terms and any compliance deadline.",
+    what: "The parties signed an amicable settlement. Record the terms and any compliance deadline.",
     period: "Final after 10 days unless repudiated; enforceable like a court judgment.",
   },
 };

@@ -38,13 +38,25 @@ export default function ServiceCard({ service }: ServiceCardProps) {
       <p className="mt-2 flex-1 text-sm leading-relaxed text-gray-500">
         {service.description}
       </p>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="mt-5 inline-flex cursor-pointer items-center gap-2 self-start text-sm font-semibold text-primary transition-all duration-300 hover:gap-3.5"
-      >
-        Learn More <FiArrowRight aria-hidden="true" />
-      </button>
+      <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex cursor-pointer items-center gap-2 self-start text-sm font-semibold text-primary transition-all duration-300 hover:gap-3.5"
+        >
+          Learn More <FiArrowRight aria-hidden="true" />
+        </button>
+
+        {/* Only the one service that can actually be begun from here. */}
+        {service.action && (
+          <Link
+            to={service.action.to}
+            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary-dark"
+          >
+            {service.action.label}
+          </Link>
+        )}
+      </div>
 
       <Modal open={open} onClose={() => setOpen(false)} title={service.name}>
         <div className="flex items-start gap-4">

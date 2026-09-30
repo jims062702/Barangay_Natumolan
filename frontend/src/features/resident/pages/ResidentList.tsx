@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FiClipboard, FiDownload, FiEdit2, FiTrash2, FiUpload } from "react-icons/fi";
+import { FiClipboard, FiDownload, FiEye, FiTrash2, FiUpload } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { errorMessage } from "../../../shared/lib/api";
 import { confirmAction } from "../../../shared/lib/confirm";
@@ -15,6 +15,8 @@ import SearchInput from "../../../shared/ui/SearchInput";
 import type { Resident } from "../../../shared/types";
 import { residentApi } from "../api";
 import TransferModal from "../components/TransferModal";
+import UnfinishedCensuses from "../../rbim/components/UnfinishedCensuses";
+import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
 
 // SANA MALAMBING
 
@@ -66,6 +68,8 @@ export default function ResidentList() {
    */
   const [notCounted, setNotCounted] = useState(0);
   const [loading, setLoading] = useState(true);
+  /* Its skeleton until the first answer — see PageLoad. */
+  const pageLoad = usePageLoad();
 
   const canWrite =
     ["Main Office", "Population"].includes(user?.office ?? "") ||
@@ -170,10 +174,14 @@ export default function ResidentList() {
           setTotal(r.data.data.total ?? 0);
           setNotCounted(r.data.data.not_in_population ?? 0);
         })
+        .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
+        .catch(() => undefined)
         .finally(() => setLoading(false));
     }, 300);
     return () => clearTimeout(timer);
   }, [page, search, purok, gender, sector, tick]);
+
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => setTick((t) => t + 1)} />;
 
   return (
     <div>
@@ -188,7 +196,7 @@ export default function ResidentList() {
         right.
       */}
       <PageHeader
-        title="Residents & Households"
+        title="Residents"
         subtitle="Master registry of Barangay Natumolan residents — registered through the RBIM census"
         actions={
           /*
@@ -197,8 +205,8 @@ export default function ResidentList() {
            * "RBIM Census" was a third place to go: its list repeated the
            * Households list and its form was reached from neither. The
            * office is already on the register when a household walks in, so
-           * the button is where they already are — and the forms themselves
-           * are read in the Households table.
+           * the button is where they already are, and a form left
+           * unfinished is named just below it until it is submitted.
            */
           <div className="flex flex-wrap gap-2">
             {/*
@@ -230,6 +238,8 @@ export default function ResidentList() {
         }
       />
 
+      <UnfinishedCensuses />
+
       <Card>
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <SearchInput
@@ -238,7 +248,7 @@ export default function ResidentList() {
               setSearch(value);
               setPage(1);
             }}
-            placeholder="Search by name or resident number…"
+            placeholder="Search by Name or Resident Number…"
             label="Search residents"
             className="max-w-sm flex-1"
           />
@@ -302,7 +312,7 @@ export default function ResidentList() {
         <DataTable
           columns={[
             {
-              header: "Resident #",
+              header: "Resident Number",
               render: (r: Resident) => (
                 <Link to={`/population/residents/${r.id}`} className="font-medium text-primary hover:underline">
                   {r.resident_number}
@@ -340,7 +350,7 @@ export default function ResidentList() {
                 </span>
               ),
             },
-            { header: "Purok", render: (r: Resident) => r.zone_purok ?? "—" },
+            { header: "Zone / Purok", render: (r: Resident) => r.zone_purok ?? "—" },
             { header: "Sex", render: (r: Resident) => r.gender ?? "—" },
             {
               header: "Sectors",
@@ -393,13 +403,15 @@ export default function ResidentList() {
               header: "Actions",
               render: (r: Resident) => (
                 <span className="flex items-center gap-1.5">
+                  {/* View, not edit: Edit information is a button on the
+                      resident's own page, beside everything it would change. */}
                   <Link
                     to={`/population/residents/${r.id}`}
-                    title={canWrite ? "Edit information" : "View details"}
-                    aria-label={canWrite ? "Edit information" : "View details"}
+                    title="View resident information"
+                    aria-label={`View ${r.first_name} ${r.last_name}`}
                     className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray text-gray-500 transition-colors hover:border-primary hover:text-primary"
                   >
-                    <FiEdit2 className="h-4 w-4" />
+                    <FiEye className="h-4 w-4" />
                   </Link>
                   {/*
                     Only for the office that maintains the register, and only

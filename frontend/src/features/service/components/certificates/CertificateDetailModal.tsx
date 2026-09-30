@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { FiRefreshCw } from "react-icons/fi";
+import DraftNotice from "../../../../shared/ui/DraftNotice";
 import Modal from "../../../../shared/ui/Modal";
 import StatusBadge from "../../../../shared/ui/StatusBadge";
 import FormField, { inputClasses } from "../../../../shared/ui/FormField";
 import ChoiceWithOther, { isListed } from "../../../../shared/ui/ChoiceWithOther";
-import { personName } from "../../../../shared/lib/names";
+import { holderName, holderOf, isUnlisted } from "../../lib/holder";
 import { FLOW, STAGE_HELP } from "../../lib/certificateFlow";
 import type { CertificateDeskState } from "../../hooks/useCertificateDesk";
 import { CounterCamera } from "./CounterCamera";
+import { PrintDetails } from "./PrintDetails";
 
 /**
  * One certificate: where it is, what it says, and the next press.
@@ -25,7 +27,7 @@ export function CertificateDetailModal({ ctx }: { ctx: CertificateDeskState }) {
   const {
     detail, setDetail, setEditingDetail, editingDetail, detailType, setDetailType, catalogue,
     asksPurpose, detailPurpose, setDetailPurpose, saveDetailEdit, openDetailEdit,
-    attachPhoto, photoUpload, actionsFor,
+    attachPhoto, photoUpload, actionsFor, detailDraft, siblings, openDetail,
   } = ctx;
 
   return (
@@ -36,12 +38,47 @@ export function CertificateDetailModal({ ctx }: { ctx: CertificateDeskState }) {
             <div>
               <p className="text-lg font-bold text-dark">{detail.certificate_type}</p>
               <p className="text-sm text-gray-500">
-                {detail.certificate_number} · Ref{" "}
+                {detail.certificate_number} · Reference Number{" "}
                 <span className="font-mono">{detail.reference_number}</span>
               </p>
             </div>
             <StatusBadge status={detail.status} />
           </div>
+
+          {/*
+            The rest of the visit. Each is its own certificate with its own
+            number and its own press of Print — but the resident is one
+            person waiting at one counter, so they are listed together.
+          */}
+          {siblings.length > 0 && (
+            <div className="rounded-xl border border-primary/20 bg-primary/[0.04] px-4 py-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Also in this transaction ({detail.service_request?.transaction_code})
+              </p>
+              <ul className="space-y-1.5">
+                {siblings.map((s) => (
+                  <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                    <span className="min-w-0">
+                      <span className="font-medium text-dark">{s.certificate_type}</span>
+                      <span className="text-xs text-gray-500">
+                        {" "}· {s.certificate_number}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <StatusBadge status={s.status} />
+                      <button
+                        type="button"
+                        onClick={() => void openDetail(s)}
+                        className="cursor-pointer text-xs font-semibold text-primary hover:underline"
+                      >
+                        Open
+                      </button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Where the document has got to */}
           {detail.status !== "Cancelled" && (
@@ -114,6 +151,9 @@ export function CertificateDetailModal({ ctx }: { ctx: CertificateDeskState }) {
                 )}
               </FormField>
               )}
+              <div className="sm:col-span-2">
+                <DraftNotice draft={detailDraft} />
+              </div>
               <div className="flex gap-2 sm:col-span-2">
                 <button
                   type="button"
@@ -146,13 +186,13 @@ export function CertificateDetailModal({ ctx }: { ctx: CertificateDeskState }) {
 
           <dl className="grid gap-3 sm:grid-cols-2">
             {[
-              ["Resident", detail.resident ? personName(detail.resident) : "—"],
+              ["Resident", holderName(detail) + (isUnlisted(detail) ? " (not yet on the register)" : "")],
               /*
                 How to tell them it is ready. Read live from the register:
                 a number copied onto the certificate at filing time is the
                 number they had then, not the one they have now.
               */
-              ["Purok", detail.resident?.zone_purok || "Not recorded"],
+              ["Purok", holderOf(detail)?.zone_purok || "Not recorded"],
               ["Contact", detail.resident?.contact_number || "No number on file"],
               [
                 "Purpose",
@@ -186,7 +226,6 @@ export function CertificateDetailModal({ ctx }: { ctx: CertificateDeskState }) {
               ["Started by", detail.processor?.name ? `${detail.processor.name}${detail.processed_at ? ` · ${new Date(detail.processed_at).toLocaleDateString("en-PH")}` : ""}` : "Not started yet"],
               ["Printed", detail.printed_at ? new Date(detail.printed_at).toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" }) : "Not yet printed"],
               ["Released", detail.released_at ? new Date(detail.released_at).toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" }) : "Not yet released"],
-              ["Reprints", String(detail.reprint_count ?? 0)],
             ]
               /* No purpose row for a form that prints none. */
               .filter(([label]) => label !== "Purpose" || asksPurpose(detail.certificate_type))
@@ -197,6 +236,11 @@ export function CertificateDetailModal({ ctx }: { ctx: CertificateDeskState }) {
               </div>
             ))}
           </dl>
+
+          {/* Until it prints: after that, the paper and the record must agree. */}
+          {["Pending", "Processing"].includes(detail.status) && !editingDetail && (
+            <PrintDetails key={detail.id} detail={detail} ctx={ctx} />
+          )}
 
           {catalogue?.types.find((t) => t.name === detail.certificate_type)?.needs_photo && (
             <div className="rounded-xl border border-gray/70 px-4 py-3">

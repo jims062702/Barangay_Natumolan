@@ -7,10 +7,19 @@ import { usePulse } from "../../../shared/hooks/usePulse";
 import { confirmAction } from "../../../shared/lib/confirm";
 import { personName } from "../../../shared/lib/names";
 import { toast } from "../../../shared/lib/toast";
+import { useModalDraft } from "../../../shared/lib/useModalDraft";
 import type { Resident } from "../../../shared/types";
-import { localNow, VIOLENCE_TYPES } from "../lib/caseOptions";
+import {
+  localNow, relationshipChoice, relationshipValue,
+} from "../lib/caseOptions";
+import { bpoPayload, emptyBpo, type BpoDraft } from "../components/BpoFields";
 import { vawcApi } from "../api";
 import type { VawcCase } from "../types";
+import { usePageLoad } from "../../../shared/ui/PageLoad";
+
+/** Whoever reported it, when that was not the victim-survivor herself. */
+export const reportedBySomeoneElse = (type: string | null | undefined) =>
+  Boolean(type) && type !== "Victim-Survivor";
 
 /**
  * The state and handlers of <CaseList>, so its sections can share them.
@@ -31,25 +40,32 @@ export function useCaseRegistry() {
   // So the footer can say WHICH rows are on screen, not only the page.
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  /* The page's skeleton until the first answer — see PageLoad. */
+  const pageLoad = usePageLoad();
 
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [survivor, setSurvivor] = useState<Resident | null>(null);
   /*
-   * Empty, not the first type.
-   *
-   * The dropdown was given a "Select type…" placeholder but the state still
-   * started on VIOLENCE_TYPES[0] — so the box read "Physical" from the
-   * moment it opened, and a form submitted without anybody reading that line
-   * recorded physical violence. Changing what the list OFFERS without
-   * changing what it HOLDS fixed nothing.
+   * Empty, not the first type: a type sitting pre-chosen gets submitted by
+   * whoever does not read that line, and "Physical" was recorded that way.
    */
-  const [violenceType, setViolenceType] = useState("");
+  /* One case is often several kinds; the acts under them are optional. */
+  const [violenceKinds, setViolenceKinds] = useState<string[]>([]);
+  const [violenceActs, setViolenceActs] = useState<string[]>([]);
+  /* The relationship select, and the words typed under "Other (Specify)". */
   const [relationship, setRelationship] = useState("");
+  const [relationshipOther, setRelationshipOther] = useState("");
   // Dependents are picked from the registry; the count follows the picks.
   const [dependents, setDependents] = useState<Resident[]>([]);
-  // Off by default: most complaints come from the survivor herself, and the
-  // reporting-party fields stay locked until the officer says otherwise.
-  const [reportedByOther, setReportedByOther] = useState(false);
+
+  /*
+   * Who reported the case — a dropdown, not a checkbox.
+   *
+   * Empty until answered: the desk must say it, because "the victim-survivor
+   * herself" and "her mother" lead to different questions below.
+   */
+  const [reportedByType, setReportedByType] = useState("");
+  const reportedByOther = reportedBySomeoneElse(reportedByType);
   const [reportedByName, setReportedByName] = useState("");
   /*
    * The reporter as a register record, when they are one.
@@ -58,6 +74,9 @@ export function useCaseRegistry() {
    * clerk answered, the case keeps a readable name.
    */
   const [reportedByResident, setReportedByResident] = useState<Resident | null>(null);
+  const [reporterOffRegister, setReporterOffRegister] = useState(false);
+  const [reportedByRelationship, setReportedByRelationship] = useState("");
+  const [reportedByContact, setReportedByContact] = useState("");
 
   /*
    * Attach the reporter and take their number with them.
@@ -69,70 +88,54 @@ export function useCaseRegistry() {
     setReportedByResident(person);
     setReportedByContact(person?.contact_number ?? "");
   };
-  const [reporterOffRegister, setReporterOffRegister] = useState(false);
 
   /*
-   * The number comes from the register, not from the clerk.
-   *
-   * True only when a picked person actually has one on file — which is the
-   * minority — so everything downstream reads this rather than re-deriving
-   * the same three conditions and getting one of them wrong.
+   * The number comes from the register, not from the clerk — only when a
+   * picked person actually has one on file.
    */
   const fromRecord = Boolean(
     reportedByOther && !reporterOffRegister && reportedByResident?.contact_number,
   );
-  const [reportedByRelationship, setReportedByRelationship] = useState("");
-  const [reportedByContact, setReportedByContact] = useState("");
+
   // Recorded, not assumed: an intake encoded the next morning must carry the
   // hour the complaint was actually made.
   const [reportedAt, setReportedAt] = useState(localNow);
   const [notes, setNotes] = useState("");
 
-  // Correcting an intake: the API already allowed it, the registry did not.
-  const [editing, setEditing] = useState<VawcCase | null>(null);
-  const [editSurvivor, setEditSurvivor] = useState<Resident | null>(null);
-  const [editReportedByOther, setEditReportedByOther] = useState(false);
-  const [editDependents, setEditDependents] = useState<Resident[]>([]);
-  /* The incident itself: when and where. */
+  /* The incident: when, about what time, where, and what happened. */
   const [occurredAt, setOccurredAt] = useState("");
+  const [approximateTime, setApproximateTime] = useState("");
   const [incidentLocation, setIncidentLocation] = useState("");
+  const [narrative, setNarrative] = useState("");
 
   /*
-   * The respondent — item 4 of the protection-order application.
+   * The respondent — the person reported to have committed the act.
    *
-   * ONE SHAPE, not two: a register id. A barangay protection order is issued
-   * against a resident of this barangay, because that is the only person the
-   * Punong Barangay has power over. A typed name for somebody from elsewhere
-   * was offered here briefly and was simply wrong — it produced a case whose
-   * order nobody could serve.
-   *
-   * Everything item 4 asks for is on their resident record, and the order is
-   * drawn from the record so it reaches where they live now.
+   * A register id, and always a resident of this barangay: a protection
+   * order is issued against somebody the Punong Barangay has power over.
    */
   const [respondent, setRespondent] = useState<Resident | null>(null);
   /* Item 9: on what authority somebody files for another person. */
   const [applicantConsent, setApplicantConsent] = useState("");
-  /* "Other" opens a box: the list cannot anticipate every household. */
-  const [relationshipOther, setRelationshipOther] = useState("");
 
-  /*
-   * THE INTAKE FORM ASKS LESS THAN IT DID.
-   *
-   * Gone from it: how the complaint reached us (every case here is a
-   * walk-in), whether the incident is ongoing, whether the offender is
-   * nearby, the risk level, the count of previous incidents, immediate
-   * needs, and the incident narrative.
-   *
-   * The COLUMNS all remain, and so do the case detail and edit screens that
-   * read and write them — cases already on the register keep everything
-   * they were taken down with, and an officer can still set a risk level on
-   * a case once it is open. What changed is what a clerk is asked at the
-   * counter while somebody is standing there.
-   */
+  /* The immediate safety assessment — unanswered until the desk answers. */
+  const [currentlyInDanger, setCurrentlyInDanger] = useState<"Yes" | "No" | "Unknown" | null>(null);
+  const [protectionNeeded, setProtectionNeeded] = useState<"Yes" | "No" | null>(null);
+  const [bpo, setBpo] = useState<BpoDraft>(emptyBpo);
+
+  // Correcting an intake: the API already allowed it, the registry did not.
+  const [editing, setEditing] = useState<VawcCase | null>(null);
+  const [editSurvivor, setEditSurvivor] = useState<Resident | null>(null);
+  const [editDependents, setEditDependents] = useState<Resident[]>([]);
 
   const [editForm, setEditForm] = useState({
-    violence_type: VIOLENCE_TYPES[0],
-    relationship_to_offender: "",
+    /* The edit form works the same list. A case filed before it existed
+       is loaded with the one kind it already had. */
+    violence_types: [] as string[],
+    violence_acts: [] as string[],
+    reported_by_type: "Victim-Survivor",
+    relationship_choice: "",
+    relationship_other: "",
     children_involved: false,
     children_count: "0",
     children_details: "",
@@ -143,6 +146,9 @@ export function useCaseRegistry() {
     reported_by_relationship: "",
     reported_by_contact: "",
   });
+  const editReportedByOther = reportedBySomeoneElse(editForm.reported_by_type);
+  /* The case's intake as the edit form opened on it. */
+  const [editOriginal, setEditOriginal] = useState<{ form: typeof editForm; survivor: Resident | null; dependents: Resident[] } | null>(null);
 
   /*
    * `silent` is for the background timer.
@@ -164,6 +170,7 @@ export function useCaseRegistry() {
         setYears(r.data.data.years ?? []);
         setPeriodCounts(r.data.data.period_counts);
       })
+      .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
       .catch(noteOffline)
       .finally(() => setLoading(false));
   };
@@ -191,15 +198,17 @@ export function useCaseRegistry() {
    */
   usePulse("vawc_cases", () => load(true));
 
-  /** Clears the confidential intake draft — nothing may survive a cancel. */
+  /** Clears the intake form's boxes. */
   const resetIntake = () => {
     setReportedByResident(null);
     setReporterOffRegister(false);
     setSurvivor(null);
-    setViolenceType("");
+    setViolenceKinds([]);
+    setViolenceActs([]);
     setRelationship("");
+    setRelationshipOther("");
     setDependents([]);
-    setReportedByOther(false);
+    setReportedByType("");
     setReportedByName("");
     setReportedByRelationship("");
     setReportedByContact("");
@@ -209,12 +218,16 @@ export function useCaseRegistry() {
      * another person's case.
      */
     setOccurredAt("");
+    setApproximateTime("");
     setIncidentLocation("");
-    setRelationshipOther("");
+    setNarrative("");
     /* The respondent clears with everything else. Somebody left behind here
        would be accused on the next case filed. */
     setRespondent(null);
     setApplicantConsent("");
+    setCurrentlyInDanger(null);
+    setProtectionNeeded(null);
+    setBpo(emptyBpo());
     setReportedAt(localNow());
     setNotes("");
   };
@@ -224,17 +237,98 @@ export function useCaseRegistry() {
     resetIntake();
   };
 
+  /*
+   * THE CONFIDENTIAL INTAKE'S DRAFT LIVES IN THIS TAB'S MEMORY ONLY.
+   *
+   * A survivor's account is never written to the device — not to storage,
+   * not to the offline queue. But losing it to a stray click outside the
+   * dialog means asking them to tell it again, so it is kept in memory: it
+   * survives the dialog closing and a move to another page, and is gone on
+   * a refresh, a closed tab, Discard, or logout.
+   */
+  const intakeValue = {
+    survivor, violenceKinds, violenceActs, relationship, relationshipOther, dependents, reportedByType,
+    reportedByName, reportedByResident, reporterOffRegister, reportedByRelationship, reportedByContact,
+    reportedAt, notes, occurredAt, approximateTime, incidentLocation, narrative, respondent,
+    applicantConsent, currentlyInDanger, protectionNeeded, bpo,
+  };
+  const intakeDraft = useModalDraft<typeof intakeValue>(
+    "vawc-intake",
+    intakeOpen,
+    intakeValue,
+    (kept) => {
+      setSurvivor(kept.survivor ?? null);
+      setViolenceKinds(kept.violenceKinds ?? []);
+      setViolenceActs(kept.violenceActs ?? []);
+      setRelationship(kept.relationship ?? "");
+      setRelationshipOther(kept.relationshipOther ?? "");
+      setDependents(kept.dependents ?? []);
+      setReportedByType(kept.reportedByType ?? "");
+      setReportedByName(kept.reportedByName ?? "");
+      setReportedByResident(kept.reportedByResident ?? null);
+      setReporterOffRegister(Boolean(kept.reporterOffRegister));
+      setReportedByRelationship(kept.reportedByRelationship ?? "");
+      setReportedByContact(kept.reportedByContact ?? "");
+      if (kept.reportedAt) setReportedAt(kept.reportedAt);
+      setNotes(kept.notes ?? "");
+      setOccurredAt(kept.occurredAt ?? "");
+      setApproximateTime(kept.approximateTime ?? "");
+      setIncidentLocation(kept.incidentLocation ?? "");
+      setNarrative(kept.narrative ?? "");
+      setRespondent(kept.respondent ?? null);
+      setApplicantConsent(kept.applicantConsent ?? "");
+      setCurrentlyInDanger(kept.currentlyInDanger ?? null);
+      setProtectionNeeded(kept.protectionNeeded ?? null);
+      setBpo(kept.bpo ?? emptyBpo());
+    },
+    {
+      memoryOnly: true,
+      /* Nothing answered yet — the report time fills itself in. */
+      isEmpty: (v) => !v.survivor && !v.respondent && !v.reportedByResident && !v.reporterOffRegister
+        && v.violenceKinds.length === 0 && v.violenceActs.length === 0 && v.dependents.length === 0
+        && !v.relationship && !v.relationshipOther && !v.reportedByType && !v.reportedByName
+        && !v.reportedByRelationship && !v.reportedByContact && !v.notes && !v.occurredAt
+        && !v.approximateTime && !v.incidentLocation && !v.narrative && !v.applicantConsent
+        && v.currentlyInDanger === null && v.protectionNeeded === null
+        && JSON.stringify(v.bpo) === JSON.stringify(emptyBpo()),
+      reset: resetIntake,
+    },
+  );
+
+  /**
+   * What is still unanswered, in the form's own words.
+   *
+   * The pickers and the Yes/No buttons are not form controls a browser can
+   * mark `required`, so they are checked here — before the confirmation,
+   * not after a round trip that names a field the clerk cannot see.
+   */
+  const missingFromIntake = (): string[] => [
+    !survivor && "the Victim-Survivor",
+    !reportedByType && "who reported the case",
+    !respondent && "the Respondent",
+    violenceKinds.length === 0 && "the kind of reported violence",
+    !narrative.trim() && "a brief description of the reported incident",
+    !currentlyInDanger && "whether the victim-survivor is currently in danger",
+    !protectionNeeded && "whether immediate protection is needed",
+  ].filter((item): item is string => Boolean(item));
+
   const intake = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    const missing = missingFromIntake();
+    if (missing.length > 0) {
+      toast(`Still needed: ${missing.join(", ")}.`, "error");
+      return;
+    }
+
     if (!(await confirmAction({ title: "File this confidential case?", confirmText: "Yes, file case" }))) return;
     try {
       await vawcApi.openCase({
         survivor_id: survivor?.id,
-        violence_type: violenceType,
-        relationship_to_offender:
-          relationship === "Other"
-            ? (relationshipOther.trim() || "Other")
-            : (relationship || undefined),
+        reported_by_type: reportedByType,
+        violence_types: violenceKinds,
+        violence_acts: violenceActs,
+        relationship_to_offender: relationshipValue(relationship, relationshipOther) ?? undefined,
         dependent_ids: dependents.map((d) => d.id),
         reported_by_name: reportedByOther
           ? (reporterOffRegister
@@ -252,21 +346,25 @@ export function useCaseRegistry() {
         /* An id, and only an id. The register holds the rest. */
         respondent_id: respondent?.id,
         /*
-         * A date, no clock. A survivor recalling last Tuesday does not
-         * recall 14:35, and a box asking for one invites a number nobody
-         * stands behind. Midnight is appended so the column stays a datetime.
+         * The date only; the time, when known, goes in words beside it.
+         * Midnight is appended so the column stays a datetime.
          */
         occurred_at: occurredAt ? occurredAt + " 00:00:00" : undefined,
+        approximate_time: approximateTime.trim() || undefined,
         incident_location: incidentLocation || undefined,
+        incident_narrative: narrative.trim(),
+        currently_in_danger: currentlyInDanger,
+        protection_needed: protectionNeeded,
+        protection_order: protectionNeeded === "Yes" ? bpoPayload(bpo) : undefined,
         /*
          * Every case this desk files is taken at the counter, so the channel
-         * is stated here rather than asked. It was a dropdown with one true
-         * answer and six wrong ones.
+         * is stated here rather than asked.
          */
         reporting_channel: "Walk-in",
         report_date: reportedAt ? reportedAt.replace("T", " ") + ":00" : undefined,
         confidential_notes: notes || undefined,
       });
+      intakeDraft.clear();
       setIntakeOpen(false);
       resetIntake();
       toast("Case recorded confidentially. A case code was assigned in place of the survivor's name.");
@@ -289,13 +387,13 @@ export function useCaseRegistry() {
     } catch {
       // Fall back to the list row — the form still works, minus the survivor.
     }
-    setEditing(c);
-    setEditSurvivor(c.survivor ?? null);
-    setEditReportedByOther(Boolean(c.reported_by_name));
-    setEditDependents(c.dependents ?? []);
-    setEditForm({
-      violence_type: c.violence_type,
-      relationship_to_offender: c.relationship_to_offender ?? "",
+    const rel = relationshipChoice(c.relationship_to_offender);
+    const form: typeof editForm = {
+      violence_types: c.violence_types?.length ? c.violence_types : (c.violence_type ? [c.violence_type] : []),
+      violence_acts: c.violence_acts ?? [],
+      reported_by_type: c.reported_by_type ?? (c.reported_by_name ? "Other" : "Victim-Survivor"),
+      relationship_choice: rel.choice,
+      relationship_other: rel.other,
       children_involved: c.children_involved,
       children_count: String(c.children_count ?? 0),
       children_details: c.children_details ?? "",
@@ -305,26 +403,61 @@ export function useCaseRegistry() {
       reported_by_name: c.reported_by_name ?? "",
       reported_by_relationship: c.reported_by_relationship ?? "",
       reported_by_contact: c.reported_by_contact ?? "",
-    });
+    };
+    setEditing(c);
+    setEditSurvivor(c.survivor ?? null);
+    setEditDependents(c.dependents ?? []);
+    setEditForm(form);
+    setEditOriginal({ form, survivor: c.survivor ?? null, dependents: c.dependents ?? [] });
   };
+
+  /* A correction being typed: tab memory only, like the intake. Its version
+     is the case as it was opened, so old typing never lands on a newer save. */
+  const editDraft = useModalDraft(
+    editing && editOriginal ? `edit-vawc-case:${editing.id}` : null,
+    editing !== null && editOriginal !== null,
+    { form: editForm, survivor: editSurvivor, dependents: editDependents },
+    (kept) => {
+      if (!editOriginal) return;
+      setEditForm({ ...editOriginal.form, ...kept.form });
+      setEditSurvivor(kept.survivor ?? editOriginal.survivor);
+      setEditDependents(kept.dependents ?? editOriginal.dependents);
+    },
+    {
+      memoryOnly: true,
+      blank: editOriginal ?? undefined,
+      reset: () => {
+        if (!editOriginal) return;
+        setEditForm(editOriginal.form);
+        setEditSurvivor(editOriginal.survivor);
+        setEditDependents(editOriginal.dependents);
+      },
+      version: editOriginal
+        ? JSON.stringify({ form: editOriginal.form, survivor: editOriginal.survivor?.id ?? null,
+          dependents: editOriginal.dependents.map((d) => d.id) })
+        : null,
+    },
+  );
 
   const saveEdit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!editing) return;
     if (!(await confirmAction({ title: "Save changes to this case?", confirmText: "Yes, save" }))) return;
     try {
+      const { relationship_choice, relationship_other, ...fields } = editForm;
       await vawcApi.updateCase(editing.id, {
-        ...editForm,
+        ...fields,
         survivor_id: editSurvivor?.id,
         dependent_ids: editDependents.map((d) => d.id),
         previous_incidents_count: Number(editForm.previous_incidents_count) || 0,
         reported_by_name: editReportedByOther ? editForm.reported_by_name || null : null,
         reported_by_relationship: editReportedByOther ? editForm.reported_by_relationship || null : null,
         reported_by_contact: editReportedByOther ? editForm.reported_by_contact || null : null,
-        relationship_to_offender: editForm.relationship_to_offender || null,
+        relationship_to_offender: relationshipValue(relationship_choice, relationship_other),
         immediate_needs: editForm.immediate_needs || null,
         confidential_notes: editForm.confidential_notes || null,
       });
+      editDraft.clear();
       setEditing(null);
       toast(`${editing.case_code} updated — the change is in the access trail.`);
       load();
@@ -337,23 +470,28 @@ export function useCaseRegistry() {
     setEditForm((prev) => ({ ...prev, [key]: value }));
 
   return {
+    pageLoad,
     offline,
     rows, setRows, period, setPeriod, windowLabel, setWindowLabel, years, setYears,
     periodCounts, setPeriodCounts, page, setPage, lastPage, setLastPage, total, setTotal,
-    loading, setLoading, intakeOpen, setIntakeOpen, survivor, setSurvivor, violenceType,
-    setViolenceType, relationship, setRelationship, dependents, setDependents, reportedByOther,
-    setReportedByOther, reportedByName, setReportedByName, reportedByResident,
+    loading, setLoading, intakeOpen, setIntakeOpen, survivor, setSurvivor,
+    violenceKinds, setViolenceKinds, violenceActs, setViolenceActs,
+    relationship, setRelationship, dependents, setDependents,
+    reportedByType, setReportedByType, reportedByOther,
+    reportedByName, setReportedByName, reportedByResident,
     setReportedByResident, pickReporter, reporterOffRegister, setReporterOffRegister,
     fromRecord, reportedByRelationship, setReportedByRelationship, reportedByContact,
     setReportedByContact, reportedAt, setReportedAt,
     notes, setNotes, editing, setEditing, editSurvivor,
-    setEditSurvivor, editReportedByOther, setEditReportedByOther, editDependents,
-    setEditDependents, occurredAt, setOccurredAt, incidentLocation, setIncidentLocation,
+    setEditSurvivor, editReportedByOther, editDependents,
+    setEditDependents, occurredAt, setOccurredAt, approximateTime, setApproximateTime,
+    incidentLocation, setIncidentLocation, narrative, setNarrative,
     relationshipOther, setRelationshipOther,
     respondent, setRespondent,
     applicantConsent, setApplicantConsent,
+    currentlyInDanger, setCurrentlyInDanger, protectionNeeded, setProtectionNeeded, bpo, setBpo,
     editForm, setEditForm, load, changePeriod, resetIntake,
-    closeIntake, intake, openEdit, saveEdit, setEdit,
+    closeIntake, intake, openEdit, saveEdit, setEdit, intakeDraft, editDraft,
   };
 }
 

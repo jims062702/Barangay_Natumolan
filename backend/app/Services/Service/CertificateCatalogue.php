@@ -36,7 +36,12 @@ class CertificateCatalogue
         'Loan Purposes' => 40,
         'Motor Installment' => 30,
         'Employment for Local and other Purposes' => 30,
-        'Filing Fee' => 20,
+        /*
+         * No "Filing Fee". It is in the ordinance's clearance list, but the
+         * office asked for it off the counter's list of purposes: a filing
+         * fee is a Lupon matter, settled with the Lupon on sight of the
+         * receipt, not a clearance anybody walks in to ask for.
+         */
     ];
 
     /*
@@ -116,6 +121,9 @@ class CertificateCatalogue
      */
     public const DOCUMENTARY_STAMP = 30;
 
+    /** Different certificates asked for in one visit, at most. */
+    public const MAX_IN_TRANSACTION = 10;
+
     /*
     |--------------------------------------------------------------------------
     | The documents themselves
@@ -167,6 +175,8 @@ class CertificateCatalogue
             'letterhead' => 'council',
             'needs_photo' => true,
             'fields' => ['officer_of_the_day', 'or_number'],
+            /* The table under the photograph. */
+            'person_fields' => ['gender', 'birthdate', 'civil_status', 'birth_place', 'address'],
         ],
 
         'Business Barangay Clearance' => [
@@ -197,6 +207,7 @@ class CertificateCatalogue
             'letterhead' => 'plain',
             /* Father and mother sit in the table above the years line. */
             'fields' => ['father_name', 'mother_name', 'years_of_residence'],
+            'person_fields' => ['birthdate', 'birth_place'],
         ],
 
         'Certificate of Indigency' => [
@@ -288,7 +299,19 @@ class CertificateCatalogue
             'fee' => 0,
             'office' => 'Punong Barangay',
             'letterhead' => 'plain',
-            'fields' => [],
+            /*
+             * Not printed on the certificate — asked for the Monthly Summary
+             * of Availees/Beneficiaries the barangay sends the DILG, which
+             * counts every first-time jobseeker by educational level and by
+             * whether they are in school (ISY) or out of it (OSY).
+             */
+            'fields' => ['educational_level', 'school_status'],
+            /*
+             * Sex, for somebody not on the register — the summary counts
+             * availees by it, and nothing else on this form would ask.
+             * Nothing of it is printed; the certificate prints a name.
+             */
+            'person_fields' => ['gender'],
         ],
 
         /*
@@ -315,33 +338,33 @@ class CertificateCatalogue
             'fields' => [],
         ],
 
-        'Other Certification' => [
-            'fee' => self::OTHER_CERTIFICATION_FEE,
-            'office' => 'Punong Barangay',
-            'letterhead' => 'plain',
-            'fields' => ['body'],
-        ],
+        /*
+         * No "Other Certification". The office asked for it to be removed: a
+         * certificate whose wording the clerk types from scratch is not one
+         * the barangay has a template for, and every certificate it issues
+         * now has one. The ordinance's ₱30 for "other certification fees"
+         * stays — it is what the types above that the schedule does not name
+         * are charged.
+         */
     ];
 
     /**
      * Service types that produce a certificate, mapped to the certificate
      * type. Non-certificate services (complaints, …) are not here.
      *
-     * Every value must be a type in TYPES. "Other" was here for the two
-     * general services, and no such type exists — the certificate it raised
-     * had no fee, no form and no template, and printed as a blank page. The
-     * catalogue's own catch-all is Other Certification.
+     * Every value must be a type in TYPES. A service name that maps to no
+     * type raises no certificate — the old "Barangay Certificate" and "Other
+     * Barangay Service" went to Other Certification, which is no longer
+     * issued, so they are not here.
      */
     public const SERVICE_TYPES = [
         'Barangay Clearance' => 'Barangay Clearance',
-        'Barangay Certificate' => 'Other Certification',
         'Certificate of Residency' => 'Certificate of Residency',
         'Certificate of Indigency' => 'Certificate of Indigency',
         'First-Time Jobseeker Certification' => 'First-Time Jobseeker',
         'Certificate of Low or No Income' => 'Certificate of Low or No Income',
         'Business Barangay Clearance' => 'Business Barangay Clearance',
         'Good Moral Character' => 'Good Moral Character',
-        'Other Barangay Service' => 'Other Certification',
     ];
 
     /**
@@ -414,6 +437,26 @@ class CertificateCatalogue
         return self::TYPES[$type]['fields'] ?? [];
     }
 
+    /**
+     * What the paper states about the PERSON, for somebody not yet listed.
+     *
+     * Everybody on the register brings these from their record. Somebody the
+     * BPO has not listed yet has no record, so the clerk types them — only
+     * what this certificate actually prints: a name and a zone on all of
+     * them, and on a few the particulars their table carries.
+     *
+     * @return array{all: string[], required: string[]}
+     */
+    public static function personFieldsFor(string $type): array
+    {
+        $extra = self::TYPES[$type]['person_fields'] ?? [];
+
+        return [
+            'all' => array_merge(['last_name', 'first_name', 'middle_name', 'suffix', 'zone_purok'], $extra),
+            'required' => array_merge(['last_name', 'first_name', 'zone_purok'], $extra),
+        ];
+    }
+
     /** Whether the printed form has a purpose on it — see 'asks_purpose'. */
     public static function asksPurpose(string $type): bool
     {
@@ -443,6 +486,7 @@ class CertificateCatalogue
                     'needs_photo' => (bool) ($spec['needs_photo'] ?? false),
                     'asks_purpose' => self::asksPurpose($name),
                     'fields' => $spec['fields'],
+                    'person_fields' => self::personFieldsFor($name),
                 ])
                 ->values()
                 ->all(),

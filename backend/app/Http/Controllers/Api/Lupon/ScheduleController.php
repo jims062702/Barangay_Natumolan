@@ -3,26 +3,29 @@
 namespace App\Http\Controllers\Api\Lupon;
 
 use App\Http\Controllers\Api\BaseController;
-use App\Models\Lupon\CaseFile;
 use App\Models\Lupon\Hearing;
-use App\Models\Lupon\Payment;
 use App\Services\Lupon\HearingCalendar;
+use App\Services\Lupon\HearingDesk;
 use App\Support\ManilaTime;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 /**
- * Summons, and the weeks of hearings that follow it.
+ * The weeks of hearings, and the sitting that ends a case.
  *
  * The path a case walks here is fixed, so the office should not have to
  * arrange it a week at a time:
  *
- *   1. filed, and the ₱20 filing fee paid at the Clerk's counter
- *   2. the Lupon issues the summons to the respondent
- *   3. THREE TUESDAYS with the Punong Barangay — mediation
- *   4. if nothing is agreed, THREE THURSDAYS with the Lupon — conciliation
- *   5. if still nothing, the complainant may take a Certificate to File
- *      Action, which costs ₱200 plus a ₱30 documentary stamp
+ *   1. filed, and the filing fee receipt seen by the Lupon — which books
+ *      THREE TUESDAYS with the Punong Barangay in the same press
+ *   2. the Barangay Secretary prints the summons, and that is when the
+ *      parties are told (see HearingController::printSummons)
+ *   3. if nothing is agreed, THREE THURSDAYS with the Lupon — conciliation
+ *   4. if still nothing, the Lupon may certify the case to file action
+ *
+ * Issuing the summons was once a press HERE that did steps 1 and 2 at once.
+ * It is gone: the two happen in two offices at two different moments, and
+ * one button doing both meant neither office could tell what the other had
+ * done.
  *
  * All three sittings of a stage are put on the calendar at once. A clerk who
  * must click "schedule the next hearing" after every session is a clerk who,
@@ -33,54 +36,6 @@ class ScheduleController extends BaseController
 {
     public function __construct(private readonly HearingCalendar $calendar)
     {
-    }
-
-    /**
-     * Issues the summons and books the Punong Barangay's three Tuesdays.
-     *
-     * BLOCKED ON THE FILING FEE. "Nothing is processed until it is paid" is
-     * the barangay's rule, and the block belongs here rather than in the
-     * screen: a rule enforced only in the form is a rule that lasts until
-     * somebody opens a second window.
-     */
-    public function issueSummons(Request $request, CaseFile $case)
-    {
-        $paid = $case->payments()
-            ->where('kind', Payment::KIND_FILING)
-            ->where('status', 'Paid')
-            ->exists();
-
-        if (! $paid) {
-            $asked = $case->payments()
-                ->where('kind', Payment::KIND_FILING)
-                ->where('status', 'Requested')
-                ->exists();
-
-            return $this->error(
-                $asked
-                    ? 'The ₱20 filing fee is with the Clerk but has not been paid yet. '
-                        . 'The summons can be issued once the complainant has paid.'
-                    : 'The ₱20 filing fee has not been paid. Send it to the Clerk for '
-                        . 'collection first — nothing on the case moves until it is paid.',
-                422
-            );
-        }
-
-        $hearings = $this->calendar->schedule(
-            $case,
-            'Mediation',
-            Carbon::now(ManilaTime::ZONE),
-            summonsOnFirst: true
-        );
-
-        if ($case->current_stage === 'Filed') {
-            $case->update(['current_stage' => 'Mediation']);
-        }
-
-        return $this->success([
-            'case' => $case->fresh()->load('hearings'),
-            'hearings' => $hearings,
-        ], 'Summons issued. Three Tuesdays with the Punong Barangay are on the calendar.');
     }
 
     /**
@@ -97,6 +52,15 @@ class ScheduleController extends BaseController
      */
     public function settleAtHearing(Request $request, Hearing $hearing)
     {
+        /* The desk that keeps the record of THIS kind of sitting — the
+           Secretary for a Tuesday, the Lupon for a Thursday, neither for
+           the Punong Barangay, who presides rather than records. */
+        $desk = HearingDesk::forType((string) $hearing->hearing_type);
+
+        if (! HearingDesk::may(auth()->user(), $desk)) {
+            return $this->error(HearingDesk::refusal($desk), 403);
+        }
+
         $validated = $request->validate([
             'proceedings_notes' => ['required', 'string'],
             'outcome' => ['nullable', 'string', 'max:255'],
@@ -129,6 +93,8 @@ class ScheduleController extends BaseController
         $case->update([
             'current_stage' => 'Settled',
             'date_resolved' => ManilaTime::today(),
+            /* Why it closed, in the words written at the table. */
+            'closure_reason' => 'Settled at the sitting: ' . $validated['proceedings_notes'],
         ]);
 
         $standDown = $this->calendar->standDown(
@@ -145,34 +111,18 @@ class ScheduleController extends BaseController
             : 'Case settled and closed.');
     }
 
-    /**
-     * Mediation is over without an agreement, so the Lupon takes it up.
+    /*
+     * There is no toConciliation() any more.
      *
-     * Books the three Thursdays, and stands down any Tuesday still on the
-     * calendar — a session nobody will attend, left showing as scheduled, is
-     * how a docket comes to disagree with the hall.
+     * It was a button that ended the Punong Barangay's mediation early and
+     * booked the Lupon's three Thursdays. The barangay gives the parties
+     * three Tuesdays and they are entitled to all three: a case leaves the
+     * Punong Barangay when the third is spent without agreement, and
+     * HearingSession moves it there on its own. The Lupon then prints its
+     * own summons, and THAT books the Thursdays — the same rule as the
+     * first stage, so neither set of sittings exists before the paper that
+     * calls the parties to them.
      */
-    public function toConciliation(Request $request, CaseFile $case)
-    {
-        if ($case->current_stage === 'Settled') {
-            return $this->error('This case is already settled.', 422);
-        }
-
-        $this->calendar->standDown(
-            $case,
-            'Mediation closed without an agreement; the case went to the Lupon.',
-            'Mediation'
-        );
-
-        $hearings = $this->calendar->schedule($case, 'Conciliation', Carbon::now(ManilaTime::ZONE));
-
-        $case->update(['current_stage' => 'Conciliation']);
-
-        return $this->success([
-            'case' => $case->fresh()->load('hearings'),
-            'hearings' => $hearings,
-        ], 'Three Thursdays with the Lupon are on the calendar.');
-    }
 
     /*
      * There is no requestCfa() any more.

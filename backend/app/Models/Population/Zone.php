@@ -4,26 +4,29 @@ namespace App\Models\Population;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * One zone of the barangay, and the health worker who covers it.
+ * One zone of the barangay.
+ *
+ * Shared infrastructure: the registry intake, the RBIM census, the household
+ * record and its filter, the Office Report and the consolidated return all
+ * read this list, and `zone_purok` sits on every resident and household row.
+ *
+ * The health worker who covered each zone went with the "Zones & BHWs"
+ * screen that managed them — nothing else in the system ever read a BHW.
+ * The `bhw_id` column is left on the table rather than dropped: the data is
+ * the barangay's and a migration that destroys it cannot be undone.
  */
 class Zone extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'sort_order', 'bhw_id', 'is_active'];
+    protected $fillable = ['name', 'sort_order', 'is_active'];
 
     protected $casts = [
         'is_active' => 'boolean',
         'sort_order' => 'integer',
     ];
-
-    public function bhw(): BelongsTo
-    {
-        return $this->belongsTo(Bhw::class);
-    }
 
     /**
      * Where a zone sits in the list, worked out from its name.

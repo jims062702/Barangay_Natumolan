@@ -34,6 +34,16 @@ class CertificateController extends PortalController
      */
     public function services()
     {
+        return $this->success(self::onlineServices(), 'Certificate services retrieved');
+    }
+
+    /**
+     * What may be asked for online, with what each needs and costs — the
+     * portal's form and the public Online Certificate Request read the same
+     * list.
+     */
+    public static function onlineServices(): array
+    {
         $guides = Guide::where('is_active', true)
             ->where('office', 'Main Office')
             ->get()
@@ -93,6 +103,6 @@ class CertificateController extends PortalController
             ];
         }
 
-        return $this->success($services, 'Certificate services retrieved');
+        return $services;
     }
 }

@@ -98,7 +98,7 @@ export function RecordTable({ ctx }: { ctx: RecordArchiveState }) {
         numbered
         total={total}
         searchable
-        searchPlaceholder="Search by document number, title or summary…"
+        searchPlaceholder="Search by Document Number, Title, Type or Summary…"
         getSearchText={(r) =>
           `${r.document_number} ${r.document_title} ${r.document_type} ${r.summary ?? ""}`
         }

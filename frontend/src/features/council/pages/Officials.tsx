@@ -3,6 +3,8 @@ import { FiPlus } from "react-icons/fi";
 import { errorMessage } from "../../../shared/lib/api";
 import { toast } from "../../../shared/lib/toast";
 import { confirmAction } from "../../../shared/lib/confirm";
+import { useModalDraft } from "../../../shared/lib/useModalDraft";
+import DraftNotice from "../../../shared/ui/DraftNotice";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { usePulse } from "../../../shared/hooks/usePulse";
 import { useUpload } from "../../../shared/hooks/useUpload";
@@ -14,6 +16,7 @@ import FormField, { inputClasses } from "../../../shared/ui/FormField";
 import { CardGridSkeleton } from "../../../shared/ui/Skeleton";
 import { councilApi } from "../api";
 import type { Official } from "../types";
+import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
 
 type Group = "Barangay" | "SK";
 
@@ -48,9 +51,13 @@ const EMPTY: FormState = { group: "Barangay", position: "", name: "", term: "202
 export default function Officials() {
   const [officials, setOfficials] = useState<Official[]>([]);
   const [loading, setLoading] = useState(true);
+  /* Its skeleton until the first answer — see PageLoad. */
+  const pageLoad = usePageLoad();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY);
+  /* The official as the form opened on them — blank for a new one. */
+  const [original, setOriginal] = useState<FormState>(EMPTY);
 
   /*
    * `silent` is for the background timer.
@@ -61,7 +68,11 @@ export default function Officials() {
    */
   const load = (silent = false) => {
     if (!silent) setLoading(true);
-    councilApi.officials().then((r) => setOfficials(r.data.data ?? [])).finally(() => setLoading(false));
+    councilApi.officials()
+      .then((r) => setOfficials(r.data.data ?? []))
+      .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
+      .catch(() => undefined)
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -95,18 +106,21 @@ export default function Officials() {
 
   const openAdd = () => {
     setForm(EMPTY);
+    setOriginal(EMPTY);
     setOpen(true);
   };
 
   const openEdit = (o: Official) => {
-    setForm({
+    const fields: FormState = {
       id: o.id,
       group: o.group,
       position: o.position,
       name: o.name,
       term: o.term ?? "",
       photo: null,
-    });
+    };
+    setForm(fields);
+    setOriginal(fields);
     setOpen(true);
   };
 
@@ -118,6 +132,27 @@ export default function Officials() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.group, open]);
+
+  /*
+   * Typed and not saved, kept until saved or discarded. The photo is not:
+   * a picked file cannot be written down, so it is chosen again (and the
+   * notice says so). A new official with no name typed is no draft — the
+   * position fills itself in.
+   */
+  const { photo: _photo, ...typed } = form;
+  const { photo: _was, ...opened } = original;
+  const draft = useModalDraft<Omit<FormState, "photo">>(
+    form.id ? `edit-official:${form.id}` : "new-official",
+    open,
+    typed,
+    (kept) => setForm({ ...original, ...kept, id: original.id, photo: null }),
+    {
+      blank: form.id ? opened : undefined,
+      isEmpty: form.id ? undefined : (v) => !v.name.trim() && v.group === EMPTY.group && v.term === EMPTY.term,
+      reset: () => setForm(original),
+      version: form.id ? JSON.stringify(opened) : null,
+    },
+  );
 
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -147,6 +182,7 @@ export default function Officials() {
         upload.finish();
         toast("Official added — now shown on the public site.");
       }
+      draft.clear();
       setOpen(false);
       load();
     } catch (err) {
@@ -218,6 +254,8 @@ export default function Officials() {
     );
   };
 
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => load()} />;
+
   return (
     <div>
       <PageHeader
@@ -284,6 +322,7 @@ export default function Officials() {
               done={upload.done}
             />
           </FormField>
+          <DraftNotice draft={draft} files />
           <button
             type="submit"
             disabled={saving || !form.position}

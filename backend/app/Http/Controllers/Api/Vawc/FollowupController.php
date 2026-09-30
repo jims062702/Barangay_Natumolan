@@ -23,8 +23,8 @@ class FollowupController extends BaseController
             $query->where('safety_status', $request->safety_status);
         }
 
-        if ($request->filled('bpo_compliance')) {
-            $query->where('bpo_compliance', $request->bpo_compliance);
+        if ($request->filled('protection_order_status')) {
+            $query->where('protection_order_status', $request->protection_order_status);
         }
 
         if ($request->boolean('closure_recommended')) {

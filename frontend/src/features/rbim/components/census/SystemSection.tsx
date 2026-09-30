@@ -44,7 +44,7 @@ export function SystemSection({ ctx, member, index }: {
         register that happens to be written their way.
       */}
       <FormField
-        label="Phone number"
+        label="Contact Number"
         hint="Ten digits after +63. It may be shared with the household."
       >
         <PhoneInput

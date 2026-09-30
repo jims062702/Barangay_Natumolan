@@ -17,7 +17,7 @@ class StoreCaseRequest extends FormRequest
     {
         return [
             'case_title' => 'required|string',
-            'case_classification' => 'required|in:Assault,Theft,Property Damage,Libel,Ejectment,Debt,Family Dispute,Land Dispute,Others',
+            'case_classification' => 'required|in:' . implode(',', \App\Models\Lupon\CaseFile::NATURES),
             'complainant_id' => 'nullable|required_without:complainant_name|exists:residents,id',
             'complainant_name' => 'nullable|required_without:complainant_id|string|max:150',
             'complainant_address' => 'nullable|string|max:255',

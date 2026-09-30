@@ -11,6 +11,20 @@ import StatusBadge from "../../../shared/ui/StatusBadge";
 import PageHeader from "../../../shared/ui/PageHeader";
 import type { ServiceRequest } from "../../../shared/types";
 import { serviceApi } from "../api";
+import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
+
+/**
+ * Who asked: the resident on the register — or, for somebody the Population
+ * Office has not listed yet, the name typed onto the certificate raised for
+ * them. "" when neither is known.
+ */
+function requesterName(r: ServiceRequest): string {
+  if (r.resident) return `${r.resident.first_name} ${r.resident.last_name}`;
+
+  const typed = r.certificate?.unlisted_person;
+
+  return typed ? [typed.first_name, typed.last_name].filter(Boolean).join(" ") : "";
+}
 
 // "Approved" is gone: certificates are no longer approved by anyone, so a
 // request never lands in that state. It follows the clerk's work instead.
@@ -33,6 +47,8 @@ export default function ServiceRequestList() {
   // So the footer can say WHICH rows are on screen, not only the page.
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  /* Its skeleton until the first answer — see PageLoad. */
+  const pageLoad = usePageLoad();
 
   const [detail, setDetail] = useState<ServiceRequest | null>(null);
 
@@ -52,6 +68,8 @@ export default function ServiceRequestList() {
         setTotal(r.data.data.total ?? 0);
         setCounts(r.data.data.counts ?? {});
       })
+      .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
+      .catch(() => undefined)
       .finally(() => setLoading(false));
   };
 
@@ -112,6 +130,8 @@ export default function ServiceRequestList() {
     }
   };
 
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => load()} />;
+
   return (
     <div>
       <PageHeader
@@ -167,7 +187,7 @@ export default function ServiceRequestList() {
         <DataTable
           columns={[
             {
-              header: "Request #",
+              header: "Request Number",
               render: (r: ServiceRequest) => (
                 <button
                   type="button"
@@ -182,9 +202,22 @@ export default function ServiceRequestList() {
             {
               header: "Resident",
               render: (r: ServiceRequest) =>
-                r.resident ? `${r.resident.first_name} ${r.resident.last_name}` : "—",
+                requesterName(r) || "—",
             },
-            { header: "Service", render: (r: ServiceRequest) => r.service_type },
+            {
+              header: "Service",
+              render: (r: ServiceRequest) => (
+                <span className="block">
+                  <span>{r.service_type}</span>
+                  {/* The code the visit's other certificates carry too. */}
+                  {r.transaction_code && (
+                    <span className="mt-0.5 inline-block whitespace-nowrap rounded-full bg-secondary px-2 py-0.5 font-mono text-[10px] font-semibold text-gray-600">
+                      {r.transaction_code}
+                    </span>
+                  )}
+                </span>
+              ),
+            },
             {
               header: "Purpose",
               render: (r: ServiceRequest) => (
@@ -235,10 +268,10 @@ export default function ServiceRequestList() {
           numbered
           total={total}
           searchable
-          searchPlaceholder="Search by name, request number or service…"
+          searchPlaceholder="Search by Name, Request Number, Service or Purpose…"
           getSearchText={(r) =>
             `${r.request_number} ${
-              r.resident ? `${r.resident.first_name} ${r.resident.last_name}` : ""
+              requesterName(r)
             } ${r.service_type} ${r.purpose ?? ""}`
           }
           filters={[{ label: "Channel", getValue: (r) => r.request_type }]}
@@ -267,7 +300,9 @@ export default function ServiceRequestList() {
 
             <dl className="grid gap-3 sm:grid-cols-2">
               {[
-                ["Resident", detail.resident ? `${detail.resident.first_name} ${detail.resident.last_name}` : "Walk-in / unlinked"],
+                ["Resident", requesterName(detail)
+                  ? requesterName(detail) + (detail.resident ? "" : " (not yet on the register)")
+                  : "Walk-in / unlinked"],
                 ["Office", detail.office],
                 ["Channel", detail.request_type],
                 ["Filed", detail.created_at ? new Date(detail.created_at).toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" }) : "—"],

@@ -1,4 +1,4 @@
-import { FiFileText, FiHeadphones, FiMessageCircle, FiSend, FiX } from "react-icons/fi";
+import { FiEdit3, FiFileText, FiHeadphones, FiMessageCircle, FiShield, FiX } from "react-icons/fi";
 import { ensureNotifyPermission } from "../../../shared/lib/desktopNotify";
 import { useChatWidget } from "../hooks/useChatWidget";
 import { ChatHeader } from "./widget/ChatHeader";
@@ -9,6 +9,9 @@ import { PastConversationList } from "./widget/PastConversationList";
 import { PastConversationReader } from "./widget/PastConversationReader";
 import { MessageThread } from "./widget/MessageThread";
 import { HintBubble } from "./widget/HintBubble";
+import { Composer } from "./widget/Composer";
+import { ChatStatus } from "./widget/ChatStatus";
+import { describeWhen } from "../lib/chatGuard";
 
 /**
  * Floating chat (bottom-right), with two modes.
@@ -17,7 +20,7 @@ import { HintBubble } from "./widget/HintBubble";
  * built-in service-guide assistant (POST /api/assistant/inquiry) so the widget
  * always answers.
  *
- * LIVE — hands the conversation to a person. The BARANGAY SECRETARY staffs
+ * LIVE — hands the conversation to a person. The BARANGAY CLERK staffs
  * that desk. It is plain polling rather than a websocket: the barangay runs
  * this on one machine, and a socket server nobody restarts after a power cut
  * is worse than a request every few seconds.
@@ -25,18 +28,37 @@ import { HintBubble } from "./widget/HintBubble";
 export default function ChatWidget() {
   const ctx = useChatWidget();
   const {
-    open, setOpen, input, setInput, typing, isResident, hint, mode, liveStatus, queuePosition,
-    queueTotal, picking, showPast, reading, handleSubmit, startHandoff, openRequest, endLive,
+    open, setOpen, expanded, input, setInput, typing, isResident, hint, mode, liveStatus, queuePosition,
+    queueTotal, closesAt, picking, showPast, reading, handleSubmit, startHandoff, openRequest, endLive,
+    openComplaintForm, openVawcForm, openCertificatePage, hold, cooldownWhy, guestLeft, isGuest, goSignIn,
   } = ctx;
+
+  const botHeld = typing || hold.reason !== null;
 
   return (
     <>
       {/* Chat panel */}
       {open && (
+        /*
+          THE SIZE (2026-09-29). It was a 24rem box at most 37rem tall, and
+          the three buttons, "Talk to Clerk", the guest notice and the box
+          under it left the conversation itself a strip a few lines high.
+
+            phone    the whole screen; the launcher is hidden under it, and
+                     the header's X closes it
+            laptop   28–30rem wide, as tall as the screen allows, above the
+                     launcher
+            bigger   the header's button: top to bottom, up to 48rem wide
+        */
         <div
           role="dialog"
           aria-label="Barangay Natumolan assistant"
-          className="fixed bottom-24 right-4 z-50 flex max-h-[min(37rem,calc(100dvh-8rem))] w-[min(24rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-3xl border border-gray bg-white shadow-2xl shadow-primary/20 sm:right-6"
+          data-size={expanded ? "bigger" : "normal"}
+          className={`fixed bottom-2 left-2 right-2 top-2 z-50 flex flex-col overflow-hidden rounded-3xl border border-gray bg-white shadow-2xl shadow-primary/20 sm:left-auto sm:right-6 ${
+            expanded
+              ? "sm:bottom-4 sm:top-4 sm:w-[min(48rem,calc(100vw-3rem))]"
+              : "sm:bottom-24 sm:top-auto sm:h-[min(46rem,calc(100dvh-7.5rem))] sm:w-[28rem] lg:w-[30rem]"
+          }`}
         >
           {/* Header */}
           <ChatHeader ctx={ctx} />
@@ -44,8 +66,8 @@ export default function ChatWidget() {
           {/* Body */}
           {mode === "signin" ? (
             /*
-              The desk is one Clerk at a time, so the queue is only as
-              useful as it is short. Keeping it to registered residents is
+              The desk is the Clerk, taking people in turn, so the queue is
+              only as useful as it is short. Keeping it to registered residents is
               what makes a queue number mean anything — and it means whoever
               is answered can actually be looked up, and reached afterwards.
             */
@@ -86,15 +108,47 @@ export default function ChatWidget() {
           ) : (            <MessageThread ctx={ctx} />
           )}
 
-          {isResident && !picking && !showPast && !reading && liveStatus !== "Closed" && (
-            <button
-              type="button"
-              onClick={() => void openRequest()}
-              className="flex cursor-pointer items-center justify-center gap-2 border-t border-gray bg-white px-4 py-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/5"
-            >
-              <FiFileText className="h-4 w-4" aria-hidden="true" />
-              Request a certificate
-            </button>
+          {/*
+            The things somebody can START from here, side by side.
+
+            Filing a complaint opens the real form rather than a panel inside
+            this one: it asks for a photograph of an ID and, for somebody not
+            signed in, who they are — too much for a 24rem chat, and exactly
+            what the page is built for. Offered to everybody, because a
+            complaint may be filed by somebody who is not a resident at all.
+
+            A certificate and a VAWC complaint are offered to a guest too
+            (2026-09-29): a resident who is not signed in asks with their
+            Barangay Resident ID, on the page for it. A signed-in resident
+            asks for a certificate here, inside the chat.
+          */}
+          {!picking && !showPast && !reading && liveStatus !== "Closed" && (
+            <div className="flex divide-x divide-gray border-t border-gray bg-white">
+              <button
+                type="button"
+                onClick={() => (isResident ? void openRequest() : openCertificatePage())}
+                className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 px-2 py-2 text-xs font-semibold leading-tight text-primary transition-colors hover:bg-primary/5"
+              >
+                <FiFileText className="h-4 w-4 shrink-0" aria-hidden="true" />
+                Request a certificate
+              </button>
+              <button
+                type="button"
+                onClick={openComplaintForm}
+                className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 px-2 py-2 text-xs font-semibold leading-tight text-primary transition-colors hover:bg-primary/5"
+              >
+                <FiEdit3 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                File a complaint
+              </button>
+              <button
+                type="button"
+                onClick={openVawcForm}
+                className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 px-2 py-2 text-xs font-semibold leading-tight text-primary transition-colors hover:bg-primary/5"
+              >
+                <FiShield className="h-4 w-4 shrink-0" aria-hidden="true" />
+                VAWC complaint
+              </button>
+            </div>
           )}
 
           {/* Handoff / end bar */}
@@ -102,7 +156,7 @@ export default function ChatWidget() {
             <button
               type="button"
               onClick={startHandoff}
-              className="flex cursor-pointer items-center justify-center gap-2 border-t border-gray bg-white px-4 py-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/5"
+              className="flex cursor-pointer items-center justify-center gap-2 border-t border-gray bg-white px-4 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/5"
             >
               <FiHeadphones className="h-4 w-4" aria-hidden="true" />
               Talk to Clerk (live agent)
@@ -125,11 +179,23 @@ export default function ChatWidget() {
                   {queuePosition === 1
                     ? `${queueTotal} waiting in total.`
                     : `${queuePosition - 1} ${queuePosition - 1 === 1 ? "person is" : "people are"} ahead of you.`}{" "}
-                  The desk answers one person at a time. You can keep typing — your messages are
-                  saved, and you will be notified when the Clerk joins.
+                  The Clerk answers people in the order they came. You can keep typing — your
+                  messages are saved, and you will be notified when the Clerk joins.
                 </p>
               )}
             </div>
+          )}
+
+          {/*
+            The Clerk has answered and the next word is theirs. Said before it
+            happens, so a conversation closing by itself is never a surprise —
+            and so nobody thinks it is gone for good.
+          */}
+          {mode === "live" && liveStatus !== "Closed" && closesAt && (
+            <p className="border-t border-gray bg-secondary/60 px-4 py-2 text-[11px] leading-relaxed text-gray-500">
+              If there is no reply from you by {describeWhen(new Date(closesAt).getTime())}, this conversation
+              closes on its own. You can still follow up on it afterwards.
+            </p>
           )}
 
           {mode === "live" && liveStatus !== "Closed" && (
@@ -149,31 +215,47 @@ export default function ChatWidget() {
             has its own box, and a resolved thread cannot be replied to — and
             a composer that looks live but is not is worse than no composer.
           */}
-          {mode !== "form" && mode !== "signin" && !picking && !showPast && !reading && (
-            <form onSubmit={handleSubmit} className="flex items-center gap-2 border-t border-gray bg-white px-3 py-3">
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={
-                  mode === "live"
-                    ? liveStatus === "Closed"
-                      ? "This conversation has ended"
-                      : "Message the Clerk…"
-                    : "Type your question…"
-                }
-                aria-label={mode === "live" ? "Message the Clerk" : "Type your question"}
-                disabled={mode === "live" && liveStatus === "Closed"}
-                className="flex-1 rounded-full border border-gray bg-secondary/60 px-4 py-2.5 text-sm text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/25 disabled:opacity-60"
+          {/*
+            The reason for any hold, just above the box — the assistant's
+            only. The live desk is a person: nothing here limits what is said
+            to the Clerk, and the Clerk is always one button away from
+            somebody the assistant cannot help. (The suggested questions are
+            in the conversation, under the latest message.)
+          */}
+          {mode === "bot" && !picking && !showPast && !reading && (
+            <>
+              <ChatStatus
+                reason={hold.reason}
+                waitMs={hold.waitMs}
+                why={cooldownWhy}
+                guestLeft={guestLeft}
+                isGuest={isGuest}
+                onSignIn={goSignIn}
               />
-              <button
-                type="submit"
-                aria-label="Send message"
-                disabled={!input.trim() || typing || (mode === "live" && liveStatus === "Closed")}
-                className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-primary text-white transition-colors hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <FiSend className="h-4 w-4" />
-              </button>
-            </form>
+            </>
+          )}
+
+          {mode !== "form" && mode !== "signin" && !picking && !showPast && !reading && (
+            <Composer
+              value={input}
+              onChange={setInput}
+              onSubmit={handleSubmit}
+              placeholder={
+                mode === "live"
+                  ? liveStatus === "Closed"
+                    ? "This conversation has ended"
+                    : "Message the Clerk…"
+                  : hold.reason === "guest"
+                    ? "Log in as a resident to keep chatting"
+                    : "Type your question…"
+              }
+              label={mode === "live" ? "Message the Clerk" : "Type your question"}
+              /* The box closes only when nothing typed could go anywhere.
+                 During a cooldown it stays open, so the next question can be
+                 written while the wait runs out. */
+              disabled={(mode === "live" && liveStatus === "Closed") || (mode === "bot" && hold.reason === "guest")}
+              sendDisabled={mode === "bot" ? botHeld : false}
+            />
           )}
         </div>
       )}
@@ -202,7 +284,11 @@ export default function ChatWidget() {
           // permission (a user gesture) — enables reply popups when tabbed away.
           void ensureNotifyPermission();
         }}
-        className="fixed bottom-5 right-4 z-50 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-primary text-white shadow-xl shadow-primary/40 transition-all duration-300 hover:scale-110 hover:bg-primary-dark sm:right-6"
+        /* Under the panel wherever the panel covers it — a phone's whole
+           screen, or the bigger panel — so it is not drawn over the box. */
+        className={`fixed bottom-5 right-4 z-50 h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-primary text-white shadow-xl shadow-primary/40 transition-all duration-300 hover:scale-110 hover:bg-primary-dark sm:right-6 ${
+          open ? (expanded ? "hidden" : "hidden sm:flex") : "flex"
+        }`}
       >
         {open ? <FiX className="h-6 w-6" /> : <FiMessageCircle className="h-6 w-6" />}
         {!open && (

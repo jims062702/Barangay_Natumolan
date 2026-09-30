@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { usePageLoad } from "../../../shared/ui/PageLoad";
 import { lastSeen } from "../../../shared/offline/lastSeen";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import type { Certificate } from "../../../shared/types";
@@ -15,7 +16,8 @@ export interface RecentCertificate {
 import { dashboardApi } from "../api";
 import { serviceApi } from "../../service/api";
 import { luponApi } from "../../lupon/api";
-import type { MainOfficeDashboardProps, ExecutiveSummary } from "../offices/mainOffice/types";
+import type { MainOfficeDashboardProps } from "../offices/mainOffice/types";
+import type { LuponHearing } from "../../lupon/types";
 
 /**
  * The state and handlers of <MainOfficeDashboard>, so its sections can share them.
@@ -32,16 +34,34 @@ export function useFrontDeskDashboard({ executive = false }: MainOfficeDashboard
   const [recent, setRecent] = useState<RecentCertificate[]>([]);
   const [readyQueue, setReadyQueue] = useState<Certificate[]>([]);
   const [kpCounts, setKpCounts] = useState({ hearings: 0, repudiation: 0 });
-  const [exec, setExec] = useState<ExecutiveSummary | null>(null);
+  /*
+   * The Punong Barangay's own sittings: the ones today, and the ones ahead.
+   *
+   * Their dashboard used to open on the certificates residents ask for and
+   * the announcements the barangay published — neither of which they do.
+   * What they do is sit at the table, so what it opens on is the table.
+   *
+   * The server already keeps them to Mediation for this reader, so these
+   * are the Tuesdays and never the Lupon's Thursdays.
+   */
+  const [todaySittings, setTodaySittings] = useState<LuponHearing[]>([]);
+  const [nextSittings, setNextSittings] = useState<LuponHearing[]>([]);
+  /*
+   * No `exec` any more. It carried the announcements and the documents
+   * awaiting a signature for the Punong Barangay's dashboard; that page now
+   * opens on the sittings they preside over, so the request was one made on
+   * every refresh whose answer was thrown away.
+   */
   /*
    * What residents come in for, this year. BOTH views show it: the clerk
    * issues these documents all day and should see which ones lead.
    */
   const [requested, setRequested] = useState<{ service_type: string; count: number }[]>([]);
 
-  /* Flipped when the first load SETTLES. The page has two quite different
-     shapes depending on who is looking, so each branch waits behind its own. */
-  const [ready, setReady] = useState(false);
+  /* The first load: the page's skeleton until it answers — see PageLoad. The
+     page has two quite different shapes depending on who is looking, and
+     the skeleton is drawn for whichever one this account sees. */
+  const pageLoad = usePageLoad();
   /*
    * When the figures were last true.
    *
@@ -68,12 +88,17 @@ export function useFrontDeskDashboard({ executive = false }: MainOfficeDashboard
       .catch(() => undefined);
 
     if (executive) {
-      const [certs, deadlines, executive] = await Promise.all([
+      const [certs, deadlines, today, ahead] = await Promise.all([
         // Printed and waiting on the counter for the resident to collect.
         serviceApi.certificates({ params: { status: "Ready to Claim" } }),
         luponApi.deadlines().catch(() => null),
-        dashboardApi.executive().catch(() => null),
+        /* Each on its own failure: a dashboard is five questions, and one
+           of them going unanswered must not blank the other four. */
+        luponApi.hearings({ params: { when: "today" } }).catch(() => null),
+        luponApi.hearings({ params: { when: "upcoming" } }).catch(() => null),
       ]);
+      setTodaySittings(today?.data.data.data ?? []);
+      setNextSittings((ahead?.data.data.data ?? []).slice(0, 5));
       setReadyQueue(certs.data.data.data ?? []);
       if (deadlines) {
         setKpCounts({
@@ -81,16 +106,19 @@ export function useFrontDeskDashboard({ executive = false }: MainOfficeDashboard
           repudiation: (deadlines.data.data.repudiation_window ?? []).length,
         });
       }
-      setExec(executive?.data.data ?? null);
     } else {
       setRecent(summary.data?.recent_activity?.recent_certificates ?? []);
     }
   };
 
-  useEffect(() => {
+  const firstLoad = () => {
     load()
-      .catch(() => undefined)
-      .finally(() => setReady(true));
+      .then(() => pageLoad.done())
+      .catch((error) => pageLoad.fail(error));
+  };
+
+  useEffect(() => {
+    firstLoad();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [executive]);
 
@@ -99,7 +127,8 @@ export function useFrontDeskDashboard({ executive = false }: MainOfficeDashboard
 
   return {
     stats, setStats, recent, setRecent, readyQueue, setReadyQueue,
-    kpCounts, setKpCounts, exec, setExec, requested, ready, setReady, countedAt,
+    kpCounts, setKpCounts, requested, pageLoad, firstLoad, countedAt,
+    todaySittings, nextSittings,
     setCountedAt, load,
   };
 }

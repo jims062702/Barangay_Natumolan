@@ -1,0 +1,146 @@
+# The Barangay Health Station.
+#
+# Schedules for immunization days and the like are NOT given: the system does
+# not hold them and they change. The answer sends the person to the station.
+topic: health
+intents:
+  - id: ask_health
+    response: utter_health
+    label: "Health services"
+    question: "What services are available at the Health Station?"
+    framed:
+      what: [the health station services, the health center]
+    answer: |-
+      The Barangay Health Station offers:
+      • Consultations
+      • Immunization for children
+      • Prenatal and maternal care
+      • Child health check-ups
+      • Check-ups for senior citizens
+      • Referral for animal bites
+
+      It is open Monday to Friday, 8:00 AM – 5:00 PM.
+    related: [ask_immunization, ask_prenatal, ask_health_hours, ask_animal_bite]
+    en: [what health services do you offer, health station services, can i get a checkup at the barangay, is there a doctor at the barangay, what does the health center do, health center]
+    tl: [anong serbisyo ng health center, pwede ba magpacheck up sa barangay, may doktor ba sa barangay]
+    ceb: [unsa nga serbisyo sa health center, pwede ba magpa check up sa barangay]
+    test: [medical help available at the barangay, ano po ang meron sa health station]
+
+  - id: ask_health_hours
+    label: "Health Station hours"
+    question: "What are the Health Station hours?"
+    framed:
+      when: [the health center hours, the health station hours, the health center opening]
+    answer: |-
+      The Health Station follows the Barangay Hall's hours: Monday to Friday, 8:00 AM – 5:00 PM. For a particular service — an immunization day, for example — ask the Health Station for this month's schedule.
+    related: [ask_health, ask_immunization, ask_health_location]
+    en: [what time is the health center open, health station hours, is the health center open today, when can i go to the health station]
+    tl: [anong oras bukas ang health center, bukas ba ang health center ngayon]
+    ceb: [unsa oras abri ang health center, abri ba ang health center karon]
+    test: [health station schedule this week, hanggang anong oras po ang health center]
+
+  - id: ask_health_location
+    label: "Where is the Health Station?"
+    question: "Where is the Health Station?"
+    framed:
+      where: [the health station, the health center, the barangay clinic]
+    answer: |-
+      The Health Station is at the Barangay Hall, Barangay Natumolan, Tagoloan, Misamis Oriental.
+    related: [ask_health_hours, ask_health]
+    en: [where is the health station, where is the health center, health center location, where can i find the bhw]
+    tl: [saan ang health center, nasaan ang health station]
+    ceb: [asa ang health center, asa ang health station]
+    test: [directions to the barangay clinic, saan po ang clinic ng barangay]
+
+  - id: ask_immunization
+    label: "Immunization"
+    question: "When is the immunization schedule?"
+    framed:
+      when: [the immunization, the vaccination, the bakuna, baby vaccination]
+    answer: |-
+      The Health Station immunizes children and keeps each child's immunization record. Ask the Health Station for this month's immunization days, and bring the child's immunization card if you have one. Residents with a portal account can see their records under Health Records.
+    related: [ask_child_health, ask_health_hours, ask_portal_health_records]
+    en: [when is the immunization schedule, vaccination for my baby, where can my child get vaccinated, immunization schedule, free vaccines for children, baby shots]
+    tl: [kailan ang bakuna, bakuna para sa baby, saan pwede pabakunahan ang anak ko]
+    ceb: [kanus-a ang bakuna, bakuna para sa bata, asa pabakunahan akong anak]
+    test: [my baby is due for her shots, kailan po ang bakuna ng mga bata]
+
+  - id: ask_prenatal
+    label: "Prenatal care"
+    question: "Can I get prenatal check-ups at the Health Station?"
+    framed:
+      get: [prenatal checkup, prenatal care, a checkup for pregnant women]
+      can: [have a prenatal checkup at the barangay, get prenatal care at the health center]
+    answer: |-
+      Yes. The Health Station gives prenatal and maternal care and keeps a record of each visit. Visit during its hours, Monday to Friday, 8:00 AM – 5:00 PM, and bring your records if you have them.
+    related: [ask_immunization, ask_child_health, ask_health_hours]
+    en: [prenatal checkup, i am pregnant where do i go, maternal care, check up for pregnant women, prenatal at the barangay]
+    tl: [prenatal checkup, buntis ako saan pupunta, check up ng buntis]
+    ceb: [prenatal checkup, mabdos ko asa ko moadto, check up sa mabdos]
+    test: [pregnancy monitoring at the barangay, buntis po ako pwede ba magpacheck]
+
+  - id: ask_child_health
+    label: "Child check-ups"
+    question: "Does the Health Station check children's health?"
+    framed:
+      get: [a checkup for my child, child checkup]
+      can: [have my child checked]
+    answer: |-
+      Yes. The Health Station does child health check-ups and keeps each child's health and immunization records. Visit during its hours, Monday to Friday, 8:00 AM – 5:00 PM.
+    related: [ask_immunization, ask_health]
+    en: [child checkup, check up for my child, weighing of children, my child is sick where do i go, child health services]
+    tl: [check up ng bata, may sakit ang anak ko saan pupunta]
+    ceb: [check up sa bata, masakiton akong anak asa moadto]
+    test: [growth monitoring for toddlers, pa-check up ko po ang anak ko]
+
+  - id: ask_senior_checkup
+    label: "Senior check-ups"
+    question: "Are there check-ups for senior citizens?"
+    framed:
+      get: [a senior citizen checkup, a blood pressure check for my lola]
+    answer: |-
+      Yes. The Health Station does check-ups for senior citizens and keeps a record of them. Visit during its hours, Monday to Friday, 8:00 AM – 5:00 PM.
+    related: [ask_senior_citizen, ask_health]
+    en: [senior citizen checkup, blood pressure check for seniors, health services for elderly, checkup for my lolo]
+    tl: [check up para sa senior, pa-check ng blood pressure ng lola]
+    ceb: [check up para sa senior, pa-check sa blood pressure ni lola]
+    test: [my grandmother needs her bp monitored, may check up po ba para sa matanda]
+
+  - id: ask_animal_bite
+    label: "Animal bite"
+    question: "What do I do if I was bitten by a dog?"
+    answer: |-
+      Wash the wound right away with soap and running water for at least 10 minutes. Then go to the Health Station, which refers animal bites to an animal bite treatment center for anti-rabies care. Do not wait — rabies shots work best when started early.
+    related: [ask_health, ask_health_hours]
+    en: [i was bitten by a dog, dog bite what to do, cat bite, anti rabies, animal bite treatment, my child was bitten by a dog]
+    tl: [nakagat ako ng aso, kinagat ng aso ano gagawin, anti rabies]
+    ceb: [gipaak ko sa iro, gipaak sa iring, anti rabies]
+    test: [a stray scratched me, nakagat po ng pusa ang anak ko]
+
+  - id: ask_bhw
+    label: "Barangay Health Workers"
+    question: "Who are the Barangay Health Workers?"
+    framed:
+      who: [the bhw, the barangay health worker, the health worker in our area]
+      what: [a bhw, a barangay health worker]
+    answer: |-
+      Barangay Health Workers (BHWs) help the Health Station reach households — health visits, immunization and records. Ask at the Health Station who covers your area.
+    related: [ask_health, ask_health_location]
+    en: [who are the barangay health workers, what is a bhw, who is the bhw in our area, health worker of our zone]
+    tl: [sino ang bhw, sino ang health worker sa amin]
+    ceb: [kinsa ang bhw, kinsa ang health worker sa among lugar]
+    test: [the health volunteer for our purok, sino po ang bhw ng zone namin]
+
+  - id: ask_medicine
+    label: "Medicines"
+    question: "Does the Health Station give free medicine?"
+    framed:
+      get: [free medicine, medicine at the health center, maintenance medicine]
+      can: [get free medicine, ask for medicine at the health center]
+    answer: |-
+      What medicines are available changes with the Health Station's supply. Ask the Health Station directly, Monday to Friday, 8:00 AM – 5:00 PM.
+    related: [ask_health, ask_health_hours]
+    en: [do you give free medicine, is there free medicine, can i get medicine at the health center, medicine for hypertension, free vitamins, is there medicine available at the health station, can i get my maintenance medicine here]
+    tl: [may libreng gamot ba, pwede ba humingi ng gamot, may gamot ba sa health station, may libreng gamot sa center]
+    ceb: [naa bay libre nga tambal, pwede ba mangayo og tambal, naa bay tambal sa health center]
+    test: [are maintenance meds given at the barangay, may gamot po ba sa health center]

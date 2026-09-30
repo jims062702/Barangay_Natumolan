@@ -5,20 +5,44 @@ namespace App\Services\Vawc;
 use App\Models\Vawc\AccessLog;
 use App\Models\Vawc\CaseFile;
 use App\Support\DateWindow;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Opening a case from the intake form.
  *
- * The form sends one flat set of answers; the record keeps them in three
- * places — the case, its first incident, and the dependents — and in the
- * shapes the rest of the desk reads.
+ * The form sends one flat set of answers; the record keeps them in four
+ * places — the case, its first incident, the dependents, and the protection
+ * order when one is needed — and in the shapes the rest of the desk reads.
  */
 final class CaseIntake
 {
     /** @param array $validated the answers from StoreCaseRequest */
     public function open(array $validated): CaseFile
     {
+        return DB::transaction(fn () => $this->file($validated));
+    }
+
+    private function file(array $validated): CaseFile
+    {
         $narrative = $validated['incident_narrative'] ?? null;
+
+        /* Taken off the case's own columns: it is its own record. */
+        $order = ($validated['protection_needed'] ?? null) === 'Yes'
+            ? ($validated['protection_order'] ?? null)
+            : null;
+        unset($validated['protection_order']);
+
+        /*
+         * She reported it herself: then nobody else's name, number or consent
+         * belongs on the case, whatever the form still held from a moment
+         * when another answer was chosen.
+         */
+        if (($validated['reported_by_type'] ?? null) === 'Victim-Survivor') {
+            foreach (['reported_by_name', 'reported_by_resident_id', 'reported_by_relationship',
+                'reported_by_contact', 'applicant_consent'] as $field) {
+                $validated[$field] = null;
+            }
+        }
 
         /*
          * The incident's own facts go on the incident, not the case: a case
@@ -31,6 +55,9 @@ final class CaseIntake
             'occurred_at' => isset($validated['occurred_at'])
                 ? DateWindow::manilaToUtc($validated['occurred_at'])
                 : null,
+            'approximate_time' => isset($validated['approximate_time']) && trim($validated['approximate_time']) !== ''
+                ? trim($validated['approximate_time'])
+                : null,
             'location' => $validated['incident_location'] ?? null,
             'is_ongoing' => $validated['is_ongoing'] ?? null,
             'offender_nearby' => $validated['offender_nearby'] ?? null,
@@ -39,6 +66,7 @@ final class CaseIntake
         unset(
             $validated['incident_narrative'],
             $validated['occurred_at'],
+            $validated['approximate_time'],
             $validated['incident_location'],
             $validated['is_ongoing'],
             $validated['offender_nearby'],
@@ -83,6 +111,11 @@ final class CaseIntake
             : now();
         $validated['assigned_vawc_officer'] = auth()->id();
 
+        /* In danger right now: Critical, whatever else was said. */
+        if ($level = CaseFile::riskFromDanger($validated['currently_in_danger'] ?? null)) {
+            $validated['risk_level'] = $level;
+        }
+
         // When the level was judged, so a stale assessment is visibly stale.
         if (!empty($validated['risk_level'])) {
             $validated['risk_assessed_at'] = now();
@@ -104,6 +137,19 @@ final class CaseIntake
         }
 
         AccessLog::record($case->id, 'created', 'Case intake');
+
+        /*
+         * Immediate protection needed: the order is on the case from the
+         * first minute, at whatever stage it is — even "Not Yet Applied" —
+         * so the desk sees a need nobody has acted on yet.
+         */
+        if ($order) {
+            $bpo = $case->protectionOrders()->create(ProtectionOrderForm::attributes($order) + [
+                'recorded_by' => auth()->id(),
+            ]);
+
+            AccessLog::record($case->id, 'bpo_recorded', 'BPO: ' . $bpo->status);
+        }
 
         return $case;
     }

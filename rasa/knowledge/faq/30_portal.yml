@@ -1,0 +1,144 @@
+# The resident portal and portal accounts.
+topic: portal
+intents:
+  - id: ask_portal_account
+    response: utter_portal_account
+    label: "Get a portal account"
+    question: "How do I get a resident portal account?"
+    framed:
+      get: [a portal account, an account, a resident portal account, a login for the website]
+      how_to: [create an account, register on the portal, sign up on the website, make an account]
+    answer: |-
+      Resident portal accounts are issued by the Population Office to residents on the barangay's register. Visit the Population Office at the Barangay Hall with a valid ID. They create the account with your email address; you then enter the activation code sent to that email to start using it.
+    related: [ask_activation_code, ask_portal_features, ask_register_resident]
+    en: [how do i get a portal account, how do i create an account, can i register online, sign up for the portal, i want an account, how to make an account on the website, resident portal account]
+    tl: [paano gumawa ng account, paano mag register sa portal, gusto ko ng account]
+    ceb: [unsaon paghimo og account, unsaon pag register sa portal, gusto ko og account]
+    test: [where do i sign up for the website, pano po magkaroon ng account sa portal]
+
+  - id: ask_portal_features
+    label: "What the portal can do"
+    question: "What can I do in the resident portal?"
+    framed:
+      what: [the resident portal, the portal, the portal for residents]
+    answer: |-
+      After signing in you can:
+      • Request certificates and follow their status
+      • File a complaint with the Lupon and follow its reference number
+      • See your Lupon records — cases you filed, cases against you, and hearing dates
+      • Read your health records (read only)
+      • Read barangay announcements
+      • Update your occupation, civil status and contact number
+      • Chat with the Barangay Clerk
+    related: [ask_request_online, ask_update_profile, ask_portal_lupon_records, ask_portal_health_records]
+    en: [what can i do in the portal, what is the resident portal, portal features, what is in my account, why should i get an account, what is the use of the portal, what will i see after i log in, why would i need a portal account]
+    tl: [ano ang magagawa sa portal, ano ang resident portal, para saan ang account, ano ang makikita ko pag naka login, ano ang silbi ng portal]
+    ceb: [unsa mahimo sa portal, unsa ang resident portal, para asa ang account, unsa makita nako human mag login]
+    test: [benefits of having a portal login, ano po makikita sa account ko]
+
+  - id: ask_activation_code
+    label: "Activation code"
+    question: "Where is my activation code?"
+    framed:
+      how_to: [activate my account, get my activation code, get a new activation code]
+      where: [my activation code, the activation code]
+    answer: |-
+      When the Population Office creates your account, a 6-digit activation code is emailed to you. It is valid for 10 minutes. Didn't get it, or it expired? Check your spam folder, then ask the Population Office to send a fresh code.
+    related: [ask_portal_login, ask_forgot_password, ask_portal_account]
+    en: [where is my activation code, i did not receive the code, activation code expired, how do i activate my account, code not received, resend activation code]
+    tl: [hindi ko natanggap ang code, nasaan ang activation code, expired na ang code]
+    ceb: [wala nako madawat ang code, asa ang activation code, expired na ang code]
+    test: [the email with my code never came, pano po i-activate ang account ko]
+
+  - id: ask_portal_login
+    label: "Signing in"
+    question: "How do I sign in to the portal?"
+    framed:
+      how_to: [log in, sign in, log in to the portal, sign in to my account]
+    answer: |-
+      Press Login on this website and sign in with the email address and password of your resident account. The account has to be activated first with the code emailed to you.
+    related: [ask_forgot_password, ask_activation_code, ask_portal_features]
+    en: [how do i log in, how do i sign in, where is the login, i cannot log in, login to the resident portal, my login is not working]
+    tl: [paano mag login, hindi ako makapag login, saan ang login]
+    ceb: [unsaon pag login, dili ko ka login, asa ang login]
+    test: [the site will not let me in, pano po pumasok sa account ko]
+
+  - id: ask_forgot_password
+    label: "Forgot password"
+    question: "I forgot my password. What do I do?"
+    framed:
+      how_to: [reset my password, change my password, recover my account, change my forgotten password]
+    answer: |-
+      On the Login page, choose "Forgot password". A code is sent to your account's email address; enter it, then set a new password. The barangay staff cannot see or set your password for you.
+    related: [ask_portal_login, ask_change_email]
+    en: [i forgot my password, reset my password, change my password, forgot password, i cannot remember my password]
+    tl: [nakalimutan ko ang password, paano mag reset ng password, palitan ang password]
+    ceb: [nalimtan nako akong password, unsaon pag reset sa password]
+    test: [locked out because i lost my password, nakalimutan ko po password ko]
+
+  - id: ask_change_email
+    label: "Change my email"
+    question: "How do I change my email address?"
+    framed:
+      how_to: [change my email, update my email address, change the email on my account]
+    answer: |-
+      Sign in and open My Profile. Enter the new address — a code is sent to it, and the change takes effect only when you enter that code. Your old address keeps working until then.
+    related: [ask_update_profile, ask_forgot_password]
+    en: [how do i change my email, update my email address, i have a new email, change the email of my account]
+    tl: [paano palitan ang email, bagong email ko, palitan ang email ng account]
+    ceb: [unsaon pag usab sa email, bag-o akong email]
+    test: [my old gmail no longer works for the portal, papalitan ko po ang email ko]
+
+  - id: ask_update_profile
+    label: "Update my details"
+    question: "How do I update my information?"
+    framed:
+      how_to: [update my information, change my address, update my contact number, correct my record, edit my profile, change my civil status]
+    answer: |-
+      In the portal, open My Profile to update your occupation, civil status and contact number yourself. Anything else on your record — your name, birthday, address or household — is updated by the Population Office; visit them with a valid ID.
+    related: [ask_change_email, ask_update_household, ask_population]
+    en: [how do i update my information, change my address, update my contact number, my details are wrong, correct my record, edit my profile]
+    tl: [paano i-update ang impormasyon ko, mali ang record ko, palitan ang contact number]
+    ceb: [unsaon pag update sa akong impormasyon, sayop akong record]
+    test: [my birthday on file is wrong, papalitan ko po ang address ko sa record]
+
+  - id: ask_portal_lupon_records
+    label: "My Lupon records"
+    question: "Where can I see my Lupon cases?"
+    framed:
+      where: [my lupon records, my case records, my hearing schedule online]
+      how_to: [see my case online, check my case in the portal]
+    answer: |-
+      In the portal, Lupon Records shows cases you filed, cases filed against you, your hearing dates and each case's history. A case appears there once its summons has been printed.
+    related: [ask_hearing_schedule, ask_complaint_status, ask_received_summons]
+    en: [where can i see my case, my lupon records, cases against me, see my hearing schedule online, check my case in the portal]
+    tl: [saan makikita ang kaso ko, may kaso ba laban sa akin, schedule ng hearing ko]
+    ceb: [asa makita akong kaso, naa bay kaso batok nako]
+    test: [is my barangay case visible in my account, makikita ko po ba ang hearing ko online]
+
+  - id: ask_portal_health_records
+    label: "My health records"
+    question: "Can I see my health records?"
+    framed:
+      where: [my health records, my medical records, my vaccination records]
+      how_to: [see my health records, check my vaccination record online]
+    answer: |-
+      Yes — in the portal, Health Records shows your records from the Health Station. It is read only: records are written at the station by the person who took the reading, so ask the Health Station if something needs correcting.
+    related: [ask_health, ask_portal_features]
+    en: [can i see my health records, my medical records, check my vaccination record online, health records in the portal]
+    tl: [makikita ko ba ang health records ko, medical records ko online]
+    ceb: [makita ba nako akong health records, akong medical records online]
+    test: [where do i view my checkup history, nasaan po ang records ng bakuna ko]
+
+  - id: ask_non_resident_account
+    label: "Account for non-residents"
+    question: "Can a non-resident get a portal account?"
+    framed:
+      can: [get an account even if i do not live here, get a portal account as a non resident, register on the portal if i live elsewhere]
+    answer: |-
+      No — portal accounts are for residents on the barangay's register. Without an account you can still use this chatbot, file a complaint online from the website, and verify a certificate.
+    related: [ask_file_complaint_online, ask_verify_certificate, ask_register_resident]
+    en: [can a non resident get an account, i do not live here can i have an account, account for people outside the barangay]
+    tl: [pwede ba ang hindi taga dito mag account, hindi ako residente pwede ba account]
+    ceb: [pwede ba ang dili taga diri mag account, dili ko residente pwede ba account]
+    test: [i live in another barangay can i register on the site, taga ibang lugar po ako pwede ba]

@@ -16,6 +16,14 @@ namespace App\Support;
  * So this does four things: unzip, resolve the shared strings, work out which
  * cells are formatted as dates, and put the blanks back where the sheet
  * skipped them.
+ *
+ * And it reads the XML by NAMESPACE, not by how the tags happen to be
+ * spelled. Excel writes <worksheet><sheetData><row>; the RBIM system's export
+ * (SpreadsheetLight, a .NET library) writes the very same elements as
+ * <x:worksheet><x:sheetData><x:row>. Both mean one thing, but a reader that
+ * looks for the bare names finds nothing in the second — the office's own
+ * RBIM file was refused as "could not be read", and even past that every
+ * piece of text in it would have come back blank.
  */
 class XlsxReader
 {
@@ -70,11 +78,9 @@ class XlsxReader
         array $dateStyles,
         bool $epoch1904
     ): array {
-        $previous = libxml_use_internal_errors(true);
-        $sheet = simplexml_load_string($xml);
-        libxml_use_internal_errors($previous);
+        $sheet = self::load($xml);
 
-        if ($sheet === false || ! isset($sheet->sheetData)) {
+        if ($sheet === null || ! isset($sheet->sheetData)) {
             throw new \RuntimeException('That spreadsheet could not be read.');
         }
 
@@ -90,8 +96,13 @@ class XlsxReader
                  * its position. Excel leaves empty cells out entirely, so
                  * counting them in order shifts every value after the first
                  * blank into the wrong column.
+                 *
+                 * The reference is optional in the format, though, and a
+                 * writer that leaves it off writes every cell — so there the
+                 * position IS the column.
                  */
-                $index = self::columnIndex((string) $cell['r']);
+                $reference = self::attr($cell, 'r');
+                $index = $reference === '' ? $widest + 1 : self::columnIndex($reference);
                 $cells[$index] = self::value($cell, $strings, $dateStyles, $epoch1904);
                 $widest = max($widest, $index);
             }
@@ -117,7 +128,7 @@ class XlsxReader
         array $dateStyles,
         bool $epoch1904
     ): string {
-        $type = (string) $cell['t'];
+        $type = self::attr($cell, 't');
 
         /* Text kept in the workbook's shared table — Excel's usual choice. */
         if ($type === 's') {
@@ -145,7 +156,7 @@ class XlsxReader
          * birthdate imports as 45678 — which validates, saves, and is wrong
          * in a way nobody notices until somebody's age is four hundred.
          */
-        if (is_numeric($raw) && ($dateStyles[(int) ($cell['s'] ?? 0)] ?? false)) {
+        if (is_numeric($raw) && ($dateStyles[(int) self::attr($cell, 's')] ?? false)) {
             return self::dateFromSerial((float) $raw, $epoch1904);
         }
 
@@ -191,11 +202,9 @@ class XlsxReader
             return [];
         }
 
-        $previous = libxml_use_internal_errors(true);
-        $table = simplexml_load_string($xml);
-        libxml_use_internal_errors($previous);
+        $table = self::load($xml);
 
-        if ($table === false) {
+        if ($table === null) {
             return [];
         }
 
@@ -244,11 +253,9 @@ class XlsxReader
             return [];
         }
 
-        $previous = libxml_use_internal_errors(true);
-        $styles = simplexml_load_string($xml);
-        libxml_use_internal_errors($previous);
+        $styles = self::load($xml);
 
-        if ($styles === false) {
+        if ($styles === null) {
             return [];
         }
 
@@ -261,7 +268,7 @@ class XlsxReader
 
         if (isset($styles->numFmts)) {
             foreach ($styles->numFmts->numFmt as $format) {
-                $custom[(int) $format['numFmtId']] = self::looksLikeADate((string) $format['formatCode']);
+                $custom[(int) self::attr($format, 'numFmtId')] = self::looksLikeADate(self::attr($format, 'formatCode'));
             }
         }
 
@@ -270,7 +277,7 @@ class XlsxReader
 
         if (isset($styles->cellXfs)) {
             foreach ($styles->cellXfs->xf as $xf) {
-                $id = (int) $xf['numFmtId'];
+                $id = (int) self::attr($xf, 'numFmtId');
                 $isDate[$index] = $custom[$id] ?? in_array($id, self::DATE_FORMATS, true);
                 $index++;
             }
@@ -298,18 +305,16 @@ class XlsxReader
     {
         $rels = $parts['xl/_rels/workbook.xml.rels'] ?? '';
 
-        $previous = libxml_use_internal_errors(true);
-        $workbook = simplexml_load_string($parts['xl/workbook.xml']);
-        $relationships = $rels === '' ? false : simplexml_load_string($rels);
-        libxml_use_internal_errors($previous);
+        $workbook = self::load($parts['xl/workbook.xml']);
+        $relationships = $rels === '' ? null : self::load($rels);
 
-        if ($workbook !== false && $relationships !== false && isset($workbook->sheets->sheet)) {
+        if ($workbook !== null && $relationships !== null && isset($workbook->sheets->sheet)) {
             $id = (string) $workbook->sheets->sheet[0]
                 ->attributes('http://schemas.openxmlformats.org/officeDocument/2006/relationships')['id'];
 
             foreach ($relationships->Relationship as $relationship) {
-                if ((string) $relationship['Id'] === $id) {
-                    $target = ltrim((string) $relationship['Target'], '/');
+                if (self::attr($relationship, 'Id') === $id) {
+                    $target = ltrim(self::attr($relationship, 'Target'), '/');
 
                     return str_starts_with($target, 'xl/') ? $target : 'xl/' . $target;
                 }
@@ -317,6 +322,57 @@ class XlsxReader
         }
 
         return 'xl/worksheets/sheet1.xml';
+    }
+
+    /* ------------------------------------------------------------------
+     | The XML, read by namespace
+     * ---------------------------------------------------------------- */
+
+    /**
+     * One part of the workbook, with its elements found by the namespace
+     * they are in rather than by prefix — so <sheetData> and <x:sheetData>
+     * are both `->sheetData`.
+     *
+     * The namespace is the root element's own, whatever it is: the main
+     * spreadsheet one for a sheet, the package one for a relationships part.
+     */
+    private static function load(string $xml): ?\SimpleXMLElement
+    {
+        $previous = libxml_use_internal_errors(true);
+
+        try {
+            $root = simplexml_load_string($xml);
+
+            if ($root === false) {
+                return null;
+            }
+
+            $own = $root->getNamespaces(false);
+            $uri = $own === [] ? '' : (string) reset($own);
+
+            if ($uri === '') {
+                return $root;
+            }
+
+            $read = simplexml_load_string($xml, \SimpleXMLElement::class, 0, $uri);
+
+            return $read === false ? null : $read;
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+        }
+    }
+
+    /**
+     * An attribute with no prefix — r, t, s, numFmtId.
+     *
+     * Asked for through attributes() rather than $element['r']: once an
+     * element is read in a namespace, the square brackets look for the
+     * attribute in that namespace too, and these attributes are in none.
+     */
+    private static function attr(\SimpleXMLElement $element, string $name): string
+    {
+        return (string) ($element->attributes()[$name] ?? '');
     }
 
     /* ------------------------------------------------------------------

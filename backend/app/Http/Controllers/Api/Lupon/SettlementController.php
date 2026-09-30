@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Lupon;
 
 use App\Http\Controllers\Api\BaseController;
+use App\Support\ManilaTime;
 use App\Http\Requests\Lupon\RegisterSettlementActionRequest;
 use App\Models\Lupon\CaseFile;
 use App\Models\Lupon\Settlement;
@@ -31,10 +32,12 @@ class SettlementController extends BaseController
             $query->where('settlement_type', $request->settlement_type);
         }
 
-        // Obligations already past their compliance deadline and not closed.
+        /* Obligations already past their compliance deadline and not closed.
+           Manila's date, not the app's: `app.timezone` is UTC, so before
+           8am the hall would not yet see an obligation that fell due today. */
         if ($request->boolean('due')) {
             $query->whereNotNull('compliance_deadline')
-                ->whereDate('compliance_deadline', '<=', today())
+                ->whereDate('compliance_deadline', '<=', ManilaTime::today())
                 ->whereIn('status', ['Final', 'Not Complied']);
         }
 
@@ -67,6 +70,8 @@ class SettlementController extends BaseController
         $case->update([
             'current_stage' => 'Settled',
             'date_resolved' => $validated['date_agreed'],
+            /* The terms are why it closed; the register carries them. */
+            'closure_reason' => 'Settled on ' . $validated['date_agreed'] . ': ' . $validated['terms'],
         ]);
 
         return $this->success($settlement, 'Settlement recorded — 10-day repudiation period started', 201);

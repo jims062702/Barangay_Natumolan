@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\Population\StoreEventRequest;
 use App\Http\Requests\Population\VerifyEventRequest;
 use App\Models\Population\Event;
+use App\Services\Population\OutMigration;
 use Illuminate\Http\Request;
 
 /** Births, deaths, transfers and changes, as the office records and verifies them. */
@@ -33,7 +34,20 @@ class EventController extends BaseController
 
         $event = Event::create($validated);
 
-        return $this->success($event, 'Population event recorded', 201);
+        /*
+         * A Transfer Out is the register saying somebody no longer lives
+         * here: they leave the population figures and their portal login is
+         * switched off. Said out loud in the reply — a login that stops
+         * working without explanation is a resident at the counter asking
+         * why.
+         */
+        $notes = OutMigration::apply($event->load('resident'));
+
+        return $this->success(
+            $event,
+            trim('Population event recorded. ' . implode(' ', $notes)),
+            201
+        );
     }
 
     public function verify(VerifyEventRequest $request, Event $event)
@@ -42,6 +56,10 @@ class EventController extends BaseController
 
         $event->update($validated);
 
-        return $this->success($event, 'Event verification updated');
+        /* Recorded first and verified later: the move takes effect either
+           way, and applying it twice changes nothing. */
+        $notes = OutMigration::apply($event->fresh()->load('resident'));
+
+        return $this->success($event, trim('Event verification updated. ' . implode(' ', $notes)));
     }
 }

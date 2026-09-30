@@ -17,6 +17,8 @@ import PeriodFilter, {
 import { lastSeen } from "../../../shared/offline/lastSeen";
 import { buildOfflineReport, heldCertificates, type CertificateReport } from "../lib/offlineReport";
 import { serviceApi } from "../api";
+import { JobseekerSummaryCard } from "../components/JobseekerSummaryCard";
+import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
 
 /**
  * The windows a clerk is asked about, in the order they are asked.
@@ -38,6 +40,10 @@ export default function CertificateReport() {
   /* Starts on this month, which is what the page has always opened on. */
   const [period, setPeriod] = useState<Period>({ ...ALL_TIME, period: "month" });
   const [loading, setLoading] = useState(true);
+  /* Its skeleton until the first answer — see PageLoad. */
+  const pageLoad = usePageLoad();
+  /* Bumped by "Try again": the load is an effect, so this re-runs it. */
+  const [attempt, setAttempt] = useState(0);
   /*
    * Set when the figures came off the device instead of the server.
    *
@@ -80,9 +86,10 @@ export default function CertificateReport() {
         setHeld(rows.length);
         setOffline(true);
       })
+      .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
       .catch(() => undefined)
       .finally(() => setLoading(false));
-  }, [period]);
+  }, [period, attempt]);
 
   /* Named by the server, so a month picked with no year says which year. */
   const chosenLabel = report?.window?.label ?? "";
@@ -99,6 +106,8 @@ export default function CertificateReport() {
     label: w.label.replace("This ", ""),
     count: report?.counts[w.key] ?? 0,
   }));
+
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => setAttempt((n) => n + 1)} />;
 
   return (
     <div>
@@ -284,7 +293,7 @@ export default function CertificateReport() {
               ),
             },
             {
-              header: "Resident no.",
+              header: "Resident Number",
               render: (r: CertificateReport["by_resident"][number]) => r.resident_number ?? "—",
             },
             {
@@ -306,6 +315,10 @@ export default function CertificateReport() {
           The twenty who asked most in this period.
         </p>
       </Card>
+
+      <div className="print-hide">
+        <JobseekerSummaryCard />
+      </div>
     </div>
   );
 }

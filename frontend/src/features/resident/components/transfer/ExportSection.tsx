@@ -61,14 +61,14 @@ export function ExportSection({ ctx }: { ctx: RegisterTransferState }) {
         <SearchInput
           value={search}
           onChange={(value) => setSearch(value)}
-          placeholder="Search by name or resident number…"
+          placeholder="Search by Name or Resident Number…"
           label="Search"
           className="max-w-sm flex-1"
         />
         <select
           value={purok}
           onChange={(e) => setPurok(e.target.value)}
-          aria-label="Zone"
+          aria-label="Zone / Purok"
           className={inputClasses}
         >
           <option value="">Zone: All</option>

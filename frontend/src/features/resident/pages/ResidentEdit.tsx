@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { formatBirthdate } from "../../../shared/lib/birthdate";
 import { FiArrowLeft } from "react-icons/fi";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { errorMessage, fieldErrors } from "../../../shared/lib/api";
@@ -8,10 +9,13 @@ import Card from "../../../shared/ui/Card";
 import PageHeader from "../../../shared/ui/PageHeader";
 import FormField, { inputClasses } from "../../../shared/ui/FormField";
 import PhoneInput from "../../../shared/ui/PhoneInput";
-import { FormSkeleton } from "../../../shared/ui/Skeleton";
+import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
 import type { Household, Resident } from "../../../shared/types";
 import HouseholdPicker from "../components/HouseholdPicker";
 import { residentApi } from "../api";
+import { RegisteredVoterField } from "../components/RegisteredVoterField";
+import { NationalityField } from "../components/NationalityField";
+import { RESIDENTS_HOME, residentPath } from "../lib/paths";
 import { useZoneNames } from "../../population/lib/useZones";
 
 /** Whole-year age from a YYYY-MM-DD birthdate. */
@@ -33,6 +37,8 @@ type EditForm = {
   suffix: string;
   gender: string;
   birthdate: string;
+  /** RBIM Q7 — see NationalityField. */
+  nationality: string;
   civil_status: string;
   occupation: string;
   contact_number: string;
@@ -44,6 +50,7 @@ type EditForm = {
   address: string;
   length_of_residence_years: string;
   educational_attainment: string;
+  registered_voter_in: string;
   is_active: string;
 };
 
@@ -61,8 +68,15 @@ export default function ResidentEdit() {
   // When on, length of residence follows the age; off restores the typed value.
   const [autoLength, setAutoLength] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  /* Its skeleton until the record is in — see PageLoad. */
+  const pageLoad = usePageLoad();
+  const [attempt, setAttempt] = useState(0);
 
-  const editAge = form ? ageFromBirthdate(form.birthdate) : null;
+  /* The age from the date typed — or, while the box is still empty on a
+     record holding only a month and a year, from what is on record. */
+  const editAge = form
+    ? ageFromBirthdate(form.birthdate || (resident?.birthdate_is_estimated ? String(resident.birthdate ?? "").slice(0, 10) : ""))
+    : null;
 
   useEffect(() => {
     residentApi.resident(id)
@@ -76,7 +90,15 @@ export default function ResidentEdit() {
           last_name: res.last_name ?? "",
           suffix: res.suffix ?? "",
           gender: res.gender ?? "Male",
-          birthdate: res.birthdate ? res.birthdate.slice(0, 10) : "",
+          /*
+           * Not the stored day when there is no real one. A record that holds
+           * only a month and a year carries the last day of that month to fill
+           * the column; shown in a date box, that day read as a fact, and a
+           * correction saved over it stayed marked "month and year only".
+           * The box starts empty, and a date typed into it is the whole one.
+           */
+          birthdate: res.birthdate && !res.birthdate_is_estimated ? res.birthdate.slice(0, 10) : "",
+          nationality: res.nationality ?? "",
           civil_status: res.civil_status ?? "Single",
           occupation: res.occupation ?? "",
           contact_number: res.contact_number ?? "",
@@ -88,11 +110,16 @@ export default function ResidentEdit() {
           length_of_residence_years:
             res.length_of_residence_years != null ? String(res.length_of_residence_years) : "",
           educational_attainment: res.educational_attainment ?? "",
+          registered_voter_in: res.registered_voter_in ?? "",
           is_active: res.is_active === false ? "0" : "1",
         });
       })
-      .catch(() => setError("Could not load this resident."));
-  }, [id]);
+      .then(() => pageLoad.done(), (loadError) => {
+        setError("Could not load this resident.");
+        pageLoad.fail(loadError);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, attempt]);
 
   /*
    * Puts the address right once the record says what it is — the same
@@ -102,9 +129,7 @@ export default function ResidentEdit() {
   useEffect(() => {
     if (!resident || !id) return;
 
-    const belongs = resident.record_type === "Non-resident"
-      ? `/residents/non-residents/${id}/edit`
-      : `/residents/${id}/edit`;
+    const belongs = `${residentPath(id, resident.record_type === "Non-resident")}/edit`;
 
     if (pathname !== belongs) {
       navigate(belongs, { replace: true });
@@ -138,6 +163,8 @@ export default function ResidentEdit() {
     try {
       const payload: Record<string, unknown> = {
         ...form,
+        /* A date typed is the whole date; none typed keeps what is on record. */
+        ...(form.birthdate ? { birthdate: form.birthdate, birthdate_is_estimated: false } : {}),
         household_id: form.household_id ? Number(form.household_id) : null,
         length_of_residence_years: autoLength
           ? editAge
@@ -145,8 +172,11 @@ export default function ResidentEdit() {
             ? null
             : Number(form.length_of_residence_years),
         educational_attainment: form.educational_attainment || null,
+        registered_voter_in: form.registered_voter_in.trim() || null,
+        nationality: form.nationality.trim() || null,
         is_active: form.is_active === "1",
       };
+      if (!form.birthdate) delete payload.birthdate;
       await residentApi.updateResident(id, payload);
       navigate(profile);
     } catch (err) {
@@ -170,22 +200,23 @@ export default function ResidentEdit() {
    * to. Which one is right is only knowable once the record is
    * loaded — see the same correction in ResidentDetail.
    */
-  const base = isNonResident ? "/residents/non-residents" : "/residents";
-  const profile = `${base}/${id}`;
+  const profile = residentPath(id ?? "", isNonResident);
+
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => setAttempt((n) => n + 1)} />;
 
   return (
     <div>
       <PageHeader
         crumbs={[
           { label: "Dashboard", to: "/dashboard" },
-          { label: "Residents", to: "/residents" },
-          { label: name, to: `/residents/${id}` },
+          { label: "Residents", to: RESIDENTS_HOME },
+          { label: name, to: profile },
           { label: "Edit Information" },
         ]}
         title="Edit Resident Information"
         subtitle={
           resident
-            ? `${isNonResident ? "Record" : "Resident"} No. ${resident.resident_number}`
+            ? `${isNonResident ? "Record" : "Resident"} Number ${resident.resident_number}`
             : "Updating record"
         }
         actions={
@@ -203,9 +234,7 @@ export default function ResidentEdit() {
         {error && (
           <p className="mb-4 rounded-xl bg-danger/10 px-4 py-2.5 text-sm font-medium text-danger">{error}</p>
         )}
-        {!form ? (
-          <FormSkeleton fields={12} />
-        ) : (
+        {form && (
           <form ref={formRef} onSubmit={save} className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
             <FormField label="First name" required>
               <input value={form.first_name} onChange={set("first_name")} required className={inputClasses} />
@@ -225,9 +254,27 @@ export default function ResidentEdit() {
                 <option>Female</option>
               </select>
             </FormField>
-            <FormField label="Birthdate">
-              <input type="date" value={form.birthdate} onChange={set("birthdate")} className={inputClasses} />
+            <FormField
+              label="Birthdate"
+              hint={
+                resident?.birthdate_is_estimated && resident.birthdate && !form.birthdate
+                  ? `Only ${formatBirthdate(resident.birthdate, true)} is on record — enter the full date: month, day and year.`
+                  : undefined
+              }
+            >
+              <input
+                type="date"
+                value={form.birthdate}
+                onChange={set("birthdate")}
+                max={new Date().toLocaleDateString("en-CA")}
+                aria-label="Birthdate"
+                className={inputClasses}
+              />
             </FormField>
+            <NationalityField
+              value={form.nationality}
+              onChange={(value) => setForm((prev) => (prev ? { ...prev, nationality: value } : prev))}
+            />
             <FormField label="Civil status">
               <select value={form.civil_status} onChange={set("civil_status")} className={inputClasses}>
                 <option>Single</option>
@@ -250,7 +297,7 @@ export default function ResidentEdit() {
             </p>
           </div>
             </FormField>
-            <FormField label="Contact number" hint="Philippine mobile — 10 digits after +63">
+            <FormField label="Contact Number" hint="Philippine mobile — 10 digits after +63">
               <PhoneInput
                 value={form.contact_number}
                 onChange={(v) => setForm((prev) => (prev ? { ...prev, contact_number: v } : prev))}
@@ -285,10 +332,10 @@ export default function ResidentEdit() {
               </>
             ) : (
               <>
-                <FormField label="Household (Household No. / Address)" hint="Search to set the household, address & zone" plain>
+                <FormField label="Household (Household Number / Address)" hint="Search to set the household, address & zone" plain>
                   <HouseholdPicker value={form.household_id} selected={selectedHousehold} onSelect={selectHousehold} />
                 </FormField>
-                <FormField label="Zone">
+                <FormField label="Zone / Purok">
                   <select value={form.zone_purok} onChange={set("zone_purok")} className={inputClasses}>
                     <option value="">Select…</option>
                     {/* The barangay's own list — see useZones. */}
@@ -334,6 +381,10 @@ export default function ResidentEdit() {
             <FormField label="Educational attainment">
               <input value={form.educational_attainment} onChange={set("educational_attainment")} className={inputClasses} placeholder="e.g. High School Graduate" />
             </FormField>
+            <RegisteredVoterField
+              value={form.registered_voter_in}
+              onChange={(value) => setForm((prev) => (prev ? { ...prev, registered_voter_in: value } : prev))}
+            />
             <FormField label="Record status">
               <select value={form.is_active} onChange={set("is_active")} className={inputClasses}>
                 <option value="1">Active</option>

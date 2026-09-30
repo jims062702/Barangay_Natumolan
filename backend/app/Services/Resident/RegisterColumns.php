@@ -22,11 +22,11 @@ final class RegisterColumns
     public const COLUMNS = [
         'resident_number', 'record_type', 'last_name', 'first_name', 'middle_name',
         'suffix', 'mother_maiden_name', 'gender', 'birthdate',
-        'birthdate_is_estimated', 'birth_place',
+        'birthdate_is_estimated', 'birth_place', 'nationality',
         'civil_status', 'spouse_resident_number', 'union_type',
         'occupation', 'contact_number', 'email',
         'household_number', 'zone_purok', 'address', 'residency_status',
-        'length_of_residence_years', 'educational_attainment',
+        'length_of_residence_years', 'educational_attainment', 'registered_voter_in',
         'demographic_classification', 'life_status', 'date_of_death',
         'life_status_note', 'is_active', 'sectors', 'remarks',
     ];

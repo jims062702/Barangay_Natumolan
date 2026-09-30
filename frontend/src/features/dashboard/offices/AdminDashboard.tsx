@@ -3,7 +3,7 @@ import { FiBell, FiSettings, FiUserPlus, FiUsers } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { usePulse } from "../../../shared/hooks/usePulse";
-import { DashboardBodySkeleton } from "../../../shared/ui/Skeleton";
+import { PageLoading, settleAll, usePageLoad } from "../../../shared/ui/PageLoad";
 import Card from "../../../shared/ui/Card";
 import StatTile from "../../../shared/ui/StatTile";
 import PageHeader from "../../../shared/ui/PageHeader";
@@ -24,10 +24,10 @@ export default function AdminDashboard() {
   /* And within a second when somebody else touches one. */
   usePulse("users", () => setTick((t) => t + 1));
 
-  /* Flipped when the first fetch SETTLES — success or failure alike. Keyed
-     off "is the data still null", a request that fails would leave the
-     skeleton pulsing for ever with nothing to read. */
-  const [ready, setReady] = useState(false);
+  /* Its skeleton until the first answer, then the page — see PageLoad. A
+     refresh after that keeps the page; only a first load that gets NO
+     answer at all shows the error. */
+  const pageLoad = usePageLoad();
 
   useEffect(() => {
     void Promise.allSettled([
@@ -36,11 +36,13 @@ export default function AdminDashboard() {
         setUsers(r.data.data.data ?? []);
       }),
       populationApi.accounts().then((r) => setPortalAccounts(r.data.data.total ?? 0)),
-    ]).then(() => setReady(true));
+    ]).then((results) => settleAll(pageLoad, results));
   }, [tick]);
 
   const staffCount = users.filter((u) => u.role !== "Resident").length;
   const inactive = users.filter((u) => u.is_active === false).length;
+
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => setTick((t) => t + 1)} />;
 
   return (
     <div>
@@ -57,10 +59,6 @@ export default function AdminDashboard() {
         }
       />
 
-      {!ready ? (
-        <DashboardBodySkeleton tiles={4} tileColumns={4} cards={2} cardColumns={2} />
-      ) : (
-        <>
       <RevealGroup className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile label="Total Accounts" value={totalUsers} icon={FiUsers} />
         <StatTile label="Staff Accounts (page)" value={staffCount} icon={FiSettings} tone="success" />
@@ -73,7 +71,7 @@ export default function AdminDashboard() {
           <div className="grid gap-3 sm:grid-cols-2">
             {[
               { to: "/admin/users", label: "User Accounts", icon: FiSettings },
-              { to: "/population/accounts", label: "Portal Accounts", icon: FiUserPlus },
+              { to: "/population/accounts/not-activated", label: "Portal Accounts", icon: FiUserPlus },
               { to: "/manage/announcements", label: "Announcements", icon: FiBell },
             ].map((item) => (
               <Link
@@ -97,8 +95,6 @@ export default function AdminDashboard() {
           </ul>
         </Card>
       </div>
-        </>
-      )}
     </div>
   );
 }

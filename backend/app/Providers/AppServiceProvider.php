@@ -203,6 +203,10 @@ class AppServiceProvider extends ServiceProvider
                 \App\Models\Vawc\Referral::class,
                 \App\Models\Vawc\Followup::class,
                 \App\Models\Vawc\Document::class,
+                \App\Models\Vawc\ProtectionOrder::class,
+                \App\Models\Vawc\Assessment::class,
+                \App\Models\Vawc\ChildWelfare::class,
+                \App\Models\Vawc\Agreement::class,
             ],
             'lupon_cases' => [
                 \App\Models\Lupon\CaseFile::class,
@@ -221,6 +225,7 @@ class AppServiceProvider extends ServiceProvider
                 \App\Models\Health\Visit::class,
                 \App\Models\Health\MaternalRecord::class,
                 \App\Models\Health\ChildRecord::class,
+                \App\Models\Health\PrenatalVisit::class,
                 \App\Models\Health\ImmunizationRecord::class,
             ],
             'population_events' => [\App\Models\Population\Event::class],

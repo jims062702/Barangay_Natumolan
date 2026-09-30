@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import DraftNotice from "../../../../shared/ui/DraftNotice";
 import Modal from "../../../../shared/ui/Modal";
 import FormField, { inputClasses } from "../../../../shared/ui/FormField";
 import { luponApi } from "../../api";
@@ -10,7 +11,7 @@ import type { LuponCaseState } from "../../hooks/useLuponCase";
 export function SettlementModal({ ctx }: { ctx: LuponCaseState }) {
   const {
     settlementOpen, setSettlementOpen, post, id, settlementType, terms, dateAgreed,
-    complianceDeadline, setSettlementType, setTerms, setDateAgreed, setComplianceDeadline,
+    complianceDeadline, setSettlementType, setTerms, setDateAgreed, setComplianceDeadline, settlementDraft, finishSettlement,
   } = ctx;
 
   return (
@@ -25,7 +26,7 @@ export function SettlementModal({ ctx }: { ctx: LuponCaseState }) {
               date_agreed: dateAgreed,
               compliance_deadline: complianceDeadline || undefined,
             }),
-            () => setSettlementOpen(false),
+            finishSettlement,
             "Settlement recorded — the 10-day repudiation countdown has started."
           );
         }}
@@ -47,6 +48,7 @@ export function SettlementModal({ ctx }: { ctx: LuponCaseState }) {
             <input type="date" value={complianceDeadline} onChange={(e) => setComplianceDeadline(e.target.value)} className={inputClasses} />
           </FormField>
         </div>
+        <DraftNotice draft={settlementDraft} />
         <button type="submit" className="w-full cursor-pointer rounded-full bg-primary py-2.5 text-sm font-semibold text-white hover:bg-primary-dark">
           Record settlement
         </button>

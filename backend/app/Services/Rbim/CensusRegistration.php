@@ -9,6 +9,7 @@ use App\Models\Resident\Marriage;
 use App\Models\Resident\Resident;
 use App\Services\Content\LandingCache;
 use App\Services\Account\PortalAccount;
+use App\Support\Nationality;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -54,6 +55,14 @@ final class CensusRegistration
             );
         }
 
+        /* A draft may be saved before the head is named; it is not registered so. */
+        if (trim((string) $census->household_head_name) === '') {
+            throw new CensusSubmissionRefused(
+                'Write the household head\'s name at the top of the form before submitting.',
+                422
+            );
+        }
+
         if (!$census->zone_purok) {
             throw new CensusSubmissionRefused(
                 'Set the purok on the form. Every resident record carries one, and the '
@@ -92,7 +101,20 @@ final class CensusRegistration
             $line = $members->search(fn ($m) => $m->id === $member->id) + 1;
 
             if ($member->resident_id) {
-                continue; // already on the register; nothing to check
+                /*
+                 * Already on the register; nothing to check — save a birthdate
+                 * the register holds only as a month and a year, or not at
+                 * all. The census date takes its place (topUpFromCensus), so it
+                 * has to be the whole date.
+                 */
+                $onRegister = Resident::find($member->resident_id);
+
+                if ($onRegister && (! $onRegister->birthdate || $onRegister->birthdate_is_estimated) && ! $member->q5_birthdate) {
+                    $problems[] = 'Line ' . $line . ' (' . trim($member->first_name . ' ' . $member->last_name)
+                        . ') needs the full date of birth — month, day and year (Q5): the register has only the month and year.';
+                }
+
+                continue;
             }
 
             $missing = [];
@@ -101,8 +123,15 @@ final class CensusRegistration
             if (trim((string) $member->last_name) === '') { $missing[] = 'a surname (Q1)'; }
             if (!in_array((int) $member->q3_sex, [1, 2], true)) { $missing[] = 'sex (Q3)'; }
 
-            if (!$this->birthdateOf($member)) {
-                $missing[] = 'a birth month and year (Q5)';
+            /*
+             * THE WHOLE DATE (2026-09-30). A month and a year used to be
+             * enough, and the register filled the day in itself — so a person
+             * registered from a census had no birthday on their profile, only
+             * "June 2002". The form asks for the date, and the register takes
+             * nothing less.
+             */
+            if (! $member->q5_birthdate) {
+                $missing[] = 'a date of birth — month, day and year (Q5)';
             }
 
             if ($missing !== []) {
@@ -309,6 +338,12 @@ final class CensusRegistration
      */
     private function birthdateOf(CensusMember $member): ?string
     {
+        /* The date itself, where the form now asks for it. */
+        if ($member->q5_birthdate) {
+            return $member->q5_birthdate->toDateString();
+        }
+
+        /* A form saved before that has only the month and the year. */
         $year = (int) $member->q5_birth_year;
         $month = (int) $member->q5_birth_month;
 
@@ -330,7 +365,8 @@ final class CensusRegistration
      * whose answer is more likely to be right. The counter saw a birth
      * certificate; the census asked somebody at the door, sometimes about a
      * relative who was out. So the census fills what is blank and argues with
-     * nothing.
+     * nothing — save a birthdate the register itself marks as a guess, which
+     * a whole date from Q5 replaces (see the loop below).
      *
      * The one it exists for is Q35: how long they have lived here. The
      * register has a column for it, the census is the only place anybody is
@@ -358,6 +394,8 @@ final class CensusRegistration
                 'length of residence',
             ],
             'birth_place' => [$member->q6_birthplace ?: null, 'birthplace'],
+            'nationality' => [Nationality::fromCode($member->q7_nationality, $member->q7_nationality_other), 'nationality'],
+            'registered_voter_in' => [$member->q32_voter_barangay ?: null, 'registered voter'],
             'civil_status' => [
                 in_array($marital, ['Single', 'Married', 'Widowed', 'Separated'], true) ? $marital : null,
                 'civil status',
@@ -379,7 +417,20 @@ final class CensusRegistration
 
             $current = $resident->getAttribute($field);
 
-            if ($current !== null && $current !== '') {
+            /*
+             * THE ONE ANSWER THE CENSUS MAY CORRECT: an ESTIMATED birthdate
+             * (2026-09-30).
+             *
+             * Most of the register was loaded from the encoders' sheet with a
+             * month and a year, and a day the system chose — a guess, and
+             * flagged as one. A census that records the whole date (Q5) is
+             * the first real answer that record has had, and the certificates
+             * print it; so the census date takes the guess's place. A date
+             * typed at the counter, not estimated, is still never touched.
+             */
+            $guessed = $field === 'birthdate' && $resident->birthdate_is_estimated && $member->q5_birthdate;
+
+            if ($current !== null && $current !== '' && ! $guessed) {
                 continue;
             }
 
@@ -413,7 +464,7 @@ final class CensusRegistration
          * sets, for the same reason.
          */
         if (array_key_exists('birthdate', $changes)) {
-            $resident->update(['birthdate_is_estimated' => true]);
+            $resident->update(['birthdate_is_estimated' => ! $member->q5_birthdate]);
         }
 
         return [$resident->full_name . ' (' . implode(', ', $filled) . ')'];
@@ -452,8 +503,12 @@ final class CensusRegistration
              * clerk about to put this on a certificate needs to know it came
              * from a census and not a birth certificate.
              */
-            'birthdate_is_estimated' => true,
+            'birthdate_is_estimated' => ! $member->q5_birthdate,
             'birth_place' => $member->q6_birthplace ?: null,
+            /* Q7: 1 Filipino; 2 and what they are. */
+            'nationality' => Nationality::fromCode($member->q7_nationality, $member->q7_nationality_other),
+            /* Q32, where they vote — "Barangay Natumolan" when ticked. */
+            'registered_voter_in' => $member->q32_voter_barangay ?: null,
             'civil_status' => $civil,
             'email' => $member->email ?: null,
             'contact_number' => $member->contact_number ?: null,
@@ -494,6 +549,26 @@ final class CensusRegistration
             $resident->sectors()->create([
                 'sector_type' => $sector,
                 'enrolled_date' => now()->toDateString(),
+            ]);
+        }
+
+        /*
+         * Q29 and Q30, onto the sector lists they belong on. The census
+         * asked; leaving the answer on the census line is how a household's
+         * PWD member was on no PWD list. The ID numbers are not on the
+         * census, and the note says so.
+         */
+        $disability = CensusMember::DISABILITIES[(int) $member->q29_disability] ?? null;
+        if ($disability) {
+            $resident->sectors()->firstOrCreate(['sector_type' => 'PWD'], [
+                'enrolled_date' => now()->toDateString(),
+                'note' => $disability . ' (RBIM Q29). PWD ID number not recorded yet.',
+            ]);
+        }
+        if ((int) $member->q30_solo_parent === 1 && ! $resident->spouse_id) {
+            $resident->sectors()->firstOrCreate(['sector_type' => 'Solo Parent'], [
+                'enrolled_date' => now()->toDateString(),
+                'note' => 'Registered Solo Parent (RBIM Q30). Solo Parent ID number not recorded yet.',
             ]);
         }
 

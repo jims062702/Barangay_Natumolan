@@ -22,8 +22,13 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['office:Main Office,PB', 'deny_role:Secretary'])->group(function () {
     // Declared before the apiResource, or "report" is swallowed as an id.
     Route::get('certificates/report', [CertificateReportController::class, 'report']);
+    /* Before the resource, or "jobseeker-summary" is read as a certificate id. */
+    Route::get('certificates/jobseeker-summary', [CertificateReportController::class, 'jobseekers']);
     Route::get('certificates/fee-schedule', [CertificateCatalogueController::class, 'feeSchedule']);
     Route::get('certificates/requirements', [CertificateCatalogueController::class, 'requirements']);
+    /* Several at once, for one resident's visit — before the resource, so
+       'batch' is never read as a certificate id. */
+    Route::post('certificates/batch', [CertificateController::class, 'storeBatch']);
     Route::apiResource('certificates', CertificateController::class)
         ->only(['index', 'store', 'show', 'update']);
     Route::post('certificates/{certificate}/accept', [CertificateWorkflowController::class, 'accept']);
@@ -34,5 +39,4 @@ Route::middleware(['office:Main Office,PB', 'deny_role:Secretary'])->group(funct
     Route::post('certificates/{certificate}/photo-data', [CertificatePhotoController::class, 'uploadData']);
     Route::post('certificates/{certificate}/mark-printed', [CertificateWorkflowController::class, 'markPrinted']);
     Route::post('certificates/{certificate}/release', [CertificateWorkflowController::class, 'release']);
-    Route::post('certificates/{certificate}/reprint', [CertificateWorkflowController::class, 'reprint']);
 });

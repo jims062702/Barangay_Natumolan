@@ -142,7 +142,7 @@ export default function HouseholdPicker({ value, selected, onSelect, onAddNew, p
             <SearchInput
               value={query}
               onChange={setQuery}
-              placeholder="Search by household number, street or owner…"
+              placeholder="Search by Household Number, Street, Zone / Purok or Owner…"
             />
           </div>
 

@@ -13,6 +13,9 @@ export const rbimApi = {
     api.put(`/rbim/${censusId}`, ...args),
   matchMember: (censusId: PathParam, memberId: PathParam, ...args: BodyArgs) =>
     api.put(`/rbim/${censusId}/members/${memberId}`, ...args),
+  /* A Draft only — a submitted census is part of the record (409). */
+  deleteCensus: (censusId: PathParam | undefined, ...args: QueryArgs) =>
+    api.delete(`/rbim/${censusId}`, ...args),
   submitCensus: (censusId: PathParam | undefined, ...args: BodyArgs) =>
     api.post(`/rbim/${censusId}/submit`, ...args),
   checkEmail: (...args: QueryArgs) =>

@@ -11,7 +11,7 @@ use App\Models\Resident\Resident;
 
 /**
  * One live-agent conversation between a person on the website and the
- * Barangay Clerk, who staffs the live desk.
+ * Barangay Clerk, who staffs the live desk — as many at once as come in.
  */
 class Conversation extends Model
 {
@@ -34,6 +34,10 @@ class Conversation extends Model
         'reopened_at',
         'last_closed_at',
         'last_message_at',
+        /* Who spoke last decides whether it may close by itself — see IdleConversations. */
+        'last_speaker',
+        'last_visitor_message_at',
+        'last_agent_message_at',
         'unread_for_agent',
         'unread_for_visitor',
     ];
@@ -60,6 +64,8 @@ class Conversation extends Model
             'reopened_at' => 'datetime',
             'last_closed_at' => 'datetime',
             'last_message_at' => 'datetime',
+            'last_visitor_message_at' => 'datetime',
+            'last_agent_message_at' => 'datetime',
         ];
     }
 
@@ -105,6 +111,8 @@ class Conversation extends Model
 
         $this->forceFill([
             'last_message_at' => now(),
+            ...($sender === 'visitor' ? ['last_visitor_message_at' => now(), 'last_speaker' => 'visitor'] : []),
+            ...($sender === 'agent' ? ['last_agent_message_at' => now(), 'last_speaker' => 'agent'] : []),
             // A system line is nobody's unread — it narrates, it doesn't ask.
             'unread_for_agent' => (int) $this->unread_for_agent + ($sender === 'visitor' ? 1 : 0),
             'unread_for_visitor' => (int) $this->unread_for_visitor + ($sender === 'agent' ? 1 : 0),

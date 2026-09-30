@@ -1,6 +1,6 @@
 import { FiArrowLeft } from "react-icons/fi";
 import { Link } from "react-router-dom";
-import logo from "../../../assets/logo/logo.svg";
+import logo from "../../../assets/logo/barangay-logo.png";
 import { useIsOffline } from "../../../shared/offline/useConnectivity";
 import { useSignIn } from "../hooks/useSignIn";
 import { LoginHero } from "../components/signIn/LoginHero";
@@ -127,9 +127,9 @@ export default function LoginPage() {
               <p className="mt-1">
                 Your account is created for you when the Barangay Population Office registers you —
                 you do not need to sign up. Sign in with the email on your record; your password is
-                your <strong>last name followed by the month and year you were
-                born</strong> — for example <span className="font-mono">Gasang062002</span> for
-                somebody named Gasang born in June 2002. The first time you sign in we
+                your <strong>last name followed by the year you were born</strong>, with only
+                the first letter a capital — for example <span className="font-mono">Gasang2002</span> for
+                somebody named Gasang born in 2002. The first time you sign in we
                 will email you a 6-digit code to confirm the account is yours.
               </p>
             </div>

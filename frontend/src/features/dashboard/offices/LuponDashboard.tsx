@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { formatWallClock } from "../../../shared/lib/datetime";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { usePulse } from "../../../shared/hooks/usePulse";
-import { DashboardBodySkeleton } from "../../../shared/ui/Skeleton";
+import { PageLoading, settleAll, usePageLoad } from "../../../shared/ui/PageLoad";
 import Card from "../../../shared/ui/Card";
 import StatTile from "../../../shared/ui/StatTile";
 import PageHeader from "../../../shared/ui/PageHeader";
@@ -34,17 +34,19 @@ export default function LuponDashboard() {
   /* And within a second when somebody else touches one. */
   usePulse("lupon_cases", () => setTick((t) => t + 1));
 
-  /* Flipped when the first fetch SETTLES — success or failure alike. Keyed
-     off "is the data still null", a request that fails would leave the
-     skeleton pulsing for ever with nothing to read. */
-  const [ready, setReady] = useState(false);
+  /* Its skeleton until the first answer, then the page — see PageLoad. A
+     refresh after that keeps the page; only a first load that gets NO
+     answer at all shows the error. */
+  const pageLoad = usePageLoad();
 
   useEffect(() => {
     void Promise.allSettled([
       luponApi.deadlines().then((r) => setDeadlines(r.data.data)),
       dashboardApi.summary().then((r) => setPendingCases(r.data.data.quick_stats?.pending_cases ?? 0)),
-    ]).then(() => setReady(true));
+    ]).then((results) => settleAll(pageLoad, results));
   }, [tick]);
+
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => setTick((t) => t + 1)} />;
 
   return (
     <div>
@@ -61,10 +63,6 @@ export default function LuponDashboard() {
         }
       />
 
-      {!ready ? (
-        <DashboardBodySkeleton tiles={4} tileColumns={4} cards={2} cardColumns={2} />
-      ) : (
-        <>
       <RevealGroup className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile label="Active Docket" value={pendingCases} icon={FiBookOpen} />
         <StatTile label="Upcoming Hearings" value={deadlines?.upcoming_hearings.length ?? 0} icon={FiCalendar} tone="warning" />
@@ -137,8 +135,6 @@ export default function LuponDashboard() {
           </p>
         </Card>
       </div>
-        </>
-      )}
     </div>
   );
 }

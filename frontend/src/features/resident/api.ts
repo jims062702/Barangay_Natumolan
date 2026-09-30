@@ -29,6 +29,18 @@ export const residentApi = {
     api.post(`/residents/${residentId}/family/link`, ...args),
   endGuardianship: (residentId: PathParam, guardianshipId: PathParam, ...args: BodyArgs) =>
     api.post(`/residents/${residentId}/guardianships/${guardianshipId}/end`, ...args),
+  /* The Barangay Resident ID the Population Office prints. A new one revokes the old. */
+  residentCard: (residentId: PathParam, ...args: QueryArgs) =>
+    api.get(`/residents/${residentId}/card`, ...args),
+  issueResidentCard: (residentId: PathParam, ...args: BodyArgs) =>
+    api.post(`/residents/${residentId}/card`, ...args),
+  reissueResidentCard: (residentId: PathParam, ...args: BodyArgs) =>
+    api.post(`/residents/${residentId}/card/reissue`, ...args),
+  /* Many at once — a census form's people, a household's members. */
+  cardStanding: (...args: QueryArgs) =>
+    api.get("/resident-cards", ...args),
+  issueCards: (...args: BodyArgs) =>
+    api.post("/resident-cards/bulk", ...args),
   updateLifeStatus: (residentId: PathParam, ...args: BodyArgs) =>
     api.post(`/residents/${residentId}/life-status`, ...args),
   marriages: (residentId: PathParam, ...args: QueryArgs) =>

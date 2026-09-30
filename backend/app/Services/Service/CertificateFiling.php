@@ -43,7 +43,13 @@ final class CertificateFiling
          * Refused here rather than only hidden in the picker, because the
          * picker is one of several ways a resident id reaches this endpoint.
          */
+        /* Always somebody on the register — see StoreCertificateRequest. */
         $applicant = Resident::findOrFail($validated['resident_id']);
+        unset($validated['unlisted_person']);
+
+        /* A request column, not a certificate one: the visit it belongs to. */
+        $transactionCode = $validated['transaction_code'] ?? null;
+        unset($validated['transaction_code']);
 
         /* Nothing is kept that the paper would not print. */
         if (! CertificateCatalogue::asksPurpose($validated['certificate_type'])) {
@@ -65,6 +71,7 @@ final class CertificateFiling
         if (empty($validated['service_request_id'])) {
             $serviceRequest = ServiceRequest::create([
                 'request_number' => ServiceRequest::nextNumber(),
+                'transaction_code' => $transactionCode,
                 'resident_id' => $validated['resident_id'],
                 'service_type' => $validated['certificate_type'],
                 'office' => 'Main Office',

@@ -19,8 +19,35 @@ import type { Resident } from "../../../shared/types";
  */
 export function fromRegister(resident: Resident | null): Record<string, string> {
   const years = resident?.length_of_residence_years;
+  const level = levelFromRegister(resident?.educational_attainment);
 
-  return years === null || years === undefined ? {} : { years_of_residence: String(years) };
+  return {
+    ...(years === null || years === undefined ? {} : { years_of_residence: String(years) }),
+    /* The First-Time Jobseeker's level, for the DILG summary. */
+    ...(level ? { educational_level: level } : {}),
+  };
+}
+
+/** The two educational-level columns of the First-Time Jobseeker summary. */
+export const JOBSEEKER_LEVELS = ["Elem/High School/Senior High School", "College Grad./Level"];
+
+/** OSY / ISY, as the summary's columns name them. */
+export const SCHOOL_STATUSES = [
+  { value: "OSY", label: "Out-of-school youth (OSY)" },
+  { value: "ISY", label: "In-school youth (ISY)" },
+];
+
+/**
+ * The register's attainment, where it maps plainly onto the summary's two
+ * columns. Vocational, pre-school and "no education" do not, and are left
+ * for the clerk to choose. Mirrors JobseekerSummary::levelFromRegister.
+ */
+function levelFromRegister(attainment: string | null | undefined): string | null {
+  const a = String(attainment ?? "").toLowerCase();
+  if (a.includes("college")) return JOBSEEKER_LEVELS[1];
+  if (["elementary", "high school", "junior hs", "senior hs"].some((w) => a.includes(w))) return JOBSEEKER_LEVELS[0];
+
+  return null;
 }
 
 export const FIELD_LABELS: Record<string, string> = {
@@ -51,7 +78,8 @@ export const FIELD_LABELS: Record<string, string> = {
   attached_documents: "Documents attached",
   applicant_name: "Applicant or company",
   work_applied_for: "Work applied for",
-  body: "What this certifies",
+  educational_level: "Educational level",
+  school_status: "In school or out of school",
 };
 
 /*
@@ -69,11 +97,17 @@ export const FIELD_HINTS: Record<string, string> = {
   work_applied_for: "e.g. ELECTRICAL INSTALLATION, FENCE, HOUSE EXTENSION",
   attached_documents: "e.g. Church and Barangay Certifications of Death",
   years_of_residence: "From the RBIM census (Q35). Type over it if it is out of date.",
+  educational_level: "Not printed — counted in the Monthly Summary of Availees for the DILG. Filled from the register when it says plainly.",
+  school_status: "Not printed — counted in the Monthly Summary of Availees for the DILG.",
 };
 
-// Map a requested service to a certificate type the catalogue knows.
+/**
+ * Map a requested service to a certificate type the catalogue knows — or ""
+ * when it names none, so the clerk chooses the type rather than the form
+ * choosing one for them.
+ */
 export function toCertType(serviceType: string, known: string[]): string {
   if (serviceType === "First-Time Jobseeker Certification") return "First-Time Jobseeker";
 
-  return known.includes(serviceType) ? serviceType : "Other Certification";
+  return known.includes(serviceType) ? serviceType : "";
 }

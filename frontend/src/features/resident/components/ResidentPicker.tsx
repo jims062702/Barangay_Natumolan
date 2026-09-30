@@ -31,6 +31,16 @@ interface ResidentPickerProps {
    * mean typing her in again \u2014 and does not create a duplicate of her.
    */
   nonResidentsOnly?: boolean;
+  /**
+   * Only women, or only men — asked of the SERVER, where the limit is
+   * applied, and checked again there when the record is saved. For a mother:
+   * the health station's forms look for women only.
+   */
+  gender?: "Female" | "Male";
+  /** What to say when nobody matches — who to see, for a form that cannot add a person itself. */
+  notFound?: string;
+  /** The search box's own words. */
+  placeholder?: string;
 }
 
 const fullName = (r: Resident) =>
@@ -72,6 +82,9 @@ export default function ResidentPicker({
   excludeIds = [],
   residentsOnly = false,
   nonResidentsOnly = false,
+  gender,
+  notFound,
+  placeholder = "Search by Name or Resident Number…",
 }: ResidentPickerProps) {
   const [query, setQuery] = useState("");
   const [options, setOptions] = useState<Resident[]>([]);
@@ -110,7 +123,7 @@ export default function ResidentPicker({
        * device's copy is only as fresh as the last sync. The guard below
        * makes sure a slow reply cannot overwrite a newer search.
        */
-      void searchResidentsOffline(term, { recordType })
+      void searchResidentsOffline(term, { recordType, gender })
         .then((rows) => {
           if (seq !== latest.current) return;
           setOptions(rows as Resident[]);
@@ -128,6 +141,7 @@ export default function ResidentPicker({
             // Narrowed on the SERVER: the row limit has to be spent on the
             // kind of person being looked for.
             record_type: recordType,
+            gender,
           },
           /* A search nobody is waiting for any more is worse than no search.
              Well under the browser's own minutes-long default. */
@@ -151,7 +165,7 @@ export default function ResidentPicker({
         });
     }, 250);
     return () => clearTimeout(timer);
-  }, [query, residentsOnly, nonResidentsOnly]);
+  }, [query, residentsOnly, nonResidentsOnly, gender]);
 
   const visible = options.filter(
     (o) =>
@@ -196,7 +210,7 @@ export default function ResidentPicker({
       <SearchInput
         value={query}
         onChange={setQuery}
-        placeholder="Search by name or resident number…"
+        placeholder={placeholder}
         label="Search residents"
       />
       {loading && (
@@ -245,6 +259,7 @@ export default function ResidentPicker({
       {searched && !loading && visible.length === 0 && (
         <p className="absolute z-20 mt-1 w-full rounded-xl border border-gray bg-white px-3.5 py-2.5 text-xs text-gray-400 shadow-lg">
           No resident matches “{query.trim()}”.
+          {notFound && <span className="mt-1 block text-gray-500">{notFound}</span>}
         </p>
       )}
     </div>

@@ -1,3 +1,4 @@
+import DraftNotice from "../../../../shared/ui/DraftNotice";
 import Modal from "../../../../shared/ui/Modal";
 import FormField, { inputClasses } from "../../../../shared/ui/FormField";
 import type { Resident } from "../../../../shared/types";
@@ -13,7 +14,7 @@ export function AddSectorModal({ ctx, resident }: {
 }) {
   const {
     sectorOpen, setSectorOpen, addSector, sectorType, setSectorType, sectorRef, setSectorRef,
-    sectorIssued, setSectorIssued, sectorValidUntil, setSectorValidUntil,
+    sectorIssued, setSectorIssued, sectorValidUntil, setSectorValidUntil, sectorDraft,
   } = ctx;
 
   return (
@@ -81,6 +82,7 @@ export function AddSectorModal({ ctx, resident }: {
             </div>
           </>
         )}
+        <DraftNotice draft={sectorDraft} />
         <button
           type="submit"
           className="w-full cursor-pointer rounded-full bg-primary py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"

@@ -27,8 +27,17 @@ class PatientController extends BaseController
                 ->orderBy('vaccination_date', 'desc')
                 ->limit(10)
                 ->get(),
-            'maternal_health' => MaternalRecord::where('mother_id', $resident->id)->first(),
-            'child_health' => ChildRecord::where('child_id', $resident->id)->first(),
+            /* Every pregnancy and every weighing, newest first — there used
+               to be one of each, which is why this said ->first(). */
+            'maternal_health' => MaternalRecord::where('mother_id', $resident->id)
+                ->withCount('prenatalVisits')
+                ->orderByDesc('pregnancy_registration_date')
+                ->orderByDesc('id')
+                ->get(),
+            'child_health' => ChildRecord::where('child_id', $resident->id)
+                ->orderByDesc('record_date')
+                ->orderByDesc('id')
+                ->get(),
         ], 'Patient history retrieved');
     }
 }

@@ -10,6 +10,7 @@ import { RowsSkeleton } from "../../../shared/ui/Skeleton";
 import { formatWallClock } from "../../../shared/lib/datetime";
 import { portalApi } from "../api";
 import type { PortalKpCase } from "../types";
+import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
 
 /**
  * A resident's own Katarungang Pambarangay record.
@@ -65,10 +66,22 @@ const VIEWS: Record<View, { label: string; blurb: string; empty: string }> = {
  */
 const STAGE_MEANS: Record<string, string> = {
   Filed: "Received. Nothing is scheduled yet.",
+  "For Summons": "Waiting for the barangay to issue the summons.",
   Mediation: "The Punong Barangay is hearing it.",
+  /*
+   * This one DOES reach a resident's screen, unlike "For Summons".
+   *
+   * The summons for the Punong Barangay's sittings has been printed by
+   * then, so the case is on the portal — and the reader would otherwise be
+   * looking at the words "For Lupon Summons", which say nothing to anybody
+   * who does not work in the hall.
+   */
+  "For Lupon Summons": "The Punong Barangay's sittings are over without an agreement. A Lupon panel takes it next, and you will be told the dates.",
   Conciliation: "A Lupon panel is hearing it.",
   Settled: "An agreement was reached.",
   Dismissed: "Closed without an agreement.",
+  Withdrawn: "The complaint was taken back, and the case is closed.",
+  CFA: "Certified to file action — you may now take the matter to court.",
   Referred: "Sent on to another office.",
 };
 
@@ -84,15 +97,20 @@ export default function LuponRecords() {
 
   const [cases, setCases] = useState<PortalKpCase[]>([]);
   const [loading, setLoading] = useState(true);
+  /* Its skeleton until the first answer — see PageLoad. */
+  const pageLoad = usePageLoad();
+  /* Bumped by "Try again": the load is an effect, so this re-runs it. */
+  const [attempt, setAttempt] = useState(0);
   /** The case whose full schedule is open, or null. */
   const [viewing, setViewing] = useState<PortalKpCase | null>(null);
 
   useEffect(() => {
     portalApi.cases()
       .then((r) => setCases(r.data.data.kp_cases ?? []))
+      .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
       .catch(() => undefined)
       .finally(() => setLoading(false));
-  }, []);
+  }, [attempt]);
 
   const chosen = VIEWS[view];
 
@@ -122,6 +140,8 @@ export default function LuponRecords() {
       })),
     )
     .sort((a, b) => a.on.localeCompare(b.on));
+
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => setAttempt((n) => n + 1)} />;
 
   return (
     <div>

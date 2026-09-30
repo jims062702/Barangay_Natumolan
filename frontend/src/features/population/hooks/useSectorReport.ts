@@ -6,6 +6,7 @@ import type { Resident } from "../../../shared/types";
 import { SHORT } from "../components/sectors/chartStyle";
 import { populationApi } from "../api";
 import type { Report, SectorPoint } from "../components/sectors/types";
+import { combineLoads, usePageLoad } from "../../../shared/ui/PageLoad";
 
 /**
  * The state and handlers of <SectorLists>, so its sections can share them.
@@ -29,13 +30,23 @@ export function useSectorReport() {
   const [tick, setTick] = useState(0);
   useAutoRefresh(() => setTick((t) => t + 1), REFRESH.staff);
 
+  /* The page's first screen is BOTH answers — the totals and charts, and
+     the list under them — so its skeleton waits for the two. */
+  const reportLoad = usePageLoad();
+  const listLoad = usePageLoad();
+  const pageLoad = combineLoads(reportLoad, listLoad);
+
   /* And within a second when somebody else touches one. */
   usePulse("residents", () => setTick((t) => t + 1));
 
   useEffect(() => {
     populationApi.sectoralReport()
-      .then((r) => setReport(r.data.data ?? null))
-      .catch(() => undefined);
+      .then((r) => {
+        setReport(r.data.data ?? null);
+        reportLoad.done();
+      })
+      .catch((error) => reportLoad.fail(error));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick]);
 
   useEffect(() => {
@@ -46,7 +57,9 @@ export function useSectorReport() {
         setTotal(r.data.data.residents.total ?? 0);
         setLastPage(r.data.data.residents.last_page ?? 1);
       })
+      .then(() => listLoad.done(), (error) => listLoad.fail(error))
       .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, page, tick]);
 
   const sectors = report?.sectors ?? [];
@@ -87,6 +100,7 @@ export function useSectorReport() {
         : selected;
 
   return {
+    pageLoad,
     report, setReport, selected, setSelected, residents, setResidents, total, setTotal,
     lastPage, setLastPage, page, setPage, loading, setLoading, tick, setTick, sectors,
     coverage, grew, sectorData, pickSector, chosen,

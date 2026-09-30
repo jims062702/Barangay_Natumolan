@@ -1,0 +1,301 @@
+# The Lupon Tagapamayapa and the Katarungang Pambarangay.
+#
+# The law is RA 7160 (Local Government Code), Book III, Title One, Chapter 7,
+# Secs. 399–422. What is said about THIS barangay's schedule is what the
+# system does: mediation by the Punong Barangay on Tuesdays (up to three
+# sittings), then conciliation on Thursdays; hearings from 8:00 AM; the day
+# and time printed on the summons.
+topic: lupon
+intents:
+  - id: ask_lupon
+    response: utter_lupon
+    label: "The Lupon Tagapamayapa"
+    question: "What is the Lupon Tagapamayapa?"
+    framed:
+      what: [the lupon, lupon tagapamayapa, katarungang pambarangay, the barangay justice system]
+      where: [the lupon office, the lupon tagapamayapa office, the lupon desk]
+    answer: |-
+      The Lupon Tagapamayapa settles disputes between residents through the Katarungang Pambarangay — mediation and conciliation at the barangay, which many disputes must go through before they can be taken to court.
+
+      A complaint is first mediated by the Punong Barangay. If there is no settlement, it goes to conciliation.
+
+      The Lupon desk is at the Barangay Hall, Monday to Friday, 8:00 AM – 5:00 PM.
+    related: [ask_file_complaint, ask_kp_coverage, ask_hearing_schedule]
+    en: [what is the lupon, lupon tagapamayapa, katarungang pambarangay, what does the lupon do, barangay justice system, who settles disputes in the barangay]
+    tl: [ano ang lupon, ano ang katarungang pambarangay, ano ginagawa ng lupon]
+    ceb: [unsa ang lupon, unsa ang katarungang pambarangay, unsa buhat sa lupon]
+    test: [what is the barangay mediation office, para saan po ang lupon]
+
+  - id: ask_file_complaint
+    label: "File a complaint"
+    question: "How do I file a complaint?"
+    framed:
+      how_to: [file a complaint, file a case, file a complaint against my neighbor, complain to the barangay, report my neighbor to the barangay, file a blotter]
+      can: [file a complaint, file a case against someone, complain to the barangay]
+    answer: |-
+      You can file a Katarungang Pambarangay complaint in two ways:
+      • Online — from the "File a complaint" button in this chat or on the website. You attach a photo of a valid ID and get an Online Complaint Reference Number.
+      • In person — at the Lupon desk in the Barangay Hall, Monday to Friday, 8:00 AM – 5:00 PM.
+
+      Either way, the Lupon accepts the complaint at the counter with your valid ID, and the case number is issued then.
+    related: [ask_file_complaint_online, ask_kp_coverage, ask_filing_fee, ask_hearing_schedule]
+    en: [how do i file a complaint, i want to file a complaint, file a case against my neighbor, how to complain to the barangay, i have a dispute with my neighbor, i want to file a blotter, report my neighbor to the barangay, my neighbor owes me money and will not pay, my neighbor built a fence on my lot, someone damaged my property, my neighbor's dog keeps getting into my yard, my neighbor parks in front of my gate every day, my neighbor insulted me in public, we have a boundary dispute, someone will not return the thing he borrowed, my neighbor throws garbage into our yard, my tenant will not pay the rent, i was cheated in a sale, someone keeps spreading lies about me]
+    tl: [paano magsampa ng reklamo, gusto kong magreklamo, magsusumbong ako sa barangay, may away kami ng kapitbahay, may utang sa akin ang kapitbahay at ayaw magbayad, inagaw ng kapitbahay ang parte ng lupa namin, sinira ng kapitbahay ang bakod namin, ayaw ibalik ang hiniram sa akin, pinagmumura ako ng kapitbahay, may nagkakalat ng tsismis tungkol sa akin]
+    ceb: [unsaon pag file og reklamo, gusto ko mo reklamo, mokiha ko sa akong silingan, naay utang sa akoa ang silingan ug dili mobayad, giguba sa silingan ang among koral, dili iuli ang gihulam nako, gibiaybiay ko sa akong silingan]
+    test: [my neighbor keeps blocking my driveway what can i do, pano po magreklamo sa barangay]
+
+  - id: ask_file_complaint_online
+    label: "File online"
+    question: "Can I file a complaint online?"
+    framed:
+      how_to: [file a complaint online, complain online, submit a complaint on the website]
+      can: [file a complaint online, complain online, file a case online]
+    answer: |-
+      Yes. Press "File a complaint" in this chat, or open the Complaints card on the website. You describe what happened, name who it is against, and attach a photo of a valid ID; evidence is optional.
+
+      You get an Online Complaint Reference Number (like OC-2026-0001). It is not a case number: bring the same ID to the Barangay Office, where the complaint is verified and the Lupon accepts it.
+    related: [ask_complaint_reference, ask_complaint_requirements, ask_file_complaint]
+    en: [can i file a complaint online, file a complaint on the website, online complaint, submit a complaint online, complain without going to the barangay]
+    tl: [pwede ba magreklamo online, online na reklamo, paano magreklamo sa website]
+    ceb: [pwede ba mo reklamo online, online nga reklamo]
+    test: [is there an internet form for barangay complaints, pwede po ba sa online magsampa]
+
+  - id: ask_complaint_reference
+    label: "Reference number"
+    question: "What is the Online Complaint Reference Number?"
+    framed:
+      what: [the reference number, the online complaint reference number, an oc number, the complaint reference]
+    answer: |-
+      It is the number you get when you file a complaint online, like OC-2026-0001. It shows the office received your complaint — it is not a case number. The KP case number is issued when the Lupon accepts the complaint at the Barangay Office.
+
+      Residents with a portal account see their reference numbers, and later the case number, under File a Complaint.
+    related: [ask_complaint_status, ask_file_complaint_online]
+    en: [what is the reference number, online complaint reference number, is the reference number my case number, i got an oc number]
+    tl: [ano ang reference number, case number na ba ang reference number]
+    ceb: [unsa ang reference number, case number na ba ang reference number]
+    test: [what does the oc code mean, reference number po ba ang case number]
+
+  - id: ask_complaint_status
+    label: "Status of my complaint"
+    question: "How do I check my complaint?"
+    framed:
+      status: [my complaint, my case, the case i filed, my reklamo]
+    answer: |-
+      With a portal account: File a Complaint lists your online complaints with their status and, once accepted, the KP case number. Lupon Records shows your cases and their hearings once the summons is printed.
+
+      Without an account, ask at the Lupon desk with your reference number.
+    related: [ask_portal_lupon_records, ask_hearing_schedule, ask_complaint_reference]
+    en: [status of my complaint, what happened to my complaint, check my complaint, follow up my case, is my complaint accepted]
+    tl: [ano na ang status ng reklamo ko, tinanggap na ba ang reklamo ko]
+    ceb: [unsa na ang status sa akong reklamo, gidawat na ba akong reklamo]
+    test: [any update on the case i filed, ano na po nangyari sa reklamo ko]
+
+  - id: ask_complaint_requirements
+    label: "What to bring for a complaint"
+    question: "What do I need to file a complaint?"
+    framed:
+      requirements: [filing a complaint, a complaint, a barangay case, filing a case]
+    answer: |-
+      • A valid ID — the office checks it against you at the counter
+      • The name and address of the person you are complaining about
+      • What happened, and when and where
+      • Any evidence you have — optional
+
+      A filing fee is paid at the Barangay Office; the Lupon confirms it on sight of the official receipt.
+    related: [ask_filing_fee, ask_file_complaint_online, ask_kp_coverage]
+    en: [what do i need to file a complaint, requirements for filing a complaint, what to bring for a complaint, documents for a barangay case]
+    tl: [ano ang kailangan sa pagrereklamo, ano dadalhin para magreklamo]
+    ceb: [unsa kinahanglan sa pagreklamo, unsa dalhon para mo reklamo]
+    test: [what should i prepare before complaining, ano po ang requirements sa kaso]
+
+  - id: ask_filing_fee
+    label: "Filing fee"
+    question: "Is there a filing fee for a complaint?"
+    framed:
+      fee: [filing a complaint, the filing fee, filing a case]
+    answer: |-
+      Yes. The filing fee is paid at the Barangay Office, and the Lupon marks it paid on sight of the official receipt. The summons is not issued until it is paid. Ask at the Lupon desk for the amount.
+    related: [ask_complaint_requirements, ask_summons]
+    en: [is there a filing fee, how much to file a complaint, filing fee for a case, do i pay to file a complaint, do i have to pay to file a case, is filing a complaint free, how much to open a case at the lupon, is there a charge for filing]
+    tl: [may bayad ba ang pagrereklamo, magkano ang filing fee, libre ba magsampa ng kaso, may bayad ba magsampa ng reklamo sa lupon]
+    ceb: [naa bay bayad ang pagreklamo, pila ang filing fee, libre ba mo file og kaso, naa bay bayad sa pag file og reklamo]
+    test: [does it cost money to open a barangay case, may babayaran po ba sa reklamo]
+
+  - id: ask_kp_coverage
+    label: "What cases the Lupon handles"
+    question: "What disputes can the Lupon handle?"
+    answer: |-
+      Disputes between people living in the same city or municipality, for example over money, property, damage or neighbour quarrels. The Katarungang Pambarangay does not cover, among others (RA 7160, Sec. 408):
+      • disputes where one party is the government, or a public officer acting in office
+      • offences punishable by more than one year in prison or a fine over ₱5,000
+      • offences with no private offended party
+      • real property in different cities or municipalities
+      • parties living in different cities or municipalities, unless their barangays adjoin and they agree
+
+      Violence against women and children is never mediated — it goes to the VAWC Desk.
+    related: [ask_file_complaint, ask_vawc_not_mediated, ask_kp_before_court]
+    en: [what cases does the lupon handle, what disputes can be filed in the barangay, can the barangay handle my case, what complaints are allowed, cases not covered by the lupon, can the barangay settle my problem, is my case for the barangay or the police, which cases go to the lupon]
+    tl: [anong kaso ang pwede sa barangay, pwede ba sa lupon ang kaso ko, pwede ba sa barangay ang problema ko, pang barangay ba o pang pulis ang kaso ko]
+    ceb: [unsa nga kaso ang pwede sa barangay, pwede ba sa lupon ang akong kaso, pwede ba sa barangay ang akong problema]
+    test: [is a debt dispute something the barangay can settle, anong klaseng reklamo ang tinatanggap]
+
+  - id: ask_kp_before_court
+    label: "Barangay before court?"
+    question: "Do I have to go to the barangay before going to court?"
+    answer: |-
+      For disputes the Katarungang Pambarangay covers, yes — the case must go through the barangay first. If there is no settlement, the Lupon issues a Certificate to File Action, which the court asks for.
+    related: [ask_cfa, ask_kp_coverage]
+    en: [do i need to go to the barangay before court, can i go directly to court, why go to the barangay first, is barangay conciliation required, must i go through the lupon first, can i sue without the barangay]
+    tl: [kailangan ba dumaan sa barangay bago korte, pwede ba diretso sa korte, kailangan ba muna dumaan sa lupon bago magdemanda]
+    ceb: [kinahanglan ba moagi sa barangay una sa korte, pwede ba diretso sa korte, kinahanglan ba moagi sa lupon una mo demanda]
+    test: [skip the lupon and file in court, bakit po kailangan sa barangay muna]
+
+  - id: ask_summons
+    label: "Summons and notice"
+    question: "How are the parties told about the hearing?"
+    framed:
+      what: [a summons, the summons, a notice of hearing]
+    answer: |-
+      Once the filing fee is paid and the case is scheduled, the office prints a summons for the person complained about and a notice of hearing for the complainant. Both give the day and the time of the hearing. Residents with a portal account also see the case and the hearing in Lupon Records.
+    related: [ask_hearing_schedule, ask_received_summons, ask_missed_hearing]
+    en: [how will i know when the hearing is, summons, notice of hearing, how is the respondent notified, when will they be summoned]
+    tl: [paano malalaman ang hearing, ano ang summons, paano ipapatawag ang inirereklamo]
+    ceb: [unsaon pagkahibalo sa hearing, unsa ang summons]
+    test: [will the person i complained about be called in, pano po sila ipapatawag]
+
+  - id: ask_received_summons
+    label: "I received a summons"
+    question: "I received a summons. What do I do?"
+    answer: |-
+      Come to the Barangay Hall on the day and at the time written on the summons. Appear in person — lawyers do not take part in Katarungang Pambarangay hearings. Bring anything that supports your side. If you have a portal account, the case is under Lupon Records → Cases Against Me.
+    related: [ask_missed_hearing, ask_hearing_what_happens, ask_lawyer_hearing]
+    en: [i received a summons, someone filed a complaint against me, what do i do with a summons, i am the respondent, there is a case against me]
+    tl: [nakatanggap ako ng summons, may nagreklamo sa akin, ano gagawin ko sa summons]
+    ceb: [nakadawat ko og summons, naay nireklamo nako]
+    test: [the barangay called me for a hearing, ipinatawag po ako ng barangay]
+
+  - id: ask_hearing_schedule
+    label: "When are hearings?"
+    question: "When are the Lupon hearings held?"
+    framed:
+      when: [the hearing, my hearing, the lupon hearing, the mediation, the hearings]
+    answer: |-
+      • Mediation with the Punong Barangay — on Tuesdays, up to three sittings
+      • Conciliation — on Thursdays, if the Tuesdays end without a settlement
+
+      Hearings start from 8:00 AM, one case after another. The exact day and time are on the summons and the notice of hearing.
+    related: [ask_hearing_what_happens, ask_missed_hearing, ask_summons]
+    en: [when are the hearings, hearing schedule, what day are the hearings, what time is the hearing, when will my case be heard, lupon schedule]
+    tl: [kailan ang hearing, anong araw ang hearing, anong oras ang hearing]
+    ceb: [kanus-a ang hearing, unsa nga adlaw ang hearing, unsa oras ang hearing]
+    test: [which weekday does the captain mediate, anong oras po magsisimula ang hearing]
+
+  - id: ask_hearing_what_happens
+    label: "What happens at a hearing"
+    question: "What happens during a Barangay hearing?"
+    framed:
+      what: [mediation, conciliation, a barangay hearing, the hearing process]
+    answer: |-
+      Both sides appear in person. The Punong Barangay first tries to help you reach an agreement (mediation). If you agree, the terms are written down as an amicable settlement and signed. If the Tuesday sittings end without one, the case goes to conciliation on Thursdays. If there is still no settlement, a Certificate to File Action may be issued so the case can go to court.
+    related: [ask_settlement, ask_cfa, ask_lawyer_hearing]
+    en: [what happens during a hearing, what happens at the barangay hearing, how does mediation work, what is conciliation, what to expect at the hearing]
+    tl: [ano nangyayari sa hearing, paano ang mediation, ano ang conciliation]
+    ceb: [unsa mahitabo sa hearing, unsaon ang mediation]
+    test: [walk me through a lupon hearing, ano po gagawin sa hearing]
+
+  - id: ask_missed_hearing
+    label: "Missing a hearing"
+    question: "What if I cannot attend the hearing?"
+    framed:
+      can: [reschedule my hearing, move my hearing to another day, skip the hearing]
+    answer: |-
+      Tell the Lupon at the Barangay Hall before the day. Hearing days are fixed and printed on the summons, so they are not moved casually.
+
+      Missing a hearing without a valid reason has consequences under the Katarungang Pambarangay rules: a complainant's complaint may be dismissed, and a respondent may lose the right to file a counterclaim.
+    related: [ask_hearing_schedule, ask_withdraw_complaint]
+    en: [what if i cannot attend the hearing, i will miss the hearing, can i reschedule my hearing, i am not available on the hearing date, what happens if i do not attend]
+    tl: [hindi ako makakapunta sa hearing, pwede ba ilipat ang hearing, paano kung hindi ako umattend]
+    ceb: [dili ko makaadto sa hearing, pwede ba ibalhin ang hearing]
+    test: [i have work on the hearing day, hindi po ako makakarating sa hearing]
+
+  - id: ask_lawyer_hearing
+    label: "Can I bring a lawyer?"
+    question: "Can I bring a lawyer to the hearing?"
+    framed:
+      can: [bring a lawyer, bring my lawyer to the hearing, have a lawyer at the hearing]
+    answer: |-
+      No. In Katarungang Pambarangay proceedings the parties appear in person, without lawyers (RA 7160, Sec. 415). Minors and persons who cannot act for themselves may be assisted by their next of kin who are not lawyers.
+    related: [ask_hearing_what_happens, ask_received_summons]
+    en: [can i bring a lawyer, do i need a lawyer, can my lawyer come to the hearing, can someone represent me, will my lawyer be allowed in, can an attorney speak for me at the barangay]
+    tl: [pwede ba magdala ng abogado, kailangan ba ng abogado, pwede ba ang abogado ko sa hearing]
+    ceb: [pwede ba magdala og abogado, kinahanglan ba og abogado, pwede ba akong abogado sa hearing]
+    test: [my attorney wants to join the mediation, pwede po ba may kasamang abogado]
+
+  - id: ask_settlement
+    label: "Amicable settlement"
+    question: "What is an amicable settlement?"
+    framed:
+      what: [an amicable settlement, the amicable settlement, a settlement]
+    answer: |-
+      It is the written agreement the parties sign when their dispute is settled at the barangay. After 10 days, if not repudiated, it has the force of a final court judgment (RA 7160, Sec. 416). If it is not complied with, the Lupon can enforce it within six months; after that, through the court.
+    related: [ask_repudiation, ask_hearing_what_happens]
+    en: [what is an amicable settlement, we settled what happens now, is the settlement binding, what if they do not follow the settlement]
+    tl: [ano ang amicable settlement, nagkasundo na kami ano susunod, hindi sumusunod sa kasunduan]
+    ceb: [unsa ang amicable settlement, nagkasabot na mi unsa sunod]
+    test: [the other side is ignoring our agreement, may bisa po ba ang kasunduan]
+
+  - id: ask_repudiation
+    label: "Taking back a settlement"
+    question: "Can I take back a settlement?"
+    framed:
+      can: [take back the settlement, cancel the settlement, repudiate the settlement]
+      what: [repudiation]
+    answer: |-
+      Only within 10 days of the settlement, by a sworn statement to the Lupon chairman, and only on the ground that your consent was obtained through fraud, violence or intimidation (RA 7160, Sec. 418). After that it is final.
+    related: [ask_settlement, ask_cfa]
+    en: [can i take back the settlement, repudiate a settlement, i was forced to agree, cancel the amicable settlement]
+    tl: [pwede ba bawiin ang kasunduan, napilitan lang ako pumirma]
+    ceb: [pwede ba bawion ang kasabutan, napugos lang ko pirma]
+    test: [i signed the agreement under pressure, pwede ko pa po bang bawiin]
+
+  - id: ask_cfa
+    label: "Certificate to File Action"
+    question: "What is a Certificate to File Action?"
+    framed:
+      get: [a certificate to file action, a cfa, certification to file action]
+      what: [certificate to file action, cfa]
+      fee: [a certificate to file action, cfa]
+    answer: |-
+      A Certificate to File Action (CFA) is issued when a dispute covered by the Katarungang Pambarangay is not settled at the barangay. It allows the complainant to take the case to court or another government office. The fee under the ordinance is ₱200.
+    related: [ask_kp_before_court, ask_hearing_what_happens]
+    en: [what is a certificate to file action, cfa, how do i get a cfa, certification to file action, we did not settle what now]
+    tl: [ano ang certificate to file action, paano kumuha ng cfa, hindi kami nagkasundo ano na]
+    ceb: [unsa ang certificate to file action, unsaon pagkuha og cfa]
+    test: [paper so i can sue in court, cfa po magkano]
+
+  - id: ask_withdraw_complaint
+    label: "Withdraw a complaint"
+    question: "Can I withdraw my complaint?"
+    framed:
+      can: [withdraw my complaint, drop the case, cancel my complaint]
+      how_to: [withdraw my complaint, drop my case]
+    answer: |-
+      Yes — the complainant may withdraw the complaint at the Lupon desk, and the case is closed with the reason recorded.
+    related: [ask_complaint_status, ask_settlement]
+    en: [can i withdraw my complaint, i want to cancel my complaint, drop the case, i no longer want to pursue the case]
+    tl: [pwede ba iurong ang reklamo, ayoko na ituloy ang kaso]
+    ceb: [pwede ba bawion ang reklamo, dili na nako ipadayon ang kaso]
+    test: [we made peace can i drop the case, iaatras ko na po ang reklamo]
+
+  - id: ask_complaint_non_resident
+    label: "Complaint by a non-resident"
+    question: "Can I file a complaint if I do not live in Natumolan?"
+    framed:
+      can: [file a complaint even if i do not live here, complain as a non resident]
+    answer: |-
+      Yes, if the person you are complaining about lives in Barangay Natumolan — the case is heard in the respondent's barangay. You can file online from the website or in person at the Lupon desk, with a valid ID.
+    related: [ask_file_complaint_online, ask_kp_coverage]
+    en: [can a non resident file a complaint, i live in another barangay can i complain, the person lives in natumolan but i do not, complaint from outside the barangay]
+    tl: [pwede ba magreklamo kahit hindi taga dito, taga ibang barangay ako pwede ba]
+    ceb: [pwede ba mo reklamo bisan dili taga diri, taga laing barangay ko pwede ba]
+    test: [i am from tagoloan proper but my debtor lives here, hindi po ako residente pero dito nakatira ang kaso ko]

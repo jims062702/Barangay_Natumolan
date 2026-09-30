@@ -3,62 +3,23 @@
 namespace App\Http\Controllers\Api\Health;
 
 use App\Http\Controllers\Api\BaseController;
-use App\Models\Health\PrenatalVisit;
 use App\Models\Health\SeniorCheck;
 use App\Support\DateWindow;
+use App\Support\ManilaTime;
 use Illuminate\Http\Request;
 
 /**
- * The station's two running day-lists: prenatal visits, and senior checks.
+ * The station's senior-check day-list: a line written at a table for
+ * somebody standing in front of you, read back as a sequence.
  *
- * ONE CONTROLLER, because they are one kind of thing — a line written at a
- * table for somebody standing in front of you, read back as a sequence. Two
- * controllers would be two copies of the same four methods differing only in
- * which model they name.
- *
- * Neither is a case file. The pregnancy itself lives in `maternal_health`;
- * this is the list of who came today.
+ * The prenatal register that sat beside it moved to PrenatalController,
+ * because a prenatal line now belongs to a pregnancy and is counted
+ * against it — which a day-list is not.
  */
 class RegisterController extends BaseController
 {
     private const PATIENT_COLUMNS =
         'id,resident_number,first_name,middle_name,last_name,suffix,zone_purok,birthdate,contact_number';
-
-    public function prenatal(Request $request)
-    {
-        $query = PrenatalVisit::with(['mother:' . self::PATIENT_COLUMNS, 'recorder:id,name']);
-
-        if ($request->filled('mother_id')) {
-            $query->where('mother_id', $request->mother_id);
-        }
-
-        return $this->paged($request, $query, 'visit_date', PrenatalVisit::min('visit_date'),
-            'Prenatal visits retrieved');
-    }
-
-    public function storePrenatal(Request $request)
-    {
-        $validated = $request->validate([
-            'mother_id' => 'required|exists:residents,id',
-            'visit_date' => 'required|date|before_or_equal:today',
-            'age' => 'nullable|integer|min:0|max:120',
-            'zone_purok' => 'nullable|string|max:60',
-            'contact_number' => 'nullable|string|max:30',
-            'complaint' => 'nullable|string',
-        ], [
-            'visit_date.before_or_equal' => 'A visit cannot be recorded in the future.',
-        ]);
-
-        $validated['recorded_by'] = auth()->id();
-
-        $visit = PrenatalVisit::create($validated);
-
-        return $this->success(
-            $visit->load(['mother:' . self::PATIENT_COLUMNS, 'recorder:id,name']),
-            'Prenatal visit recorded',
-            201
-        );
-    }
 
     public function seniors(Request $request)
     {
@@ -76,7 +37,9 @@ class RegisterController extends BaseController
     {
         $validated = $request->validate([
             'senior_id' => 'required|exists:residents,id',
-            'check_date' => 'required|date|before_or_equal:today',
+            /* Manila's today: the server's "today" is UTC, and a check
+               written before 8 in the morning was refused as the future. */
+            'check_date' => 'required|date|before_or_equal:' . ManilaTime::today(),
             'age' => 'nullable|integer|min:0|max:120',
             /* "120/80" — two numbers and a slash, which is how it is said. */
             'blood_pressure' => ['nullable', 'string', 'max:20', 'regex:/^\d{2,3}\s*\/\s*\d{2,3}$/'],

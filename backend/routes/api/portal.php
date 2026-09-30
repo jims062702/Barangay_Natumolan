@@ -2,10 +2,13 @@
 
 use App\Http\Controllers\Api\Portal\CaseController;
 use App\Http\Controllers\Api\Portal\CertificateController;
+use App\Http\Controllers\Api\Portal\ComplaintController;
 use App\Http\Controllers\Api\Portal\DashboardController;
 use App\Http\Controllers\Api\Portal\EmailChangeController;
 use App\Http\Controllers\Api\Portal\FamilyController;
 use App\Http\Controllers\Api\Portal\HealthController;
+use App\Http\Controllers\Api\Portal\VawcReportController;
+use App\Http\Controllers\Api\Portal\ResidentCardController;
 use App\Http\Controllers\Api\Portal\ProfileController;
 use App\Http\Controllers\Api\Portal\RequestController;
 use Illuminate\Support\Facades\Route;
@@ -16,7 +19,7 @@ use Illuminate\Support\Facades\Route;
 | Loaded inside the auth:sanctum group of routes/api.php.
 */
 
-Route::prefix('portal')->middleware('office:ResidentRole')->group(function () {
+Route::prefix('portal')->middleware(['office:ResidentRole', 'resident_still_here'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'show']);
     Route::get('requests', [RequestController::class, 'index']);
     Route::post('requests', [RequestController::class, 'store']);
@@ -45,6 +48,9 @@ Route::prefix('portal')->middleware('office:ResidentRole')->group(function () {
      */
     Route::get('health', [HealthController::class, 'show']);
     Route::get('profile', [ProfileController::class, 'show']);
+    /* Their Barangay Resident ID — viewed, downloaded, printed; never edited. */
+    Route::get('resident-card', [ResidentCardController::class, 'show']);
+    Route::post('resident-card/check', [ResidentCardController::class, 'check'])->middleware('throttle:30,1');
     /*
      * The one field on their own record a resident may change. Everything
      * else in the registry belongs to the Population Office.
@@ -73,4 +79,25 @@ Route::prefix('portal')->middleware('office:ResidentRole')->group(function () {
     | with the person they are escaping.
     */
     Route::get('cases', [CaseController::class, 'index']);
+
+    /*
+    | Beginning a KP complaint from the portal.
+    |
+    | A reference number, not a case. The resident still comes to the office
+    | with the ID they uploaded, the complaint is still verified there, the
+    | fee is still paid there, and only the Lupon pressing Accept raises a
+    | case. What it buys is that the office has read the complaint before the
+    | resident is standing at the counter.
+    |
+    | Throttled even though this is a signed-in resident: five complaints in
+    | an hour is not a person with five disputes, and the Lupon's queue is
+    | not where that should be discovered.
+    */
+    Route::get('complaints', [ComplaintController::class, 'index']);
+    Route::post('complaints', [ComplaintController::class, 'store'])
+        ->middleware('throttle:5,60');
+
+    /* Their VAWC reports to the VAW Desk — sent, and followed. */
+    Route::get('vawc-reports', [VawcReportController::class, 'index']);
+    Route::post('vawc-reports', [VawcReportController::class, 'store'])->middleware('throttle:10,60');
 });

@@ -9,6 +9,8 @@ import type { Resident } from "./resident";
 export interface ServiceRequest {
   id: number;
   request_number: string;
+  /** Shared by the certificates asked for in one visit — TX- and ten hex digits. */
+  transaction_code?: string | null;
   resident_id?: number | null;
   service_type: string;
   office: string;
@@ -23,10 +25,29 @@ export interface ServiceRequest {
   certificate?: Certificate | null;
 }
 
+/**
+ * Somebody the Population Office has not listed yet, as the clerk typed them
+ * at the counter — only what that certificate prints about them.
+ */
+export interface UnlistedPerson {
+  last_name?: string;
+  first_name?: string;
+  middle_name?: string | null;
+  suffix?: string | null;
+  zone_purok?: string | null;
+  gender?: string | null;
+  birthdate?: string | null;
+  birth_place?: string | null;
+  civil_status?: string | null;
+  address?: string | null;
+}
+
 export interface Certificate {
   id: number;
   certificate_number: string;
-  resident_id: number;
+  /** Null for somebody not yet listed — see unlisted_person. */
+  resident_id: number | null;
+  unlisted_person?: UnlistedPerson | null;
   service_request_id: number;
   /**
    * Just enough of the request behind it to say how it was asked for.
@@ -36,7 +57,9 @@ export interface Certificate {
    * somebody who asked online may never open their portal to learn it is
    * ready.
    */
-  service_request?: { id: number; request_type: "Walk-in" | "Online" } | null;
+  service_request?: { id: number; request_type: "Walk-in" | "Online"; transaction_code?: string | null } | null;
+  /** How many certificates the visit asked for, when it asked for several. */
+  transaction_size?: number | null;
   certificate_type: string;
   purpose?: string | null;
   /* What the printed form asks for and the register does not know — the hour
@@ -69,7 +92,6 @@ export interface Certificate {
   ready_at?: string | null;
   claimed_at?: string | null;
   released_at?: string | null;
-  reprint_count: number;
   created_at?: string;
   resident?: Resident | null;
   processor?: Partial<User> | null;

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { usePageLoad } from "../../../shared/ui/PageLoad";
 import { useSettledState } from "../../../shared/hooks/useSettledState";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { usePulse } from "../../../shared/hooks/usePulse";
@@ -22,7 +23,7 @@ export function usePopulationDashboard() {
    * page it is refreshing. The skeleton is for the FIRST load only; after
    * that the numbers on screen stay put until the new ones arrive.
    */
-  const [firstLoad, setFirstLoad] = useState(true);
+  const pageLoad = usePageLoad();
 
   // Live updates: bump `tick` to re-run the fetch below.
   const [tick, setTick] = useState(0);
@@ -33,9 +34,12 @@ export function usePopulationDashboard() {
 
   useEffect(() => {
     populationApi.analytics()
-      .then((r) => setAnalytics(r.data.data))
-      .catch(() => undefined)
-      .finally(() => setFirstLoad(false));
+      .then((r) => {
+        setAnalytics(r.data.data);
+        pageLoad.done();
+      })
+      .catch((error) => pageLoad.fail(error));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick]);
 
   const ageData = Object.entries(analytics?.population_by_age_group ?? {}).map(([label, count]) => ({
@@ -64,7 +68,7 @@ export function usePopulationDashboard() {
   const sectorData = (analytics?.sector_counts ?? []).filter((s) => s.count > 0);
 
   return {
-    analytics, setAnalytics, firstLoad, setFirstLoad, tick, setTick, ageData, purokData,
+    analytics, setAnalytics, pageLoad, tick, setTick, ageData, purokData,
     genderData, events, register, addedThisYear, dependencyData, sectorData,
   };
 }

@@ -216,10 +216,13 @@ class User extends Authenticatable
     }
 
     /**
-     * The password every portal account starts with: the resident's LAST NAME
-     * followed by their birthday as MMDDYY — e.g. someone named Cruz born on
-     * 27 June 2002 starts with "Cruz062702". Spaces and punctuation are
-     * dropped so "Dela Cruz" produces a password that can actually be typed.
+     * The password every portal account starts with: the resident's LAST NAME,
+     * its first letter a capital and the rest small, followed by the YEAR they
+     * were born — Gasang, born in 2002, starts with "Gasang2002" (2026-09-30).
+     *
+     * Spaces and punctuation are dropped, so "Dela Cruz" is "Delacruz1990",
+     * and an Ñ is typed as N — "Peñaranda" is "Penaranda1990" — so a phone
+     * keyboard without one can still sign in.
      *
      * Returns null when the record has no birthdate, which is the one case
      * where no default can be derived.
@@ -230,20 +233,19 @@ class User extends Authenticatable
             return null;
         }
 
-        $lastName = preg_replace('/[^A-Za-z0-9]/', '', (string) $resident->last_name);
+        $lastName = strtr((string) $resident->last_name, ['Ñ' => 'N', 'ñ' => 'n']);
+        $lastName = preg_replace('/[^A-Za-z0-9]/', '', $lastName);
 
         /*
-         * Month and year, not the day.
+         * The year, and nothing else of the birthday.
          *
-         * This used to be MMDDYY, which worked while the office typed a birth
-         * certificate. The census sheet asks only for a month and a year (Q5),
-         * and the register fills the DAY in itself — the last of that month,
-         * flagged as estimated. So a password built from the day was built
-         * from a number the system invented and the resident had never seen.
-         *
-         * Gasang, born June 2002, is Gasang062002.
+         * This was the month and year, and before that MMDDYY. But the census
+         * now asks Q5 for the year alone, and the months and days the register
+         * was loaded with are the part the office does not trust — a password
+         * built from them was built from a number the resident may never have
+         * given. The year is what they know and what the record holds.
          */
-        return $lastName . $resident->birthdate->format('mY');
+        return ucfirst(strtolower($lastName)) . $resident->birthdate->format('Y');
     }
 
     public function isStaff(): bool

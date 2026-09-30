@@ -9,26 +9,27 @@ import PageHeader from "../../../shared/ui/PageHeader";
 import SearchInput from "../../../shared/ui/SearchInput";
 import type { User } from "../../../shared/types";
 import { populationApi } from "../api";
+import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
 
-export default function ResidentAccounts() {
+/**
+ * One of the two lists the sidebar's Portal Accounts opens into.
+ *
+ * "Not activated" is the list this office actually works: those accounts
+ * exist but nobody has proved the mailbox behind them is theirs. Which list
+ * this is comes from the address, so each one can be opened, bookmarked and
+ * lit in the sidebar on its own.
+ */
+export default function ResidentAccounts({ activation }: { activation: "pending" | "done" }) {
   const [rows, setRows] = useState<User[]>([]);
 
   const [search, setSearch] = useState("");
-  // "Not activated" is the list this office actually works: those accounts
-  // exist but nobody has proved the mailbox behind them is theirs.
-  const [activation, setActivation] = useState<"" | "pending" | "done">("");
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
   // So the footer can say WHICH rows are on screen, not only the page.
   const [total, setTotal] = useState(0);
-  /*
-   * How many sit under each chip. Of the whole list rather than the page,
-   * and unmoved by which chip is picked — otherwise the chosen one would
-   * read its total and every other would read zero, which is exactly the
-   * question the chips are there to answer.
-   */
-  const [counts, setCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  /* Its skeleton until the first answer — see PageLoad. */
+  const pageLoad = usePageLoad();
 
   /*
    * `silent` is for the background timer.
@@ -40,14 +41,15 @@ export default function ResidentAccounts() {
   const load = (silent = false) => {
     if (!silent) setLoading(true);
     populationApi.accounts({
-        params: { page, search: search || undefined, activation: activation || undefined },
+        params: { page, search: search || undefined, activation },
       })
       .then((r) => {
         setRows(r.data.data.data ?? []);
-        setCounts(r.data.data.counts ?? {});
         setLastPage(r.data.data.last_page ?? 1);
         setTotal(r.data.data.total ?? 0);
       })
+      .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
+      .catch(() => undefined)
       .finally(() => setLoading(false));
   };
 
@@ -78,11 +80,22 @@ export default function ResidentAccounts() {
     }
   };
 
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => load()} />;
+
   return (
     <div>
       <PageHeader
-        title="Resident Portal Accounts"
-        subtitle="Created automatically when a resident is registered. Each one stays inactive until the resident enters the code emailed to them."
+        crumbs={[
+          { label: "Population Office" },
+          { label: "Portal Accounts" },
+          { label: activation === "pending" ? "Not activated" : "Activated" },
+        ]}
+        title={activation === "pending" ? "Portal Accounts — Not activated" : "Portal Accounts — Activated"}
+        subtitle={
+          activation === "pending"
+            ? "Issued, and waiting on the resident to enter the code emailed to them. Until they do, they cannot sign in."
+            : "Residents who have entered their code and can sign in to the portal."
+        }
       />
 
       <Card>
@@ -93,36 +106,10 @@ export default function ResidentAccounts() {
               setSearch(value);
               setPage(1);
             }}
-            placeholder="Search by name or email…"
+            placeholder="Search by Name or Email…"
             label="Search resident accounts"
             className="max-w-sm flex-1"
           />
-          <div className="flex gap-2">
-            {(
-              [
-                ["", "All"],
-                ["pending", "Not activated"],
-                ["done", "Activated"],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value || "all"}
-                type="button"
-                onClick={() => {
-                  setActivation(value);
-                  setPage(1);
-                }}
-                className={`cursor-pointer rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${
-                  activation === value ? "bg-primary text-white" : "bg-secondary text-dark hover:bg-primary/10"
-                }`}
-              >
-                {label}
-                {value && counts[value] ? (
-                  <span className="ml-1.5 opacity-70">{counts[value]}</span>
-                ) : null}
-              </button>
-            ))}
-          </div>
         </div>
 
         <DataTable
@@ -130,10 +117,10 @@ export default function ResidentAccounts() {
             { header: "Name", render: (u: User) => <span className="font-medium text-dark">{u.name}</span> },
             { header: "Email", render: (u: User) => u.email },
             {
-              header: "Resident No.",
+              header: "Resident Number",
               render: (u: User) => u.resident?.resident_number ?? "—",
             },
-            { header: "Purok", render: (u: User) => u.resident?.zone_purok ?? "—" },
+            { header: "Zone / Purok", render: (u: User) => u.resident?.zone_purok ?? "—" },
             {
               // Two separate things, so they get two separate columns:
               // whether the office allows this login at all, and whether the

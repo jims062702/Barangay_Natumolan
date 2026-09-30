@@ -1,218 +1,160 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { FiPlus } from "react-icons/fi";
-import { errorMessage } from "../../../shared/lib/api";
-import { toast } from "../../../shared/lib/toast";
-import { confirmAction } from "../../../shared/lib/confirm";
+import { useEffect, useState } from "react";
+import { FiPlus, FiPrinter } from "react-icons/fi";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { usePulse } from "../../../shared/hooks/usePulse";
 import Card from "../../../shared/ui/Card";
 import DataTable from "../../../shared/ui/DataTable";
-import Modal from "../../../shared/ui/Modal";
-import StatusBadge from "../../../shared/ui/StatusBadge";
 import PageHeader from "../../../shared/ui/PageHeader";
-import FormField, { inputClasses } from "../../../shared/ui/FormField";
-import { announceWrite } from "../../../shared/lib/announceWrite";
 import type { Resident } from "../../../shared/types";
-import ResidentPicker from "../../resident/components/ResidentPicker";
 import { healthApi } from "../api";
+import ImmunizationCardModal from "../components/ImmunizationCardModal";
 import type { ImmunizationRecord } from "../types";
+import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
 
-const VACCINES = [
-  "BCG",
-  "Hepatitis B",
-  "Pentavalent (1st dose)",
-  "Pentavalent (2nd dose)",
-  "Pentavalent (3rd dose)",
-  "OPV",
-  "IPV",
-  "PCV",
-  "MMR (1st dose)",
-  "MMR (2nd dose)",
-];
-
-const STATUS_TABS = ["", "Pending", "Missed", "Completed"];
-
+/**
+ * Every dose the station has given, and each person's record behind it.
+ *
+ * WHAT CHANGED, AND WHY. This was a "schedule board" of single doses with a
+ * Pending/Missed/Completed status typed in by hand. The DOH Individual
+ * Treatment Record the station actually fills in has no status box: it is a
+ * card per person with the DATE each vaccine was given. So a dose recorded
+ * here is a dose given, the record opens as that card, and "due" and
+ * "overdue" are worked out from each child's birth date on the dashboard —
+ * never typed, so never wrong by omission.
+ */
 export default function Immunization() {
   const [rows, setRows] = useState<ImmunizationRecord[]>([]);
-  const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
-  // So the footer can say WHICH rows are on screen, not only the page.
   const [total, setTotal] = useState(0);
-  /*
-   * How many sit under each chip. Of the whole list rather than the page,
-   * and unmoved by which chip is picked — otherwise the chosen one would
-   * read its total and every other would read zero, which is exactly the
-   * question the chips are there to answer.
-   */
-  const [counts, setCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  /* Its skeleton until the first answer — see PageLoad. */
+  const pageLoad = usePageLoad();
 
-  const [createOpen, setCreateOpen] = useState(false);
-  const [child, setChild] = useState<Resident | null>(null);
-  const [vaccine, setVaccine] = useState(VACCINES[0]);
-  const [vaccinationDate, setVaccinationDate] = useState(new Date().toISOString().slice(0, 10));
-  const [status, setStatus] = useState("Completed");
+  /* The card: closed, open blank for somebody new, or open on a person. */
+  const [cardOpen, setCardOpen] = useState(false);
+  const [cardFor, setCardFor] = useState<Resident | null>(null);
 
-  /*
-   * `silent` is for the background timer.
-   *
-   * A refresh nobody asked for must not blank the page somebody is
-   * reading; a first load or a filter change should still say it is
-   * working. Same fetch, and only the announcement differs.
-   */
   const load = (silent = false) => {
     if (!silent) setLoading(true);
-    healthApi.immunizations({ params: { page, status: statusFilter || undefined } })
+    healthApi.immunizations({ params: { page } })
       .then((r) => {
         setRows(r.data.data.data ?? []);
-        setCounts(r.data.data.counts ?? {});
         setLastPage(r.data.data.last_page ?? 1);
         setTotal(r.data.data.total ?? 0);
       })
+      .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
+      .catch(() => undefined)
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, statusFilter]);
+  }, [page]);
 
-  // Live updates without a manual refresh.
   useAutoRefresh(() => load(true), REFRESH.staff);
-
-  /*
-   * Somebody else's change, about a second after they make it.
-   *
-   * The timer above stays as a backstop: if the pulse cannot be
-   * reached the page is a few seconds stale rather than frozen.
-   */
   usePulse("health", () => load(true));
 
-  const create = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!(await confirmAction({ title: "Record this immunization?", confirmText: "Yes, record" }))) return;
-    try {
-      const saved = await healthApi.recordImmunization({
-        child_id: child?.id,
-        vaccine_name: vaccine,
-        vaccination_date: vaccinationDate,
-        scheduled_date: vaccinationDate,
-        status,
-      }, { offline: { label: `Immunization — ${vaccine}` } });
-      setCreateOpen(false);
-      setChild(null);
-      announceWrite(saved, "Immunization record saved.");
-      load();
-    } catch (err) {
-      toast(errorMessage(err), "error");
-    }
+  const openCard = (person: Resident | null) => {
+    setCardFor(person);
+    setCardOpen(true);
   };
+
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => load()} />;
 
   return (
     <div>
       <PageHeader
-        title="Immunization Schedule Board"
-        subtitle="Track vaccines given, due, and missed per DOH schedule"
+        title="Immunization"
+        subtitle="Vaccines given, as recorded on each person's Individual Treatment Record"
         actions={
-          <button
-            type="button"
-            onClick={() => setCreateOpen(true)}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
-          >
-            <FiPlus className="h-4 w-4" aria-hidden="true" /> Record vaccine
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-gray px-5 py-2.5 text-sm font-semibold text-dark transition-colors hover:border-primary hover:text-primary"
+            >
+              <FiPrinter className="h-4 w-4" aria-hidden="true" /> Print
+            </button>
+            <button
+              type="button"
+              onClick={() => openCard(null)}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
+            >
+              <FiPlus className="h-4 w-4" aria-hidden="true" /> Immunization record
+            </button>
+          </div>
         }
       />
 
-      <Card>
-        <div className="mb-4 flex flex-wrap gap-2">
-          {STATUS_TABS.map((tab) => (
-            <button
-              key={tab || "all"}
-              type="button"
-              onClick={() => {
-                setStatusFilter(tab);
-                setPage(1);
-              }}
-              className={`cursor-pointer rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${
-                statusFilter === tab ? "bg-primary text-white" : "bg-secondary text-dark hover:bg-primary/10"
-              }`}
-            >
-              {tab || "All"}
-              {tab && counts[tab] ? (
-                <span className="ml-1.5 opacity-70">{counts[tab]}</span>
-              ) : null}
-            </button>
-          ))}
-        </div>
-
+      <Card className="print-plain">
         <DataTable
           columns={[
             {
-              header: "Child",
-              render: (r: ImmunizationRecord) => (r.child ? `${r.child.first_name} ${r.child.last_name}` : "—"),
+              /* "Name", not "Child": the ITR records adult immunizations
+                 too — flu, tetanus toxoid, COVID. */
+              header: "Name",
+              render: (r: ImmunizationRecord) =>
+                r.child ? (
+                  <span className="font-medium text-dark">
+                    {r.child.first_name} {r.child.last_name}
+                  </span>
+                ) : "—",
             },
+            { header: "Zone / Purok", render: (r: ImmunizationRecord) => r.child?.zone_purok ?? "—" },
+            { header: "Sex", render: (r: ImmunizationRecord) => r.child?.gender ?? "—" },
             { header: "Vaccine", render: (r: ImmunizationRecord) => r.vaccine_name },
             {
-              header: "Date",
-              render: (r: ImmunizationRecord) =>
-                r.scheduled_date
-                  ? new Date(r.scheduled_date).toLocaleDateString("en-PH")
-                  : new Date(r.vaccination_date).toLocaleDateString("en-PH"),
+              header: "Date given",
+              render: (r: ImmunizationRecord) => (
+                <span className="whitespace-nowrap">
+                  {new Date(r.vaccination_date).toLocaleDateString("en-PH")}
+                </span>
+              ),
             },
-            { header: "Status", render: (r: ImmunizationRecord) => <StatusBadge status={r.status} /> },
+            {
+              header: "Actions",
+              render: (r: ImmunizationRecord) =>
+                r.child ? (
+                  <button
+                    type="button"
+                    onClick={() => openCard(r.child ?? null)}
+                    className="cursor-pointer whitespace-nowrap rounded-full border border-primary/40 px-3.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
+                  >
+                    Open record
+                  </button>
+                ) : null,
+            },
           ]}
           rows={rows}
           rowKey={(r) => r.id}
           numbered
           total={total}
           searchable
-          searchPlaceholder="Search by child or vaccine…"
+          searchPlaceholder="Search by Name, Zone / Purok or Vaccine…"
           getSearchText={(r) =>
-            `${r.child ? `${r.child.first_name} ${r.child.last_name}` : ""} ${r.vaccine_name}`
+            `${r.child ? `${r.child.first_name} ${r.child.last_name}` : ""} ${
+              r.child?.zone_purok ?? ""
+            } ${r.vaccine_name}`
           }
           loading={loading}
           page={page}
           lastPage={lastPage}
           onPageChange={setPage}
+          emptyMessage="No dose has been recorded yet."
         />
       </Card>
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Record Immunization">
-        <form onSubmit={create} className="space-y-4">
-          <FormField label="Child" required plain>
-            <ResidentPicker value={child} onChange={setChild} />
-          </FormField>
-          <FormField label="Vaccine" required>
-            <select value={vaccine} onChange={(e) => setVaccine(e.target.value)} className={inputClasses}>
-              {VACCINES.map((v) => (
-                <option key={v}>{v}</option>
-              ))}
-            </select>
-          </FormField>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FormField label="Date" required>
-              <input type="date" value={vaccinationDate} onChange={(e) => setVaccinationDate(e.target.value)} required className={inputClasses} />
-            </FormField>
-            <FormField label="Status" required>
-              <select value={status} onChange={(e) => setStatus(e.target.value)} className={inputClasses}>
-                <option>Completed</option>
-                <option>Pending</option>
-                <option>Missed</option>
-                <option>Rescheduled</option>
-              </select>
-            </FormField>
-          </div>
-          <button
-            type="submit"
-            disabled={!child}
-            className="w-full cursor-pointer rounded-full bg-primary py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark disabled:opacity-50"
-          >
-            Save record
-          </button>
-        </form>
-      </Modal>
+      <ImmunizationCardModal
+        open={cardOpen}
+        resident={cardFor}
+        onClose={() => {
+          setCardOpen(false);
+          setCardFor(null);
+        }}
+        onSaved={() => load()}
+      />
     </div>
   );
 }

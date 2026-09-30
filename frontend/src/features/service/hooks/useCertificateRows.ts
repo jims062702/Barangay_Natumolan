@@ -12,6 +12,7 @@ import { serviceApi } from "../api";
 import { syncNumberSeries } from "../lib/certificateNumbers";
 import type { Catalogue } from "../types";
 import type { CouncilMember } from "../lib/certificate/types";
+import { usePageLoad } from "../../../shared/ui/PageLoad";
 
 /**
  * The counter list: its rows, the catalogue and council it prints with, and keeping it fresh.
@@ -34,6 +35,8 @@ export function useCertificateRows() {
    */
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  /* The page's skeleton until the first answer — see PageLoad. */
+  const pageLoad = usePageLoad();
  // "" = walk-in
   const [catalogue, setCatalogue] = useState<Catalogue | null>(null);
   /* The council that signs the paper, read from the Officials roster. */
@@ -64,10 +67,12 @@ export function useCertificateRows() {
     Promise.all(
       jobs.map(async (job, index) => {
         const body = job.body as {
-          resident_id: number;
+          resident_id?: number;
+          unlisted_person?: Record<string, string>;
           certificate_type: string;
           purpose?: string | null;
           fee_amount: number;
+          transaction_code?: string | null;
           certificate_number?: string;
           reference_number?: string;
           template_fields?: Record<string, string>;
@@ -81,7 +86,7 @@ export function useCertificateRows() {
         /* The name comes from the device's own copy of the register — the
            job body carries only an id, because that is all the server
            needs and nothing extra should ride along to it. */
-        const resident = await cachedResident(body.resident_id);
+        const resident = body.resident_id ? await cachedResident(body.resident_id) : null;
 
         return {
           /* Negative, so it can never collide with a real row's id. */
@@ -121,6 +126,7 @@ export function useCertificateRows() {
           /* The server sets the stamp when the job arrives; shown here the same
              way so the amount a clerk quotes offline is the amount recorded. */
           documentary_stamp: catalogue?.documentary_stamp ?? 0,
+          service_request: { id: 0, request_type: "Walk-in", transaction_code: body.transaction_code ?? null },
           /*
            * The certificate's REAL status, not "waiting to be sent".
            *
@@ -136,6 +142,10 @@ export function useCertificateRows() {
           status: body.offline_status ?? "Processing",
           created_at: new Date(job.createdAt).toISOString(),
           resident,
+          /* Somebody not yet listed travels in the job itself — there is no
+             record of them on the device to look up. */
+          resident_id: body.resident_id ?? null,
+          unlisted_person: body.unlisted_person ?? null,
         } as unknown as Certificate;
       }),
     );
@@ -219,6 +229,8 @@ export function useCertificateRows() {
         setTotal(shown.length);
         setLastPage(1);
       })
+      .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
+      .catch(() => undefined)
       .finally(() => setLoading(false));
   };
   useEffect(() => {
@@ -277,6 +289,7 @@ export function useCertificateRows() {
   }, []);
 
   return {
+    pageLoad,
     rows, setRows, statusFilter, setStatusFilter, page, setPage, lastPage, setLastPage, total,
     setTotal, counts, setCounts, loading, setLoading, catalogue, setCatalogue, council,
     setCouncil, queuedRows, withPendingSteps, load,

@@ -11,6 +11,7 @@ use App\Models\Resident\Resident;
 use App\Services\Content\LandingCache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 
 /** What the landing page shows every visitor, cached until the office changes it. */
 class LandingController extends BaseController
@@ -28,7 +29,7 @@ class LandingController extends BaseController
                 ->get()->toArray()
         );
 
-        return $this->success($slides, 'Hero slides retrieved');
+        return $this->success(self::pictures($slides, 'image_path', 'image_url'), 'Hero slides retrieved');
     }
 
     /** Active officials grouped Barangay / SK (SK-managed). Cached. */
@@ -43,7 +44,10 @@ class LandingController extends BaseController
             ];
         });
 
-        return $this->success($grouped, 'Officials retrieved');
+        return $this->success([
+            'barangay' => self::pictures($grouped['barangay'] ?? [], 'photo_path', 'photo_url'),
+            'sk' => self::pictures($grouped['sk'] ?? [], 'photo_path', 'photo_url'),
+        ], 'Officials retrieved');
     }
 
     /**
@@ -99,14 +103,49 @@ class LandingController extends BaseController
 
             return $posts + [
                 'upcoming' => Announcement::public()->with('creator:id,name')
-                    ->upcoming()->limit(6)->get(),
+                    ->upcoming()->limit(6)->get()->toArray(),
                 'counts' => Announcement::public()
                     ->selectRaw('category, COUNT(*) as total')
                     ->groupBy('category')->pluck('total', 'category'),
             ];
         });
 
+        $result['data'] = self::pictures($result['data'] ?? [], 'image_path', 'image_url');
+        $result['upcoming'] = self::pictures($result['upcoming'] ?? [], 'image_path', 'image_url');
+
         return $this->success($result, 'Announcements retrieved');
+    }
+
+    /**
+     * The pictures' addresses, made for THIS request — never taken from the cache.
+     *
+     * A picture's address carries the host it was asked through
+     * (asset()). Kept in the cache, the list carried the address of
+     * whoever happened to fill it: once that was a test server on
+     * 127.0.0.1:8197, and for the next six hours every visitor was sent
+     * there for the pictures — which showed broken under "All" and fine
+     * under "Announcements", a list cached by somebody else. The same
+     * happens the day the first visitor after a post reaches the site by
+     * the office's LAN address and everybody else by its name.
+     *
+     * So the cache keeps the stored path, and the address is made here from
+     * it, for the host this visitor used.
+     */
+    private static function pictures(iterable $rows, string $pathKey, string $urlKey): array
+    {
+        /* A list cached before this change holds models, not arrays. */
+        $rows = $rows instanceof \Illuminate\Contracts\Support\Arrayable ? $rows->toArray() : (array) $rows;
+
+        return array_map(function ($row) use ($pathKey, $urlKey) {
+            if ($row instanceof \Illuminate\Contracts\Support\Arrayable) {
+                $row = $row->toArray();
+            }
+            if (is_array($row) && array_key_exists($pathKey, $row)) {
+                $row[$urlKey] = $row[$pathKey] ? asset(Storage::url($row[$pathKey])) : null;
+            }
+
+            return $row;
+        }, array_values($rows));
     }
 
     /** One published announcement + up to 3 related posts (same category first). */

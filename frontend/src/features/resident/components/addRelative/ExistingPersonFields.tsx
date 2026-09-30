@@ -196,7 +196,7 @@ export function ExistingPersonFields({ ctx, relation, resident }: {
                     className={inputClasses}
                   />
                 </FormField>
-                <FormField label="Phone number" hint="Philippine mobile — 10 digits after +63">
+                <FormField label="Contact Number" hint="Philippine mobile — 10 digits after +63">
                   <PhoneInput
                     value={entries[0]?.outsideParent.contact_number ?? ""}
                     onChange={(v) =>

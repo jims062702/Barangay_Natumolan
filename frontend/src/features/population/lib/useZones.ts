@@ -1,21 +1,17 @@
 import { useEffect, useState } from "react";
 import { populationApi } from "../api";
 
-/** A zone of the barangay, and the health worker who covers it. */
-export interface Bhw {
-  id: number;
-  name: string;
-  contact_number?: string | null;
-  is_active: boolean;
-}
-
+/**
+ * A zone of the barangay.
+ *
+ * The health worker who covered each one went with the "Zones & BHWs"
+ * screen that managed them — nothing else in the system ever read a BHW.
+ */
 export interface Zone {
   id: number;
   name: string;
   sort_order: number;
-  bhw_id: number | null;
   is_active: boolean;
-  bhw?: Bhw | null;
 }
 
 /**
@@ -40,11 +36,12 @@ async function fetchZones(): Promise<Zone[]> {
   return (response.data.data.zones ?? []) as Zone[];
 }
 
-/** Drops the shared copy, so the next read comes from the server. */
-export function forgetZones(): void {
-  held = null;
-  inFlight = null;
-}
+/*
+ * No `forgetZones` any more. It dropped the shared copy after the "Zones &
+ * BHWs" screen added or renamed one, so every form open at the time picked
+ * the new list up. With that screen gone nothing changes the list inside a
+ * session, and the cache is only ever filled once.
+ */
 
 export function useZones(): { zones: Zone[]; loading: boolean } {
   const [zones, setZones] = useState<Zone[]>(held ?? []);

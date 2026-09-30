@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { CHAT_CONFIG } from "../lib/chatConfig";
 import { chatApi } from "../api";
 import { remember, LIVE_KEY } from "../lib/widgetMemory";
 import type { LiveDeskState } from "./useLiveDesk";
@@ -98,7 +99,7 @@ export function usePastConversations(ctx: LiveDeskState) {
           value={followUpText}
           onChange={(e) => setFollowUpText(e.target.value)}
           placeholder="What else would you like to ask?"
-          maxLength={2000}
+          maxLength={CHAT_CONFIG.maxMessageLength}
           className="w-full rounded-xl border border-gray px-3 py-2 text-xs text-dark outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
         />
         <div className="flex justify-center gap-2">

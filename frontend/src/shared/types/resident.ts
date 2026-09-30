@@ -2,8 +2,6 @@
  * The resident register: a person, their household and their family.
  */
 
-import type { Certificate, ServiceRequest } from "./service";
-
 export interface Household {
   id: number;
   household_number: string;
@@ -182,6 +180,8 @@ export interface Resident {
      the month and year alone when this is set. */
   birthdate_is_estimated?: boolean | null;
   birth_place?: string | null;
+  /** RBIM Q7, in words: "Filipino", or what they are ("Japanese"). */
+  nationality?: string | null;
   civil_status?: string | null;
   occupation?: string | null;
   contact_number?: string | null;
@@ -191,13 +191,13 @@ export interface Resident {
   zone_purok?: string | null;
   length_of_residence_years?: number | null;
   educational_attainment?: string | null;
+  /** RBIM Q32: where they are a registered voter. */
+  registered_voter_in?: string | null;
   demographic_classification?: string | null;
   is_active?: boolean;
   full_name?: string;
   household?: Household | null;
   sectors?: ResidentSector[];
-  service_requests?: ServiceRequest[];
-  certificates?: Certificate[];
   /** Portal login account. Issued automatically at registration. */
   account?: { id: number; email: string; is_active: boolean; activated_at?: string | null } | null;
   /**

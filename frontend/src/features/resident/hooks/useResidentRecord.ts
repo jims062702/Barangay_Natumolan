@@ -4,12 +4,15 @@ import { useAuth } from "../../../shared/auth/AuthContext";
 import { errorMessage } from "../../../shared/lib/api";
 import { toast } from "../../../shared/lib/toast";
 import { confirmAction } from "../../../shared/lib/confirm";
+import { useModalDraft } from "../../../shared/lib/useModalDraft";
 import type { Resident, FamilyMember } from "../../../shared/types";
 import { MANUAL_SECTORS } from "../lib/sectors";
 import { memberName } from "../components/family/memberFormat";
 import { residentApi } from "../api";
+import { residentPath } from "../lib/paths";
 import { populationApi } from "../../population/api";
 import type { Relation } from "../components/addRelative/types";
+import { usePageLoad } from "../../../shared/ui/PageLoad";
 
 /**
  * The state and handlers of <ResidentDetail>, so its sections can share them.
@@ -21,6 +24,8 @@ export function useResidentRecord() {
   const { user } = useAuth();
   const [resident, setResident] = useState<Resident | null>(null);
   const [loadError, setLoadError] = useState("");
+  /* The page's skeleton until the first answer — see PageLoad. */
+  const pageLoad = usePageLoad();
   const [sectorOpen, setSectorOpen] = useState(false);
   const [sectorType, setSectorType] = useState(MANUAL_SECTORS[0]);
   /*
@@ -43,6 +48,34 @@ export function useResidentRecord() {
    */
   const [endingGuardian, setEndingGuardian] = useState<FamilyMember | null>(null);
 
+  /* What was typed into the sector and portal-account forms, kept until saved. */
+  const blankSector = { type: MANUAL_SECTORS[0] as string, ref: "", issued: "", validUntil: "" };
+  const resetSector = () => {
+    setSectorType(MANUAL_SECTORS[0]);
+    setSectorRef("");
+    setSectorIssued("");
+    setSectorValidUntil("");
+  };
+  const sectorDraft = useModalDraft(
+    id ? `add-sector:${id}` : null,
+    sectorOpen,
+    { type: sectorType, ref: sectorRef, issued: sectorIssued, validUntil: sectorValidUntil },
+    (kept) => {
+      setSectorType(kept.type ?? MANUAL_SECTORS[0]);
+      setSectorRef(kept.ref ?? "");
+      setSectorIssued(kept.issued ?? "");
+      setSectorValidUntil(kept.validUntil ?? "");
+    },
+    { blank: blankSector, reset: resetSector },
+  );
+  const accountDraft = useModalDraft(
+    id ? `issue-account:${id}` : null,
+    accountOpen,
+    { email: accountEmail },
+    (kept) => setAccountEmail(kept.email ?? ""),
+    { blank: { email: resident?.email ?? "" }, reset: () => setAccountEmail(resident?.email ?? "") },
+  );
+
   const isBpo = user?.office === "Population" || user?.role === "Admin";
   const canEdit =
     ["Main Office", "Population"].includes(user?.office ?? "") ||
@@ -52,7 +85,7 @@ export function useResidentRecord() {
    * Puts the address right once the record says what it is.
    *
    * A non-resident reached from a family panel or a search lands on
-   * /residents/911, where the sidebar can only conclude "Residents" —
+   * /population/residents/911, where the sidebar can only conclude "Residents" —
    * the URL carries no way to know otherwise, and neither does anything
    * else reading it. Replacing rather than pushing keeps the correction
    * out of the back button.
@@ -60,9 +93,7 @@ export function useResidentRecord() {
   useEffect(() => {
     if (!resident || !id) return;
 
-    const belongs = resident.record_type === "Non-resident"
-      ? `/residents/non-residents/${id}`
-      : `/residents/${id}`;
+    const belongs = residentPath(id, resident.record_type === "Non-resident");
 
     if (pathname !== belongs) {
       navigate(belongs, { replace: true });
@@ -74,10 +105,14 @@ export function useResidentRecord() {
       .then((r) => {
         setResident(r.data.data);
         setLoadError("");
+        pageLoad.done();
       })
       // Swallowing this was hiding a broken page behind stale data: the
       // previous resident stayed on screen as though it were the new one.
-      .catch((err) => setLoadError(errorMessage(err)));
+      .catch((err) => {
+        setLoadError(errorMessage(err));
+        pageLoad.fail(err);
+      });
   };
 
   useEffect(() => {
@@ -105,10 +140,9 @@ export function useResidentRecord() {
         issued_on: sectorIssued || undefined,
         valid_until: sectorValidUntil || undefined,
       });
+      sectorDraft.clear();
       setSectorOpen(false);
-      setSectorRef("");
-      setSectorIssued("");
-      setSectorValidUntil("");
+      resetSector();
       toast(`Tagged as ${sectorType}.`);
       load();
     } catch (err) {
@@ -173,6 +207,7 @@ export function useResidentRecord() {
       const response = await populationApi.createResidentAccount(id, {
         email: accountEmail || undefined,
       });
+      accountDraft.clear();
       setAccountOpen(false);
       toast(
         `${response.data.message} Temporary password: ${response.data.data.password}`
@@ -199,10 +234,11 @@ export function useResidentRecord() {
   // Open the change-password modal with the default password pre-filled.
 
   return {
+    pageLoad,
     id, navigate, pathname, user, resident, setResident, loadError, setLoadError, sectorOpen,
     setSectorOpen, sectorType, setSectorType, sectorRef, setSectorRef, sectorIssued,
     setSectorIssued, sectorValidUntil, setSectorValidUntil, accountOpen, setAccountOpen,
-    accountEmail, setAccountEmail,
+    accountEmail, setAccountEmail, sectorDraft, accountDraft,
     relation, setRelation, endingGuardian, setEndingGuardian, isBpo, canEdit, load, addSector,
     removeSector, unlinkRelative, issueAccount, resendActivation,
   };

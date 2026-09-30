@@ -1,5 +1,5 @@
-import { FiClock, FiVolumeX, FiVolume2, FiX } from "react-icons/fi";
-import logo from "../../../../assets/logo/logo.svg";
+import { FiClock, FiMaximize2, FiMinimize2, FiVolumeX, FiVolume2, FiX } from "react-icons/fi";
+import logo from "../../../../assets/logo/barangay-logo.png";
 import type { ChatWidgetState } from "../../hooks/useChatWidget";
 
 /**
@@ -8,11 +8,11 @@ import type { ChatWidgetState } from "../../hooks/useChatWidget";
 export function ChatHeader({ ctx }: { ctx: ChatWidgetState }) {
   const {
     mode, liveStatus, headerSubtitle, isResident, pastCount, setShowPast, showPast, setReading,
-    loadPast, toggleMuted, muted, setOpen,
+    loadPast, toggleMuted, muted, setOpen, expanded, setExpanded,
   } = ctx;
 
   return (
-    <div className="flex items-center gap-3 bg-gradient-to-r from-primary-dark to-primary px-5 py-4">
+    <div className="flex items-center gap-3 bg-gradient-to-r from-primary-dark to-primary px-4 py-3">
       <img src={logo} alt="" aria-hidden="true" className="h-10 w-10 rounded-full bg-white/90 p-1" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-bold text-white">
@@ -60,6 +60,16 @@ export function ChatHeader({ ctx }: { ctx: ChatWidgetState }) {
           </span>
         </button>
       )}
+      {/* A phone is given the whole screen already; this is for a laptop's. */}
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        aria-label={expanded ? "Make the chat smaller" : "Make the chat bigger"}
+        title={expanded ? "Make the chat smaller" : "Make the chat bigger"}
+        className="hidden h-9 w-9 cursor-pointer items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/15 hover:text-white sm:flex"
+      >
+        {expanded ? <FiMinimize2 className="h-5 w-5" /> : <FiMaximize2 className="h-5 w-5" />}
+      </button>
       <button
         type="button"
         onClick={toggleMuted}

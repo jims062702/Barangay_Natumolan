@@ -5,7 +5,8 @@ import { homePathFor } from "../../shared/auth/AuthContext";
 import type { User } from "../../shared/types";
 import type { MenuSection } from "../../shared/navigation/menu";
 import { SidebarGroup } from "./SidebarGroup";
-import logo from "../../assets/logo/logo.svg";
+import logo from "../../assets/logo/barangay-logo.png";
+import backdrop from "../../assets/logo/officials-backdrop.jpg";
 
 /**
  * The sidebar: the office's menu with its counts, and the account at the foot.
@@ -23,7 +24,33 @@ export function Sidebar({ compact, user, sections, setSidebarOpen, badges, activ
   activePath: string;
 }) {
   return (
-    <div className="flex h-full flex-col bg-gradient-to-b from-primary-dark to-[#3d1f73] text-white">
+    <div className="relative flex h-full flex-col overflow-hidden bg-primary-dark text-white">
+      {/*
+        The barangay's own officials behind the menu.
+        Held at the TOP and cropped rather than squeezed to fit: a group
+        photograph stretched to a 256px column turns eleven people into
+        eleven smears. It sits far back — the menu is what this column is
+        for, and every label on it has to stay legible over the picture,
+        so the image is dimmed and a gradient runs over it.
+      */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat opacity-40"
+        style={{ backgroundImage: `url(${backdrop})` }}
+      />
+      {/*
+        The scrim. Without it a white polo shirt sits under a white menu
+        label and the label disappears — so the picture keeps a wash of the
+        barangay's own purple over it, heavier at the top and bottom where
+        the brand and the footer text sit.
+      */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-primary-dark/85 via-primary-dark/65 to-primary-dark/90"
+      />
+
+      {/* Everything below sits over the picture. */}
+      <div className="relative flex h-full min-h-0 flex-col">
       {/*
         Brand only — collapsed this is the logo and nothing else.
         The collapse control lives in the TOPBAR rather than here: sharing this
@@ -160,6 +187,7 @@ export function Sidebar({ compact, user, sections, setSidebarOpen, badges, activ
           Tagoloan, Misamis Oriental
         </div>
       )}
+      </div>
     </div>
   );
 }

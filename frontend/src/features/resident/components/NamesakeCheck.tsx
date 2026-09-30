@@ -86,7 +86,7 @@ export default function NamesakeCheck({
           <table className="min-w-full divide-y divide-gray text-left text-sm">
             <thead className="bg-secondary">
               <tr>
-                {["Resident No.", "Full name", "Birthdate", "Purok", ""].map((h) => (
+                {["Resident Number", "Full name", "Birthdate", "Zone / Purok", ""].map((h) => (
                   <th
                     key={h}
                     scope="col"

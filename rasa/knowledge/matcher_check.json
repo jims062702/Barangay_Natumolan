@@ -1,0 +1,1518 @@
+{
+ "threshold": 0.74,
+ "margin": 0.1,
+ "checks": [
+  {
+   "q": "good day",
+   "intent": "ask_good_moral",
+   "score": 0.403952,
+   "runner": 0.341872
+  },
+  {
+   "q": "magandang araw po",
+   "intent": "greet",
+   "score": 0.590949,
+   "runner": 0.345563
+  },
+  {
+   "q": "ok that is everything bye",
+   "intent": "goodbye",
+   "score": 0.606356,
+   "runner": 0.171117
+  },
+  {
+   "q": "sige na po bye",
+   "intent": "goodbye",
+   "score": 0.670482,
+   "runner": 0.224783
+  },
+  {
+   "q": "thank you very much for the help",
+   "intent": "thanks",
+   "score": 0.565093,
+   "runner": 0.380944
+  },
+  {
+   "q": "salamat talaga po",
+   "intent": "thanks",
+   "score": 0.773962,
+   "runner": 0.558201
+  },
+  {
+   "q": "is this an automated chat",
+   "intent": "ask_human",
+   "score": 0.340652,
+   "runner": 0.263255
+  },
+  {
+   "q": "totoong tao ba ito",
+   "intent": "bot_challenge",
+   "score": 0.555409,
+   "runner": 0.386112
+  },
+  {
+   "q": "what questions can you answer",
+   "intent": "ask_capabilities",
+   "score": 0.604658,
+   "runner": 0.185634
+  },
+  {
+   "q": "anong alam mo",
+   "intent": "goodbye",
+   "score": 0.555078,
+   "runner": 0.286594
+  },
+  {
+   "q": "english lang ba pwede",
+   "intent": "ask_payment",
+   "score": 0.198783,
+   "runner": 0.149787
+  },
+  {
+   "q": "can i write in cebuano",
+   "intent": "ask_language",
+   "score": 0.644826,
+   "runner": 0.522853
+  },
+  {
+   "q": "is there a live person i can chat with",
+   "intent": "bot_challenge",
+   "score": 0.410922,
+   "runner": 0.410922
+  },
+  {
+   "q": "may tao ba dito",
+   "intent": "bot_challenge",
+   "score": 1.0,
+   "runner": 0.471606
+  },
+  {
+   "q": "who programmed this chatbot",
+   "intent": "ask_sk",
+   "score": 0.57482,
+   "runner": 0.188879
+  },
+  {
+   "q": "sino ang developer",
+   "intent": "ask_developers",
+   "score": 0.743762,
+   "runner": 0.105416
+  },
+  {
+   "q": "when does the barangay office open in the morning",
+   "intent": "ask_office_hours",
+   "score": 0.679232,
+   "runner": 0.551413
+  },
+  {
+   "q": "anong oras po pwede pumunta sa barangay hall",
+   "intent": "ask_location",
+   "score": 0.906236,
+   "runner": 0.67248
+  },
+  {
+   "q": "can i visit the barangay hall this weekend",
+   "intent": "ask_location",
+   "score": 0.511208,
+   "runner": 0.51047
+  },
+  {
+   "q": "may opisina po ba sa sabado",
+   "intent": "ask_open_weekend",
+   "score": 0.638421,
+   "runner": 0.502801
+  },
+  {
+   "q": "directions to the natumolan barangay hall",
+   "intent": "ask_location",
+   "score": 0.698541,
+   "runner": 0.438102
+  },
+  {
+   "q": "saan po ang opisina ng barangay",
+   "intent": "ask_offices",
+   "score": 1.0,
+   "runner": 0.800044
+  },
+  {
+   "q": "i need to call the barangay office",
+   "intent": "ask_contact",
+   "score": 0.796539,
+   "runner": 0.710238
+  },
+  {
+   "q": "may cellphone number po ba ang barangay",
+   "intent": "ask_contact",
+   "score": 0.871426,
+   "runner": 0.47519
+  },
+  {
+   "q": "give me the gmail of the barangay",
+   "intent": "ask_email",
+   "score": 0.805741,
+   "runner": 0.291962
+  },
+  {
+   "q": "may email po ba kayo",
+   "intent": "ask_email",
+   "score": 1.0,
+   "runner": 0.643472
+  },
+  {
+   "q": "where can i submit a question to the office",
+   "intent": "ask_file_complaint_online",
+   "score": 0.474664,
+   "runner": 0.440113
+  },
+  {
+   "q": "paano po magpadala ng inquiry",
+   "intent": "ask_contact_form",
+   "score": 0.527778,
+   "runner": 0.242564
+  },
+  {
+   "q": "what sections does the barangay hall have",
+   "intent": "ask_location",
+   "score": 0.691163,
+   "runner": 0.531966
+  },
+  {
+   "q": "ilan ang opisina sa barangay",
+   "intent": "ask_offices",
+   "score": 0.72605,
+   "runner": 0.580872
+  },
+  {
+   "q": "names of the barangay councilors",
+   "intent": "ask_officials",
+   "score": 1.0,
+   "runner": 0.412947
+  },
+  {
+   "q": "sino po ang mga konsehal",
+   "intent": "ask_file_complaint",
+   "score": 0.276765,
+   "runner": 0.264245
+  },
+  {
+   "q": "who is the current captain of natumolan",
+   "intent": "ask_punong_barangay",
+   "score": 0.4799,
+   "runner": 0.436947
+  },
+  {
+   "q": "sino po ang kap ngayon",
+   "intent": "ask_punong_barangay",
+   "score": 0.606956,
+   "runner": 0.500815
+  },
+  {
+   "q": "are there youth activities from the sk",
+   "intent": "ask_sk",
+   "score": 0.422662,
+   "runner": 0.232215
+  },
+  {
+   "q": "sino po ang sk ngayon",
+   "intent": "ask_office_hours",
+   "score": 0.546093,
+   "runner": 0.499436
+  },
+  {
+   "q": "what is new in the barangay this week",
+   "intent": "ask_open_weekend",
+   "score": 0.540962,
+   "runner": 0.49014
+  },
+  {
+   "q": "may bagong announcement po ba",
+   "intent": "ask_announcements",
+   "score": 0.751286,
+   "runner": 0.428268
+  },
+  {
+   "q": "can i show up without scheduling",
+   "intent": "ask_request_online",
+   "score": 0.32635,
+   "runner": 0.324258
+  },
+  {
+   "q": "pwede po ba dumiretso na lang",
+   "intent": "ask_walk_in",
+   "score": 0.455327,
+   "runner": 0.43738
+  },
+  {
+   "q": "is there online scheduling for visits",
+   "intent": "ask_appointment",
+   "score": 0.390435,
+   "runner": 0.308163
+  },
+  {
+   "q": "pano po magpa-appointment",
+   "intent": "ask_appointment",
+   "score": 0.635911,
+   "runner": 0.52369
+  },
+  {
+   "q": "will my details be shared with others",
+   "intent": "ask_vawc_confidential",
+   "score": 0.47771,
+   "runner": 0.420095
+  },
+  {
+   "q": "safe po ba ang personal info ko",
+   "intent": "ask_data_privacy",
+   "score": 0.558501,
+   "runner": 0.285768
+  },
+  {
+   "q": "which papers can the barangay issue me",
+   "intent": "ask_certificates",
+   "score": 0.613089,
+   "runner": 0.495091
+  },
+  {
+   "q": "anong klaseng certification ang meron kayo",
+   "intent": "ask_certificates",
+   "score": 0.608336,
+   "runner": 0.608336
+  },
+  {
+   "q": "what are the charges for barangay documents",
+   "intent": "ask_requirements",
+   "score": 0.807996,
+   "runner": 0.766146
+  },
+  {
+   "q": "magkano po lahat ng certificate",
+   "intent": "ask_fees",
+   "score": 0.527492,
+   "runner": 0.467957
+  },
+  {
+   "q": "what papers must i present for a certificate",
+   "intent": "ask_certificates",
+   "score": 0.344887,
+   "runner": 0.344887
+  },
+  {
+   "q": "anong kailangan ko ipakita sa barangay",
+   "intent": "ask_requirements",
+   "score": 0.563237,
+   "runner": 0.505404
+  },
+  {
+   "q": "why did i pay 30 more than the fee",
+   "intent": "ask_payment",
+   "score": 0.350554,
+   "runner": 0.286908
+  },
+  {
+   "q": "ano po yung stamp na binayaran",
+   "intent": "ask_documentary_stamp",
+   "score": 0.440275,
+   "runner": 0.371781
+  },
+  {
+   "q": "are poor residents exempted from paying",
+   "intent": "ask_fee_exemption",
+   "score": 0.778067,
+   "runner": 0.233077
+  },
+  {
+   "q": "pwede po bang walang bayad",
+   "intent": "ask_low_income",
+   "score": 0.471128,
+   "runner": 0.364201
+  },
+  {
+   "q": "can i settle the fee through an app",
+   "intent": "ask_kp_before_court",
+   "score": 0.428035,
+   "runner": 0.247999
+  },
+  {
+   "q": "saan po ang bayaran",
+   "intent": "ask_fees",
+   "score": 0.705781,
+   "runner": 0.661442
+  },
+  {
+   "q": "steps to get a clearance from the barangay",
+   "intent": "ask_claim_certificate",
+   "score": 0.526982,
+   "runner": 0.524712
+  },
+  {
+   "q": "pano po magpagawa ng clearance",
+   "intent": "ask_portal_account",
+   "score": 0.706164,
+   "runner": 0.676359
+  },
+  {
+   "q": "cost of a clearance for a loan",
+   "intent": "ask_clearance_fee",
+   "score": 1.0,
+   "runner": 0.494473
+  },
+  {
+   "q": "magkano po ang clearance pang abroad",
+   "intent": "ask_clearance_fee",
+   "score": 0.608509,
+   "runner": 0.393576
+  },
+  {
+   "q": "does the clearance need my photo taken at the office",
+   "intent": "ask_clearance_with_picture",
+   "score": 0.649095,
+   "runner": 0.399314
+  },
+  {
+   "q": "may litrato po ba ang clearance",
+   "intent": "ask_clearance",
+   "score": 0.585866,
+   "runner": 0.488989
+  },
+  {
+   "q": "what does a new shop need from the barangay",
+   "intent": "ask_announcements",
+   "score": 0.522573,
+   "runner": 0.484401
+  },
+  {
+   "q": "clearance po para sa tindahan",
+   "intent": "ask_business_clearance_fee",
+   "score": 0.641591,
+   "runner": 0.497836
+  },
+  {
+   "q": "what does the barangay charge for a junk shop",
+   "intent": "ask_business_clearance_fee",
+   "score": 0.803436,
+   "runner": 0.289462
+  },
+  {
+   "q": "magkano po clearance ng tindahan",
+   "intent": "ask_business_clearance_fee",
+   "score": 1.0,
+   "runner": 0.656535
+  },
+  {
+   "q": "permit from the barangay before building",
+   "intent": "ask_business_clearance",
+   "score": 0.560823,
+   "runner": 0.550937
+  },
+  {
+   "q": "magkano po ang construction clearance",
+   "intent": "ask_construction_clearance",
+   "score": 0.94358,
+   "runner": 0.523851
+  },
+  {
+   "q": "document showing i reside in natumolan",
+   "intent": "ask_register_resident",
+   "score": 0.513266,
+   "runner": 0.41097
+  },
+  {
+   "q": "residency po magkano",
+   "intent": "ask_residency",
+   "score": 0.802908,
+   "runner": 0.472731
+  },
+  {
+   "q": "paper for financial assistance at the hospital",
+   "intent": "ask_assistance",
+   "score": 0.723417,
+   "runner": 0.35308
+  },
+  {
+   "q": "indigency po para sa pcso",
+   "intent": "ask_indigency",
+   "score": 0.732911,
+   "runner": 0.341651
+  },
+  {
+   "q": "proof that i have no earnings",
+   "intent": "ask_residency",
+   "score": 0.452104,
+   "runner": 0.418633
+  },
+  {
+   "q": "certificate po na walang income",
+   "intent": "ask_low_income",
+   "score": 0.516623,
+   "runner": 0.392389
+  },
+  {
+   "q": "character certificate from the barangay",
+   "intent": "ask_good_moral",
+   "score": 0.576258,
+   "runner": 0.535575
+  },
+  {
+   "q": "good moral po magkano",
+   "intent": "ask_good_moral",
+   "score": 0.833045,
+   "runner": 0.449218
+  },
+  {
+   "q": "certificate for fresh graduates applying for work",
+   "intent": "ask_appearance",
+   "score": 0.435416,
+   "runner": 0.430357
+  },
+  {
+   "q": "first job po ako may libreng certificate ba",
+   "intent": "ask_jobseeker",
+   "score": 0.630364,
+   "runner": 0.437254
+  },
+  {
+   "q": "paper from the barangay for a funeral",
+   "intent": "ask_certificates",
+   "score": 0.499216,
+   "runner": 0.484139
+  },
+  {
+   "q": "may namatay po sa amin anong kukunin",
+   "intent": "ask_claim_certificate",
+   "score": 0.564417,
+   "runner": 0.412861
+  },
+  {
+   "q": "barangay paper before a wedding",
+   "intent": "ask_marriage_certification",
+   "score": 0.48935,
+   "runner": 0.444333
+  },
+  {
+   "q": "kasal po ano kukunin sa barangay",
+   "intent": "ask_claim_certificate",
+   "score": 0.606445,
+   "runner": 0.313216
+  },
+  {
+   "q": "document for unmarried partners living together",
+   "intent": "ask_common_law",
+   "score": 0.442653,
+   "runner": 0.362776
+  },
+  {
+   "q": "live in po kami may certificate ba",
+   "intent": "ask_certificates",
+   "score": 0.621533,
+   "runner": 0.621533
+  },
+  {
+   "q": "my payroll name does not match my id",
+   "intent": "ask_requirements",
+   "score": 0.335679,
+   "runner": 0.263658
+  },
+  {
+   "q": "mali po ang spelling ng pangalan ko",
+   "intent": "ask_oneness_of_name",
+   "score": 0.647039,
+   "runner": 0.308053
+  },
+  {
+   "q": "my office needs proof of my visit to the barangay",
+   "intent": "ask_appearance",
+   "score": 0.408922,
+   "runner": 0.403876
+  },
+  {
+   "q": "appearance po magkano",
+   "intent": "ask_appearance",
+   "score": 0.744282,
+   "runner": 0.629838
+  },
+  {
+   "q": "permit to move my cow to another town",
+   "intent": "ask_other_certifications",
+   "score": 0.466359,
+   "runner": 0.418021
+  },
+  {
+   "q": "magkano po ang certification sa pagbiyahe ng kambing",
+   "intent": "ask_other_certifications",
+   "score": 0.548514,
+   "runner": 0.44115
+  },
+  {
+   "q": "what the barangay gives for a municipal building permit",
+   "intent": "ask_building_permit_certification",
+   "score": 0.576896,
+   "runner": 0.398056
+  },
+  {
+   "q": "building permit po kukuha sa barangay",
+   "intent": "ask_building_permit_certification",
+   "score": 0.883985,
+   "runner": 0.47263
+  },
+  {
+   "q": "can i apply for my clearance through the website",
+   "intent": "ask_clearance",
+   "score": 0.419751,
+   "runner": 0.394798
+  },
+  {
+   "q": "online po ba pwede mag-request",
+   "intent": "ask_request_online",
+   "score": 0.84829,
+   "runner": 0.389633
+  },
+  {
+   "q": "has my clearance been processed yet",
+   "intent": "ask_clearance",
+   "score": 0.408858,
+   "runner": 0.38627
+  },
+  {
+   "q": "ano na po status ng request ko",
+   "intent": "ask_track_request",
+   "score": 1.0,
+   "runner": 0.760919
+  },
+  {
+   "q": "my request says processing what now",
+   "intent": "ask_request_status",
+   "score": 0.581854,
+   "runner": 0.461635
+  },
+  {
+   "q": "ano po ibig sabihin ng released",
+   "intent": "ask_sk",
+   "score": 0.60987,
+   "runner": 0.587044
+  },
+  {
+   "q": "i requested the wrong certificate",
+   "intent": "ask_track_request",
+   "score": 0.474104,
+   "runner": 0.438632
+  },
+  {
+   "q": "pwede po bang bawiin ang request",
+   "intent": "ask_repudiation",
+   "score": 0.454108,
+   "runner": 0.304449
+  },
+  {
+   "q": "my document is ready where do i collect it",
+   "intent": "ask_requirements",
+   "score": 0.507196,
+   "runner": 0.433085
+  },
+  {
+   "q": "kukunin ko na po ang clearance ko",
+   "intent": "ask_claim_certificate",
+   "score": 1.0,
+   "runner": 0.49629
+  },
+  {
+   "q": "will my clearance be ready within the day",
+   "intent": "ask_track_request",
+   "score": 0.430129,
+   "runner": 0.383286
+  },
+  {
+   "q": "gaano po katagal gawin",
+   "intent": "ask_processing_time",
+   "score": 0.811079,
+   "runner": 0.594813
+  },
+  {
+   "q": "an employer wants to confirm my clearance",
+   "intent": "ask_clearance",
+   "score": 0.380487,
+   "runner": 0.313334
+  },
+  {
+   "q": "paano po i-check kung legit ang certificate",
+   "intent": "ask_certificates",
+   "score": 0.528393,
+   "runner": 0.528393
+  },
+  {
+   "q": "is a clearance from last year still usable",
+   "intent": "ask_clearance",
+   "score": 0.356358,
+   "runner": 0.351173
+  },
+  {
+   "q": "ilang buwan po ang bisa ng clearance",
+   "intent": "ask_clearance",
+   "score": 0.510506,
+   "runner": 0.389405
+  },
+  {
+   "q": "i misplaced the clearance you gave me",
+   "intent": "ask_clearance",
+   "score": 0.41964,
+   "runner": 0.32835
+  },
+  {
+   "q": "nasira po ang certificate ko",
+   "intent": "ask_certificates",
+   "score": 0.556931,
+   "runner": 0.556931
+  },
+  {
+   "q": "my name is not in your records yet",
+   "intent": "ask_unlisted_person",
+   "score": 0.522311,
+   "runner": 0.334149
+  },
+  {
+   "q": "bago pa lang po ako dito pwede na ba",
+   "intent": "ask_kp_before_court",
+   "score": 0.380863,
+   "runner": 0.327346
+  },
+  {
+   "q": "where do i sign up for the website",
+   "intent": "ask_portal_account",
+   "score": 0.558925,
+   "runner": 0.513011
+  },
+  {
+   "q": "pano po magkaroon ng account sa portal",
+   "intent": "ask_portal_account",
+   "score": 0.525315,
+   "runner": 0.525315
+  },
+  {
+   "q": "benefits of having a portal login",
+   "intent": "ask_portal_login",
+   "score": 0.517585,
+   "runner": 0.432252
+  },
+  {
+   "q": "ano po makikita sa account ko",
+   "intent": "ask_portal_account",
+   "score": 0.563416,
+   "runner": 0.563416
+  },
+  {
+   "q": "the email with my code never came",
+   "intent": "ask_email",
+   "score": 0.466369,
+   "runner": 0.316171
+  },
+  {
+   "q": "pano po i-activate ang account ko",
+   "intent": "ask_activation_code",
+   "score": 0.837325,
+   "runner": 0.51128
+  },
+  {
+   "q": "the site will not let me in",
+   "intent": "ask_disaster",
+   "score": 0.357792,
+   "runner": 0.252377
+  },
+  {
+   "q": "pano po pumasok sa account ko",
+   "intent": "ask_portal_account",
+   "score": 0.484888,
+   "runner": 0.484888
+  },
+  {
+   "q": "locked out because i lost my password",
+   "intent": "ask_forgot_password",
+   "score": 0.388579,
+   "runner": 0.264251
+  },
+  {
+   "q": "nakalimutan ko po password ko",
+   "intent": "ask_forgot_password",
+   "score": 1.0,
+   "runner": 0.157493
+  },
+  {
+   "q": "my old gmail no longer works for the portal",
+   "intent": "ask_withdraw_complaint",
+   "score": 0.400995,
+   "runner": 0.348285
+  },
+  {
+   "q": "papalitan ko po ang email ko",
+   "intent": "ask_change_email",
+   "score": 0.824219,
+   "runner": 0.480291
+  },
+  {
+   "q": "my birthday on file is wrong",
+   "intent": "ask_update_profile",
+   "score": 0.389828,
+   "runner": 0.328987
+  },
+  {
+   "q": "papalitan ko po ang address ko sa record",
+   "intent": "ask_location",
+   "score": 0.481419,
+   "runner": 0.465765
+  },
+  {
+   "q": "is my barangay case visible in my account",
+   "intent": "ask_portal_account",
+   "score": 0.470791,
+   "runner": 0.470791
+  },
+  {
+   "q": "makikita ko po ba ang hearing ko online",
+   "intent": "ask_portal_lupon_records",
+   "score": 0.788789,
+   "runner": 0.534799
+  },
+  {
+   "q": "where do i view my checkup history",
+   "intent": "ask_health",
+   "score": 0.415573,
+   "runner": 0.394726
+  },
+  {
+   "q": "nasaan po ang records ng bakuna ko",
+   "intent": "ask_portal_health_records",
+   "score": 0.647631,
+   "runner": 0.551526
+  },
+  {
+   "q": "i live in another barangay can i register on the site",
+   "intent": "ask_complaint_non_resident",
+   "score": 0.630255,
+   "runner": 0.545715
+  },
+  {
+   "q": "taga ibang lugar po ako pwede ba",
+   "intent": "ask_complaint_non_resident",
+   "score": 0.649856,
+   "runner": 0.342631
+  },
+  {
+   "q": "which office has the resident records",
+   "intent": "ask_offices",
+   "score": 0.474433,
+   "runner": 0.439509
+  },
+  {
+   "q": "para saan po ang population office",
+   "intent": "ask_population",
+   "score": 1.0,
+   "runner": 0.447613
+  },
+  {
+   "q": "we are a new family in the barangay",
+   "intent": "ask_update_household",
+   "score": 0.602086,
+   "runner": 0.487941
+  },
+  {
+   "q": "pano po maging registered dito",
+   "intent": "ask_register_resident",
+   "score": 0.493294,
+   "runner": 0.42191
+  },
+  {
+   "q": "papers for adding my family to the register",
+   "intent": "ask_register_resident",
+   "score": 0.613316,
+   "runner": 0.350935
+  },
+  {
+   "q": "ano po kailangan sa census",
+   "intent": "ask_requirements",
+   "score": 0.693317,
+   "runner": 0.584176
+  },
+  {
+   "q": "someone came to our house for a census",
+   "intent": "ask_report_death",
+   "score": 0.452235,
+   "runner": 0.404861
+  },
+  {
+   "q": "rbim po ano yun",
+   "intent": "ask_rbim",
+   "score": 1.0,
+   "runner": 0.066962
+  },
+  {
+   "q": "my cousin moved in with us",
+   "intent": "ask_transfer",
+   "score": 0.498985,
+   "runner": 0.403558
+  },
+  {
+   "q": "may bagong kasama po kami sa bahay",
+   "intent": "ask_change_email",
+   "score": 0.390306,
+   "runner": 0.314243
+  },
+  {
+   "q": "our family relocated what should we report",
+   "intent": "ask_report_death",
+   "score": 0.410397,
+   "runner": 0.407056
+  },
+  {
+   "q": "lilipat na po kami",
+   "intent": "ask_transfer",
+   "score": 0.769262,
+   "runner": 0.508787
+  },
+  {
+   "q": "add my newborn to our family record",
+   "intent": "ask_report_birth",
+   "score": 0.509389,
+   "runner": 0.44385
+  },
+  {
+   "q": "may bagong baby po kami",
+   "intent": "ask_change_email",
+   "score": 0.545274,
+   "runner": 0.439011
+  },
+  {
+   "q": "update the records after my father passed away",
+   "intent": "ask_update_household",
+   "score": 0.304264,
+   "runner": 0.289421
+  },
+  {
+   "q": "may pumanaw po sa amin",
+   "intent": "ask_disaster",
+   "score": 0.425325,
+   "runner": 0.343763
+  },
+  {
+   "q": "programs for the elderly in natumolan",
+   "intent": "ask_sk",
+   "score": 0.490572,
+   "runner": 0.427847
+  },
+  {
+   "q": "senior po ang tatay ko",
+   "intent": "ask_senior_citizen",
+   "score": 0.450368,
+   "runner": 0.333298
+  },
+  {
+   "q": "my child has a disability how do we get listed",
+   "intent": "ask_immunization",
+   "score": 0.250684,
+   "runner": 0.248401
+  },
+  {
+   "q": "isama po kami sa listahan ng 4ps",
+   "intent": "ask_sector_lists",
+   "score": 0.835404,
+   "runner": 0.489326
+  },
+  {
+   "q": "what is the barangay mediation office",
+   "intent": "ask_hearing_what_happens",
+   "score": 0.662816,
+   "runner": 0.526867
+  },
+  {
+   "q": "para saan po ang lupon",
+   "intent": "ask_lupon",
+   "score": 0.710158,
+   "runner": 0.498695
+  },
+  {
+   "q": "my neighbor keeps blocking my driveway what can i do",
+   "intent": "ask_file_complaint",
+   "score": 0.378428,
+   "runner": 0.332734
+  },
+  {
+   "q": "pano po magreklamo sa barangay",
+   "intent": "ask_file_complaint",
+   "score": 1.0,
+   "runner": 0.705368
+  },
+  {
+   "q": "is there an internet form for barangay complaints",
+   "intent": "ask_file_complaint",
+   "score": 0.495782,
+   "runner": 0.459138
+  },
+  {
+   "q": "pwede po ba sa online magsampa",
+   "intent": "ask_file_complaint",
+   "score": 0.651862,
+   "runner": 0.608089
+  },
+  {
+   "q": "what does the oc code mean",
+   "intent": "ask_complaint_reference",
+   "score": 0.449257,
+   "runner": 0.330389
+  },
+  {
+   "q": "reference number po ba ang case number",
+   "intent": "ask_complaint_reference",
+   "score": 1.0,
+   "runner": 0.49278
+  },
+  {
+   "q": "any update on the case i filed",
+   "intent": "ask_complaint_status",
+   "score": 1.0,
+   "runner": 0.512239
+  },
+  {
+   "q": "ano na po nangyari sa reklamo ko",
+   "intent": "ask_hearing_what_happens",
+   "score": 0.586284,
+   "runner": 0.534966
+  },
+  {
+   "q": "what should i prepare before complaining",
+   "intent": "ask_kp_before_court",
+   "score": 0.498841,
+   "runner": 0.314302
+  },
+  {
+   "q": "ano po ang requirements sa kaso",
+   "intent": "ask_requirements",
+   "score": 0.739245,
+   "runner": 0.655183
+  },
+  {
+   "q": "does it cost money to open a barangay case",
+   "intent": "ask_office_hours",
+   "score": 0.454414,
+   "runner": 0.395759
+  },
+  {
+   "q": "may babayaran po ba sa reklamo",
+   "intent": "ask_fees",
+   "score": 0.718362,
+   "runner": 0.508355
+  },
+  {
+   "q": "is a debt dispute something the barangay can settle",
+   "intent": "ask_lupon",
+   "score": 0.634467,
+   "runner": 0.456616
+  },
+  {
+   "q": "anong klaseng reklamo ang tinatanggap",
+   "intent": "ask_complaint_status",
+   "score": 0.644418,
+   "runner": 0.399311
+  },
+  {
+   "q": "skip the lupon and file in court",
+   "intent": "ask_lupon",
+   "score": 0.397637,
+   "runner": 0.372268
+  },
+  {
+   "q": "bakit po kailangan sa barangay muna",
+   "intent": "ask_clearance",
+   "score": 0.589545,
+   "runner": 0.587237
+  },
+  {
+   "q": "will the person i complained about be called in",
+   "intent": "bot_challenge",
+   "score": 0.367906,
+   "runner": 0.367906
+  },
+  {
+   "q": "pano po sila ipapatawag",
+   "intent": "ask_summons",
+   "score": 0.557006,
+   "runner": 0.277049
+  },
+  {
+   "q": "the barangay called me for a hearing",
+   "intent": "ask_hearing_what_happens",
+   "score": 0.526872,
+   "runner": 0.470216
+  },
+  {
+   "q": "ipinatawag po ako ng barangay",
+   "intent": "ask_contact",
+   "score": 0.524858,
+   "runner": 0.273939
+  },
+  {
+   "q": "which weekday does the captain mediate",
+   "intent": "ask_punong_barangay",
+   "score": 0.619848,
+   "runner": 0.389364
+  },
+  {
+   "q": "anong oras po magsisimula ang hearing",
+   "intent": "ask_office_hours",
+   "score": 0.580086,
+   "runner": 0.500093
+  },
+  {
+   "q": "walk me through a lupon hearing",
+   "intent": "ask_kp_before_court",
+   "score": 0.575109,
+   "runner": 0.532281
+  },
+  {
+   "q": "ano po gagawin sa hearing",
+   "intent": "ask_received_summons",
+   "score": 0.609849,
+   "runner": 0.592981
+  },
+  {
+   "q": "i have work on the hearing day",
+   "intent": "ask_hearing_schedule",
+   "score": 0.647516,
+   "runner": 0.538531
+  },
+  {
+   "q": "hindi po ako makakarating sa hearing",
+   "intent": "ask_missed_hearing",
+   "score": 0.668614,
+   "runner": 0.439513
+  },
+  {
+   "q": "my attorney wants to join the mediation",
+   "intent": "ask_lawyer_hearing",
+   "score": 0.497888,
+   "runner": 0.461745
+  },
+  {
+   "q": "pwede po ba may kasamang abogado",
+   "intent": "ask_lawyer_hearing",
+   "score": 0.553353,
+   "runner": 0.188074
+  },
+  {
+   "q": "the other side is ignoring our agreement",
+   "intent": "ask_other_certifications",
+   "score": 0.393156,
+   "runner": 0.277775
+  },
+  {
+   "q": "may bisa po ba ang kasunduan",
+   "intent": "ask_repudiation",
+   "score": 0.604876,
+   "runner": 0.524135
+  },
+  {
+   "q": "i signed the agreement under pressure",
+   "intent": "ask_repudiation",
+   "score": 0.328939,
+   "runner": 0.28374
+  },
+  {
+   "q": "pwede ko pa po bang bawiin",
+   "intent": "ask_repudiation",
+   "score": 0.536002,
+   "runner": 0.257197
+  },
+  {
+   "q": "paper so i can sue in court",
+   "intent": "ask_kp_before_court",
+   "score": 0.274278,
+   "runner": 0.253842
+  },
+  {
+   "q": "cfa po magkano",
+   "intent": "ask_cfa",
+   "score": 0.765445,
+   "runner": 0.332965
+  },
+  {
+   "q": "we made peace can i drop the case",
+   "intent": "ask_withdraw_complaint",
+   "score": 0.61381,
+   "runner": 0.383923
+  },
+  {
+   "q": "iaatras ko na po ang reklamo",
+   "intent": "ask_complaint_status",
+   "score": 0.744921,
+   "runner": 0.604251
+  },
+  {
+   "q": "i am from tagoloan proper but my debtor lives here",
+   "intent": "ask_residency",
+   "score": 0.339223,
+   "runner": 0.294328
+  },
+  {
+   "q": "hindi po ako residente pero dito nakatira ang kaso ko",
+   "intent": "ask_non_resident_account",
+   "score": 0.553857,
+   "runner": 0.279315
+  },
+  {
+   "q": "help for a woman being beaten at home",
+   "intent": "ask_child_abuse",
+   "score": 0.538127,
+   "runner": 0.428877
+  },
+  {
+   "q": "may nananakit po sa akin",
+   "intent": "ask_vawc_emergency",
+   "score": 0.863424,
+   "runner": 0.266127
+  },
+  {
+   "q": "someone is attacking my sister right now",
+   "intent": "ask_vawc_emergency",
+   "score": 0.71442,
+   "runner": 0.280782
+  },
+  {
+   "q": "tulungan nyo po ako ngayon",
+   "intent": "ask_vawc_emergency",
+   "score": 0.65806,
+   "runner": 0.413315
+  },
+  {
+   "q": "order to keep my abuser away from me",
+   "intent": "ask_bpo",
+   "score": 0.340587,
+   "runner": 0.265905
+  },
+  {
+   "q": "protection order po paano",
+   "intent": "ask_bpo",
+   "score": 1.0,
+   "runner": 0.33029
+  },
+  {
+   "q": "my husband checks my phone will he see this in the portal",
+   "intent": "ask_portal_lupon_records",
+   "score": 0.413198,
+   "runner": 0.352247
+  },
+  {
+   "q": "sikreto po ba ang report ko",
+   "intent": "ask_vawc_confidential",
+   "score": 0.693813,
+   "runner": 0.693813
+  },
+  {
+   "q": "i hear my neighbor beating his wife every night",
+   "intent": "ask_vawc_who_can_report",
+   "score": 0.361595,
+   "runner": 0.349447
+  },
+  {
+   "q": "pwede ko po bang isumbong para sa kaibigan ko",
+   "intent": "ask_report_death",
+   "score": 0.341543,
+   "runner": 0.303248
+  },
+  {
+   "q": "my ex keeps threatening me online is that covered",
+   "intent": "ask_vawc_types",
+   "score": 0.29469,
+   "runner": 0.284346
+  },
+  {
+   "q": "sakop po ba ng vawc ang pananakot",
+   "intent": "ask_vawc_help",
+   "score": 0.387465,
+   "runner": 0.29731
+  },
+  {
+   "q": "can the barangay make my abusive partner and me reconcile",
+   "intent": "ask_vawc_help",
+   "score": 0.577019,
+   "runner": 0.38035
+  },
+  {
+   "q": "pwede po bang areglo na lang",
+   "intent": "ask_capabilities",
+   "score": 0.303626,
+   "runner": 0.222925
+  },
+  {
+   "q": "the child next door always has bruises",
+   "intent": "ask_child_abuse",
+   "score": 0.295379,
+   "runner": 0.279555
+  },
+  {
+   "q": "may inaabusong bata po dito",
+   "intent": "ask_vawc_help",
+   "score": 0.640068,
+   "runner": 0.427508
+  },
+  {
+   "q": "which room is the women's desk in",
+   "intent": "ask_vawc_location",
+   "score": 0.916914,
+   "runner": 0.459076
+  },
+  {
+   "q": "saan po pwede pumunta para sa vawc",
+   "intent": "ask_walk_in",
+   "score": 0.695341,
+   "runner": 0.635088
+  },
+  {
+   "q": "medical help available at the barangay",
+   "intent": "ask_certificates",
+   "score": 0.579394,
+   "runner": 0.488491
+  },
+  {
+   "q": "ano po ang meron sa health station",
+   "intent": "ask_health_location",
+   "score": 1.0,
+   "runner": 0.832594
+  },
+  {
+   "q": "health station schedule this week",
+   "intent": "ask_health_hours",
+   "score": 0.818309,
+   "runner": 0.679869
+  },
+  {
+   "q": "hanggang anong oras po ang health center",
+   "intent": "ask_office_hours",
+   "score": 0.758515,
+   "runner": 0.674606
+  },
+  {
+   "q": "directions to the barangay clinic",
+   "intent": "ask_health_location",
+   "score": 0.743018,
+   "runner": 0.37804
+  },
+  {
+   "q": "saan po ang clinic ng barangay",
+   "intent": "ask_health_location",
+   "score": 0.958555,
+   "runner": 0.294035
+  },
+  {
+   "q": "my baby is due for her shots",
+   "intent": "ask_immunization",
+   "score": 0.674692,
+   "runner": 0.296839
+  },
+  {
+   "q": "kailan po ang bakuna ng mga bata",
+   "intent": "ask_immunization",
+   "score": 0.740713,
+   "runner": 0.489173
+  },
+  {
+   "q": "pregnancy monitoring at the barangay",
+   "intent": "ask_prenatal",
+   "score": 0.601777,
+   "runner": 0.375099
+  },
+  {
+   "q": "buntis po ako pwede ba magpacheck",
+   "intent": "ask_health",
+   "score": 0.591544,
+   "runner": 0.516876
+  },
+  {
+   "q": "growth monitoring for toddlers",
+   "intent": "ask_processing_time",
+   "score": 0.236722,
+   "runner": 0.184822
+  },
+  {
+   "q": "pa-check up ko po ang anak ko",
+   "intent": "ask_child_health",
+   "score": 0.523138,
+   "runner": 0.457287
+  },
+  {
+   "q": "my grandmother needs her bp monitored",
+   "intent": "ask_transfer",
+   "score": 0.228585,
+   "runner": 0.226429
+  },
+  {
+   "q": "may check up po ba para sa matanda",
+   "intent": "ask_senior_checkup",
+   "score": 0.556416,
+   "runner": 0.453448
+  },
+  {
+   "q": "a stray scratched me",
+   "intent": "ask_stray_animals",
+   "score": 0.445024,
+   "runner": 0.146567
+  },
+  {
+   "q": "nakagat po ng pusa ang anak ko",
+   "intent": "ask_animal_bite",
+   "score": 0.643704,
+   "runner": 0.311742
+  },
+  {
+   "q": "the health volunteer for our purok",
+   "intent": "ask_health",
+   "score": 0.346547,
+   "runner": 0.346547
+  },
+  {
+   "q": "sino po ang bhw ng zone namin",
+   "intent": "ask_bhw",
+   "score": 0.62333,
+   "runner": 0.384925
+  },
+  {
+   "q": "are maintenance meds given at the barangay",
+   "intent": "ask_medicine",
+   "score": 0.636338,
+   "runner": 0.242574
+  },
+  {
+   "q": "may gamot po ba sa health center",
+   "intent": "ask_medicine",
+   "score": 0.720063,
+   "runner": 0.666204
+  },
+  {
+   "q": "drunk men are fighting on our street",
+   "intent": "ask_lost_found",
+   "score": 0.326567,
+   "runner": 0.295419
+  },
+  {
+   "q": "may gulo po dito sa amin",
+   "intent": "ask_disaster",
+   "score": 0.511117,
+   "runner": 0.413103
+  },
+  {
+   "q": "the karaoke next door goes past midnight",
+   "intent": "ask_noise_complaint",
+   "score": 0.317748,
+   "runner": 0.137711
+  },
+  {
+   "q": "sobrang ingay po ng kapitbahay namin",
+   "intent": "ask_noise_complaint",
+   "score": 0.755495,
+   "runner": 0.69563
+  },
+  {
+   "q": "where should our family go if the river rises",
+   "intent": "ask_register_resident",
+   "score": 0.344611,
+   "runner": 0.340797
+  },
+  {
+   "q": "saan po kami lilikas",
+   "intent": "ask_disaster",
+   "score": 0.76781,
+   "runner": 0.250339
+  },
+  {
+   "q": "our trash was not picked up this week",
+   "intent": "ask_claim_certificate",
+   "score": 0.265547,
+   "runner": 0.235328
+  },
+  {
+   "q": "kailan po dumadaan ang trak ng basura",
+   "intent": "ask_garbage",
+   "score": 0.446154,
+   "runner": 0.199172
+  },
+  {
+   "q": "can teenagers be outside late at night here",
+   "intent": "ask_tanod",
+   "score": 0.46937,
+   "runner": 0.314909
+  },
+  {
+   "q": "may curfew po ba dito",
+   "intent": "ask_curfew",
+   "score": 1.0,
+   "runner": 0.059327
+  },
+  {
+   "q": "there is a big pothole near our house",
+   "intent": "ask_report_problem",
+   "score": 0.541699,
+   "runner": 0.249511
+  },
+  {
+   "q": "may sirang poste po sa amin",
+   "intent": "ask_disaster",
+   "score": 0.361128,
+   "runner": 0.291877
+  },
+  {
+   "q": "a pack of dogs chases people on our street",
+   "intent": "ask_stray_animals",
+   "score": 0.325181,
+   "runner": 0.313967
+  },
+  {
+   "q": "may mga asong gala po dito",
+   "intent": "ask_stray_animals",
+   "score": 1.0,
+   "runner": 0.206089
+  },
+  {
+   "q": "i need a ctc for my documents",
+   "intent": "ask_requirements",
+   "score": 0.691283,
+   "runner": 0.690796
+  },
+  {
+   "q": "cedula po meron ba kayo",
+   "intent": "ask_cedula",
+   "score": 1.0,
+   "runner": 0.154968
+  },
+  {
+   "q": "id card from the barangay",
+   "intent": "ask_certificates",
+   "score": 0.503415,
+   "runner": 0.459801
+  },
+  {
+   "q": "barangay id po paano",
+   "intent": "ask_barangay_id",
+   "score": 1.0,
+   "runner": 0.60746
+  },
+  {
+   "q": "we cannot pay the hospital bill can the barangay help",
+   "intent": "ask_assistance",
+   "score": 0.696955,
+   "runner": 0.381719
+  },
+  {
+   "q": "may ayuda po ba",
+   "intent": "ask_vawc_not_mediated",
+   "score": 0.323757,
+   "runner": 0.108619
+  },
+  {
+   "q": "someone dropped a phone in front of our store",
+   "intent": "ask_death_certification",
+   "score": 0.402849,
+   "runner": 0.337368
+  },
+  {
+   "q": "may nawawala po akong bag",
+   "intent": "ask_lost_certificate",
+   "score": 0.565021,
+   "runner": 0.487969
+  }
+ ]
+}

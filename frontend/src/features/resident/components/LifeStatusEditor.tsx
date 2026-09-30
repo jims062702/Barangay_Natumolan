@@ -3,7 +3,9 @@ import { FiAlertCircle, FiHeart } from "react-icons/fi";
 import { errorMessage } from "../../../shared/lib/api";
 import { toast } from "../../../shared/lib/toast";
 import { confirmAction } from "../../../shared/lib/confirm";
+import { useModalDraft } from "../../../shared/lib/useModalDraft";
 import Card from "../../../shared/ui/Card";
+import DraftNotice from "../../../shared/ui/DraftNotice";
 import Modal from "../../../shared/ui/Modal";
 import FormField, { inputClasses } from "../../../shared/ui/FormField";
 import type { Resident } from "../../../shared/types";
@@ -35,6 +37,23 @@ export default function LifeStatusEditor({ resident, onChanged }: Props) {
 
   const deceased = resident.life_status === "Deceased";
 
+  const draft = useModalDraft(
+    `record-death:${resident.id}`,
+    open,
+    { dateOfDeath, note },
+    (kept) => {
+      setDateOfDeath(kept.dateOfDeath ?? "");
+      setNote(kept.note ?? "");
+    },
+    {
+      blank: { dateOfDeath: "", note: "" },
+      reset: () => {
+        setDateOfDeath("");
+        setNote("");
+      },
+    },
+  );
+
   const recordDeath = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (
@@ -53,6 +72,7 @@ export default function LifeStatusEditor({ resident, onChanged }: Props) {
         date_of_death: dateOfDeath || undefined,
         note: note || undefined,
       });
+      draft.clear();
       toast(response.data.message);
       setOpen(false);
       onChanged();
@@ -169,6 +189,8 @@ export default function LifeStatusEditor({ resident, onChanged }: Props) {
               placeholder="e.g. Reported by the family; PSA death certificate on file"
             />
           </FormField>
+
+          <DraftNotice draft={draft} />
 
           <button
             type="submit"

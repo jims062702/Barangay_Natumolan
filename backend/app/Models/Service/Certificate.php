@@ -39,6 +39,22 @@ class Certificate extends Model
     /** Every status the column may hold, including the off-ramp. */
     public const STATUSES = [...self::FLOW, self::CANCELLED];
 
+    /**
+     * Everything the counter's certificate window reads, in one place.
+     *
+     * THE HOLDER VANISHED FROM THE WINDOW. Every endpoint that hands a
+     * certificate back to the counter chose its own relations: `show` loaded
+     * the resident, but the photograph upload returned `fresh()` — which
+     * loads none — and a correction loaded the resident's name and nothing
+     * else. The window replaced what it was showing with each answer, so
+     * after attaching a photo the Resident, Purok and Contact went blank,
+     * and came back only when the window was closed and opened again.
+     *
+     * One list, used by every one of them, so the window gets the same
+     * record whichever button it last pressed.
+     */
+    public const COUNTER_RELATIONS = ['resident', 'serviceRequest', 'processor', 'signer', 'releaser'];
+
     protected $fillable = [
         'certificate_number',
         'resident_id',
@@ -46,6 +62,7 @@ class Certificate extends Model
         'certificate_type',
         'purpose',
         'template_fields',
+        'unlisted_person',
         'photo_path',
         'requirements_checklist',
         'fee_amount',
@@ -65,7 +82,6 @@ class Certificate extends Model
         'released_at',
         'qr_code',
         'reference_number',
-        'reprint_count',
     ];
 
     /* total_amount: the fee plus the stamp — the figure the resident actually
@@ -93,6 +109,8 @@ class Certificate extends Model
 
     protected $casts = [
         'template_fields' => 'array',
+        /* Somebody not yet on the register — see holderName(). */
+        'unlisted_person' => 'array',
         'fee_amount' => 'decimal:2',
         'documentary_stamp' => 'decimal:2',
         'is_exempt' => 'boolean',
@@ -229,6 +247,24 @@ class Certificate extends Model
     public function resident(): BelongsTo
     {
         return $this->belongsTo(Resident::class);
+    }
+
+    /**
+     * Who the certificate is for, by name: the resident on the register, or
+     * the person the clerk typed in because the BPO has not listed them yet.
+     */
+    public function holderName(): ?string
+    {
+        if ($this->resident) {
+            return $this->resident->full_name;
+        }
+
+        $p = $this->unlisted_person ?? [];
+        $name = trim(implode(' ', array_filter([
+            $p['first_name'] ?? null, $p['middle_name'] ?? null, $p['last_name'] ?? null, $p['suffix'] ?? null,
+        ])));
+
+        return $name !== '' ? $name : null;
     }
 
     public function serviceRequest(): BelongsTo

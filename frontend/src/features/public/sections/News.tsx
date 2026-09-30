@@ -6,12 +6,16 @@ import { readPublicCache, writePublicCache } from "../lib/publicContent";
 import SectionTitle from "../components/SectionTitle";
 import {
   KIND,
+  KIND_FOR_RESIDENTS,
   POST_KINDS,
+  agoOf,
   URGENCY_TONE,
   badgeFor,
+  isNew,
   kindOf,
   postDate,
-  whenOf,
+  statusesOf,
+  whenLabel,
   type PostKind,
 } from "../../content/lib/postKinds";
 import { news as samples } from "../data/news";
@@ -25,11 +29,11 @@ interface Payload {
 }
 
 /** The badge every card wears. Colour plus the word — never colour alone. */
-function KindBadge({ post }: { post: Announcement }) {
+export function KindBadge({ post }: { post: Announcement }) {
   const kind = kindOf(post.category);
 
   return (
-    <span className="inline-flex items-center gap-1.5">
+    <span className="inline-flex flex-wrap items-center gap-1.5">
       <span
         className={`inline-block rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${KIND[kind].tone}`}
       >
@@ -48,19 +52,47 @@ function KindBadge({ post }: { post: Announcement }) {
   );
 }
 
-/** The one or two facts that make a post actionable, under its title. */
-function Facts({ post, className = "" }: { post: Announcement; className?: string }) {
+/**
+ * Where the post stands today — "Tomorrow", "Ended", "In effect now",
+ * "Register by Sep 28" — and whether it is new. A date on its own leaves the
+ * reader to work out whether it has already happened.
+ */
+export function StatusChips({ post, className = "" }: { post: Announcement; className?: string }) {
+  const chips = statusesOf(post);
+  const fresh = isNew(post);
+
+  if (chips.length === 0 && !fresh) return null;
+
+  return (
+    <span className={`inline-flex flex-wrap items-center gap-1.5 ${className}`} data-testid="post-status">
+      {fresh && (
+        <span className="inline-block rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-white">New</span>
+      )}
+      {chips.map((chip) => (
+        <span key={chip.label} className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${chip.tone}`}>
+          {chip.label}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/**
+ * The one or two facts that make a post actionable, under its title — the
+ * date SAYING what it is ("On", "Held", "In effect", "Posted"), the time and
+ * the place.
+ */
+export function Facts({ post, className = "" }: { post: Announcement; className?: string }) {
   const kind = kindOf(post.category);
-  const when = whenOf(post);
+  const when = whenLabel(post);
 
   const rows: { icon: typeof FiCalendar; text: string }[] = [];
 
-  if (when) rows.push({ icon: FiCalendar, text: when });
+  /* "Posted September 27, 2026 · today": is it still news? */
+  const ago = when?.prefix === "Posted" ? agoOf(post.published_at) : "";
+  if (when) rows.push({ icon: FiCalendar, text: `${when.prefix} ${when.text}${ago ? ` · ${ago}` : ""}` });
   if (kind === "Event" && post.event_time) rows.push({ icon: FiClock, text: post.event_time });
   if (post.location) rows.push({ icon: FiMapPin, text: post.location });
-  if (kind === "Advisory" && post.expires_at) {
-    rows.push({ icon: FiClock, text: `Until ${postDate(post.expires_at)}` });
-  }
 
   if (rows.length === 0) return null;
 
@@ -83,7 +115,7 @@ function Facts({ post, className = "" }: { post: Announcement; className?: strin
  * typed nothing. A notice with no name on it reads as nobody's — a resident
  * cannot tell an official announcement from something that slipped through.
  */
-function Byline({ post, className = "" }: { post: Announcement; className?: string }) {
+export function Byline({ post, className = "" }: { post: Announcement; className?: string }) {
   const name = post.byline || post.author_name;
   if (!name) return null;
 
@@ -96,7 +128,7 @@ function Byline({ post, className = "" }: { post: Announcement; className?: stri
 }
 
 /** What the card says before you open it. */
-function summaryOf(post: Announcement): string {
+export function summaryOf(post: Announcement): string {
   return (post.excerpt || post.body || "").slice(0, 180);
 }
 
@@ -188,6 +220,11 @@ export default function News() {
               </button>
             ))}
           </div>
+          {/* What the chosen kind means, for somebody who has never had to
+              tell an Event from an Activity. */}
+          <p className="-mt-4 mb-8 text-center text-sm text-gray-500" data-testid="kind-explainer">
+            {KIND_FOR_RESIDENTS[kind || "All"]}
+          </p>
         </Reveal>
 
         {/*
@@ -285,7 +322,10 @@ export default function News() {
 
                       <div className="flex flex-1 flex-col gap-3 p-5">
                         <div className="flex items-start justify-between gap-2">
-                          <KindBadge post={post} />
+                          <span className="flex flex-col items-start gap-1.5">
+                            <KindBadge post={post} />
+                            <StatusChips post={post} />
+                          </span>
                           {isAdvisory && (
                             <FiAlertTriangle
                               className="h-5 w-5 shrink-0 text-danger"
@@ -379,11 +419,8 @@ export default function News() {
                       <span className="min-w-0 flex-1">
                         <span className="block font-bold text-dark">{event.title}</span>
                         <Facts post={event} className="mt-1 text-xs text-gray-500" />
-                        {event.registration_deadline && (
-                          <span className="mt-1 block text-xs font-semibold text-amber-700">
-                            Register by {postDate(event.registration_deadline)}
-                          </span>
-                        )}
+                        {/* Today / Tomorrow / In 3 days, and whether one can still register. */}
+                        <StatusChips post={event} className="mt-1.5" />
                       </span>
 
                       <FiArrowRight

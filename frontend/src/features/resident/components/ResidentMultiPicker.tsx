@@ -47,7 +47,7 @@ const ageOf = (birthdate?: string | null) => {
 export default function ResidentMultiPicker({
   value,
   onChange,
-  placeholder = "Search by name or resident number…",
+  placeholder = "Search by Name or Resident Number…",
   disabled,
   excludeIds = [],
   residentsOnly = false,

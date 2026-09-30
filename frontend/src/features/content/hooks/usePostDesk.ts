@@ -6,10 +6,12 @@ import { usePulse } from "../../../shared/hooks/usePulse";
 import { useUpload } from "../../../shared/hooks/useUpload";
 import { toast } from "../../../shared/lib/toast";
 import { confirmAction } from "../../../shared/lib/confirm";
+import { useModalDraft } from "../../../shared/lib/useModalDraft";
 import { bylineFor, STATUSES, asDateInput } from "../lib/postDesk";
 import { type PostKind, kindOf, KIND_FIELDS } from "../lib/postKinds";
 import { contentApi } from "../api";
 import type { Announcement } from "../types";
+import { usePageLoad } from "../../../shared/ui/PageLoad";
 
 /**
  * The state and handlers of <Announcements>, so its sections can share them.
@@ -25,6 +27,8 @@ export function usePostDesk() {
   // So the footer can say WHICH rows are on screen, not only the page.
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  /* The page's skeleton until the first answer — see PageLoad. */
+  const pageLoad = usePageLoad();
   const [saving, setSaving] = useState(false);
 
   const [open, setOpen] = useState(false);
@@ -59,6 +63,8 @@ export function usePostDesk() {
   const [form, setForm] = useState(blank);
   const [image, setImage] = useState<File | null>(null);
   const [currentImage, setCurrentImage] = useState<string | null>(null);
+  /* The post as the editor opened on it: blank for a new one. */
+  const [original, setOriginal] = useState(blank);
 
   const set = (key: keyof typeof blank, value: string | boolean) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -82,6 +88,8 @@ export function usePostDesk() {
         setTotal(r.data.data.total ?? 0);
         setCounts(r.data.data.status_counts ?? {});
       })
+      .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
+      .catch(() => undefined)
       .finally(() => setLoading(false));
   };
 
@@ -109,6 +117,7 @@ export function usePostDesk() {
   const openAdd = () => {
     setEditId(null);
     setForm(blank);
+    setOriginal(blank);
     setImage(null);
     setCurrentImage(null);
     setOpen(true);
@@ -116,7 +125,7 @@ export function usePostDesk() {
 
   const openEdit = (a: Announcement) => {
     setEditId(a.id);
-    setForm({
+    const fields: typeof blank = {
       title: a.title,
       body: a.body ?? "",
       excerpt: a.excerpt ?? "",
@@ -134,11 +143,28 @@ export function usePostDesk() {
       effective_at: asDateInput(a.effective_at),
       expires_at: asDateInput(a.expires_at),
       urgency: a.urgency ?? "",
-    });
+    };
+    setForm(fields);
+    setOriginal(fields);
     setImage(null);
     setCurrentImage(a.image_url ?? null);
     setOpen(true);
   };
+
+  /*
+   * The post being written, kept until it is saved or discarded — a new one
+   * under one name, each edit under its post's. The photo is not kept: a
+   * picked file cannot be written down, so it is chosen again. An edit's
+   * version is the post as it was opened, so a correction saved elsewhere
+   * is never overwritten by old typing.
+   */
+  const draft = useModalDraft<typeof blank>(
+    editId ? `edit-post:${editId}` : "new-post",
+    open,
+    form,
+    (kept) => setForm({ ...original, ...kept }),
+    { blank: original, reset: () => setForm(original), version: editId ? JSON.stringify(original) : null },
+  );
 
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -180,6 +206,7 @@ export function usePostDesk() {
             : "Saved as a draft. Nobody outside the office can see it yet."
         );
       }
+      draft.clear();
       setOpen(false);
       load();
     } catch (err) {
@@ -220,10 +247,11 @@ export function usePostDesk() {
   };
 
   return {
+    pageLoad,
     user, rows, setRows, counts, setCounts, statusFilter, setStatusFilter, page, setPage,
     lastPage, setLastPage, total, setTotal, loading, setLoading, saving, setSaving, open,
     setOpen, editId, setEditId, blank, form, setForm, image, setImage, currentImage,
-    setCurrentImage, set, kind, uses, load, upload, openAdd, openEdit, save, remove, move,
+    setCurrentImage, set, kind, uses, load, upload, openAdd, openEdit, save, remove, move, draft,
   };
 }
 

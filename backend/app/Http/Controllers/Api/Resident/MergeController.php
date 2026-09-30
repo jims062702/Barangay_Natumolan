@@ -155,10 +155,11 @@ class MergeController extends BaseController
             'mother_maiden_name' => "Mother's maiden name",
             'birthdate' => 'Birthdate',
             'birth_place' => 'Place of birth',
+            'nationality' => 'Nationality',
             'gender' => 'Sex',
             'civil_status' => 'Civil status',
-            'zone_purok' => 'Purok',
-            'contact_number' => 'Contact',
+            'zone_purok' => 'Zone / Purok',
+            'contact_number' => 'Contact Number',
             'email' => 'Email',
         ];
 

@@ -122,7 +122,7 @@ export function EntryResidence({ ctx, entry, index, relation, resident }: {
                 selected={entry.household}
                 onSelect={(household) => selectHousehold(index, household)}
                 onAddNew={() => setHhForIndex(index)}
-                placeholder="Search by household number, street or owner…"
+                placeholder="Search by Household Number, Street, Zone / Purok or Owner…"
               />
               {entry.household && (
                 <>

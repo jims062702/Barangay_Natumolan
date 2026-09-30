@@ -3,6 +3,8 @@ import { FiPlus } from "react-icons/fi";
 import { errorMessage } from "../../../shared/lib/api";
 import { toast } from "../../../shared/lib/toast";
 import { confirmAction } from "../../../shared/lib/confirm";
+import { useModalDraft } from "../../../shared/lib/useModalDraft";
+import DraftNotice from "../../../shared/ui/DraftNotice";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { usePulse } from "../../../shared/hooks/usePulse";
 import { useUpload } from "../../../shared/hooks/useUpload";
@@ -14,16 +16,21 @@ import FormField, { inputClasses } from "../../../shared/ui/FormField";
 import { CardGridSkeleton } from "../../../shared/ui/Skeleton";
 import { contentApi } from "../api";
 import type { HeroSlide } from "../types";
+import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
 
 export default function HeroSlides() {
   const [slides, setSlides] = useState<HeroSlide[]>([]);
   const [loading, setLoading] = useState(true);
+  /* Its skeleton until the first answer — see PageLoad. */
+  const pageLoad = usePageLoad();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null); // null = add mode
   const [title, setTitle] = useState("");
   const [subtitle, setSubtitle] = useState("");
   const [currentImage, setCurrentImage] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  /* The words as the form opened on them: blank for a new picture. */
+  const [original, setOriginal] = useState({ title: "", subtitle: "" });
   const [saving, setSaving] = useState(false);
 
   /*
@@ -35,7 +42,11 @@ export default function HeroSlides() {
    */
   const load = (silent = false) => {
     if (!silent) setLoading(true);
-    contentApi.heroSlides().then((r) => setSlides(r.data.data ?? [])).finally(() => setLoading(false));
+    contentApi.heroSlides()
+      .then((r) => setSlides(r.data.data ?? []))
+      .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
+      .catch(() => undefined)
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -60,6 +71,7 @@ export default function HeroSlides() {
     setEditId(null);
     setTitle("");
     setSubtitle("");
+    setOriginal({ title: "", subtitle: "" });
     setCurrentImage(null);
     setFile(null);
     setOpen(true);
@@ -69,10 +81,31 @@ export default function HeroSlides() {
     setEditId(slide.id);
     setTitle(slide.title ?? "");
     setSubtitle(slide.subtitle ?? "");
+    setOriginal({ title: slide.title ?? "", subtitle: slide.subtitle ?? "" });
     setCurrentImage(slide.image_url ?? null);
     setFile(null);
     setOpen(true);
   };
+
+  /* The heading and subtitle typed, kept until saved; the picture itself is
+     chosen again, since a picked file cannot be written down. */
+  const draft = useModalDraft(
+    editId ? `edit-hero-slide:${editId}` : "new-hero-slide",
+    open,
+    { title, subtitle },
+    (kept) => {
+      setTitle(kept.title ?? original.title);
+      setSubtitle(kept.subtitle ?? original.subtitle);
+    },
+    {
+      blank: original,
+      reset: () => {
+        setTitle(original.title);
+        setSubtitle(original.subtitle);
+      },
+      version: editId ? JSON.stringify(original) : null,
+    },
+  );
 
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -102,6 +135,7 @@ export default function HeroSlides() {
         upload.finish();
         toast("Home picture added — it now shows on the public site.");
       }
+      draft.clear();
       setOpen(false);
       load();
     } catch (err) {
@@ -145,10 +179,12 @@ export default function HeroSlides() {
     load();
   };
 
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => load()} />;
+
   return (
     <div>
       <PageHeader
-        title="Home Section Pictures"
+        title="Home Pictures"
         subtitle="The carousel photos shown at the top of the public landing page"
         actions={
           <button
@@ -271,6 +307,7 @@ export default function HeroSlides() {
           <FormField label="Subtitle (optional)">
             <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className={inputClasses} />
           </FormField>
+          <DraftNotice draft={draft} files />
           <button
             type="submit"
             disabled={saving || (!editId && !file)}

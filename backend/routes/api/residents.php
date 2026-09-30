@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Resident\HouseholdIntakeController;
 use App\Http\Controllers\Api\Resident\LifeStatusController;
 use App\Http\Controllers\Api\Resident\MarriageController;
 use App\Http\Controllers\Api\Resident\MergeController;
+use App\Http\Controllers\Api\Resident\ResidentCardController;
 use App\Http\Controllers\Api\Resident\ResidentController;
 use App\Http\Controllers\Api\Resident\SectorController;
 use Illuminate\Support\Facades\Route;
@@ -78,6 +79,13 @@ Route::middleware('office:Population')->group(function () {
     */
     Route::post('residents/household', [HouseholdIntakeController::class, 'store']);
 
+    /* The Barangay Resident ID, printed at the office. A new one revokes the old. */
+    Route::get('residents/{resident}/card', [ResidentCardController::class, 'show']);
+    Route::post('residents/{resident}/card', [ResidentCardController::class, 'issue']);
+    Route::post('residents/{resident}/card/reissue', [ResidentCardController::class, 'reissue']);
+    /* Many at once — a census form's people, a household's members. */
+    Route::get('resident-cards', [ResidentCardController::class, 'standing']);
+    Route::post('resident-cards/bulk', [ResidentCardController::class, 'bulk']);
     Route::apiResource('residents', ResidentController::class);
     Route::post('residents/{resident}/sectors', [SectorController::class, 'store']);
     Route::delete('residents/{resident}/sectors/{sector}', [SectorController::class, 'destroy']);

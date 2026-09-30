@@ -1,0 +1,134 @@
+# The VAWC Desk — Violence Against Women and their Children (RA 9262).
+#
+# WRITTEN FOR SOMEBODY WHO MAY BE IN DANGER. Every answer says where help
+# is, and none of them asks the person to explain themselves to a chatbot.
+# No barangay hotline number is given: the one on the website is a
+# placeholder. 911 is given because it always answers.
+topic: vawc
+intents:
+  - id: ask_vawc_help
+    response: utter_vawc
+    label: "VAWC Desk"
+    question: "What is the VAWC Desk?"
+    framed:
+      what: [vawc, the vawc desk, violence against women and children]
+      report: [abuse, domestic violence, my abusive partner, violence at home]
+    answer: |-
+      The VAWC Desk (Violence Against Women and their Children) gives confidential help to women and children facing abuse. Reports are handled privately by the VAWC Desk officer.
+
+      Go to the VAWC Desk at the Barangay Hall, Monday to Friday, 8:00 AM – 5:00 PM. If you or someone else is in immediate danger, call 911.
+    related: [ask_bpo, ask_vawc_confidential, ask_vawc_emergency, ask_vawc_location]
+    en: [what is the vawc desk, i need help with abuse, violence against women, vawc help, my partner is hurting me, i am being abused, domestic violence help]
+    tl: [ano ang vawc desk, sinasaktan ako, inaabuso ako, tulong sa pang-aabuso]
+    ceb: [unsa ang vawc desk, gisakitan ko, giabuso ko, tabang sa pag-abuso]
+    test: [help for a woman being beaten at home, may nananakit po sa akin]
+
+  - id: ask_vawc_emergency
+    label: "In danger now"
+    question: "What do I do if I am in danger right now?"
+    answer: |-
+      If you or someone else is in danger right now, call 911, or go to the nearest police station and ask for the Women and Children Protection Desk. Get to a safe place first if you can.
+
+      The barangay's VAWC Desk helps from the Barangay Hall, Monday to Friday, 8:00 AM – 5:00 PM.
+    related: [ask_vawc_help, ask_bpo]
+    en: [i am in danger, emergency, someone is hurting me right now, i need help now, he is going to hurt me, call for help, someone is attacking me, i am being attacked, he has a knife, please help me now, someone is hurting my child right now, he is hitting my mother]
+    tl: [nasa panganib ako, emergency, may nananakit sa akin ngayon, tulong ngayon na, tulungan nyo ako may nananakit, sinasaktan ako ngayon mismo, may kutsilyo siya]
+    ceb: [naa ko sa kapeligrohan, emergency, naay nagsakit nako karon, tabang karon dayon, tabangi ko naay nagsakit nako, gisakitan ko karon mismo]
+    test: [someone is attacking my sister right now, tulungan nyo po ako ngayon]
+
+  - id: ask_bpo
+    label: "Barangay Protection Order"
+    question: "What is a Barangay Protection Order?"
+    framed:
+      get: [a barangay protection order, a bpo, a protection order]
+      what: [a barangay protection order, bpo, a protection order]
+    answer: |-
+      A Barangay Protection Order (BPO) orders the person committing violence to stop causing or threatening physical harm. Under RA 9262 it is issued by the Punong Barangay — or, if unavailable, a Barangay Kagawad — on the day it is applied for, and it is in effect for 15 days.
+
+      Apply at the VAWC Desk. For longer protection, the desk can help you seek a protection order from the court.
+    related: [ask_vawc_help, ask_vawc_confidential, ask_vawc_who_can_report]
+    en: [what is a barangay protection order, how do i get a bpo, protection order from the barangay, how long is a bpo valid, can the barangay order him to stay away]
+    tl: [ano ang barangay protection order, paano kumuha ng bpo, ilang araw ang bpo]
+    ceb: [unsa ang barangay protection order, unsaon pagkuha og bpo]
+    test: [order to keep my abuser away from me, protection order po paano]
+
+  - id: ask_vawc_confidential
+    label: "Is it confidential?"
+    question: "Will my report to the VAWC Desk be kept confidential?"
+    answer: |-
+      Yes. Records of violence against women and their children are confidential by law (RA 9262). They are handled by the VAWC Desk only, are not shown in the resident portal, and are never shared with the person you are reporting.
+    related: [ask_vawc_help, ask_bpo]
+    en: [is my report confidential, will he find out i reported, who will know about my report, is vawc private, will my name be shared, will my husband find out if i report him, he reads my messages will he know, will my partner see my report, can he find out i went to the vawc desk, will anyone tell my husband, is my report hidden from my family]
+    tl: [kumpidensyal ba ang report, malalaman ba niya na nagsumbong ako, malalaman ba ng asawa ko kung magsumbong ako, makikita ba ng asawa ko ang report ko]
+    ceb: [kompidensyal ba ang report, mahibaw-an ba niya nga ni report ko, mahibaw-an ba sa akong bana kung mo report ko, makita ba sa akong bana ang akong report]
+    test: [my husband checks my phone will he see this in the portal, sikreto po ba ang report ko]
+
+  - id: ask_vawc_who_can_report
+    label: "Who can report?"
+    question: "Can I report abuse happening to someone else?"
+    framed:
+      can: [report abuse for someone else, report my neighbor for abuse, report for my friend]
+    answer: |-
+      Yes. Violence against women and their children is a public crime under RA 9262 — anyone who knows of it may report it. Go to the VAWC Desk at the Barangay Hall, or call 911 if the person is in danger now.
+    related: [ask_vawc_help, ask_vawc_emergency, ask_child_abuse]
+    en: [can i report abuse for someone else, my neighbor is being abused, can i report for my friend, i saw a woman being hurt, report abuse of another person]
+    tl: [pwede ba ako mag report para sa iba, may inaabuso sa kapitbahay namin]
+    ceb: [pwede ba ko mo report para sa uban, naay giabuso sa among silingan]
+    test: [i hear my neighbor beating his wife every night, pwede ko po bang isumbong para sa kaibigan ko]
+
+  - id: ask_vawc_types
+    label: "What counts as VAWC?"
+    question: "What counts as violence against women and children?"
+    answer: |-
+      Under RA 9262, violence against women and their children includes:
+      • Physical violence — hitting, hurting or threatening to hurt
+      • Sexual violence
+      • Psychological violence — intimidation, harassment, public humiliation, stalking
+      • Economic abuse — for example controlling or withholding money needed for support
+
+      It covers acts by a husband, former husband, partner, former partner, or someone with whom the woman has or had a sexual or dating relationship or a child in common.
+    related: [ask_vawc_help, ask_bpo, ask_vawc_who_can_report]
+    en: [what is considered vawc, what counts as abuse, is verbal abuse vawc, is not giving support abuse, types of violence against women, is emotional abuse covered]
+    tl: [ano ang maituturing na vawc, abuso ba ang hindi pagbibigay ng sustento, abuso ba ang pagmumura]
+    ceb: [unsa ang maisip nga vawc, abuso ba ang dili paghatag og suporta]
+    test: [my ex keeps threatening me online is that covered, sakop po ba ng vawc ang pananakot]
+
+  - id: ask_vawc_not_mediated
+    label: "Can the Lupon mediate VAWC?"
+    question: "Can a VAWC case be settled by the Lupon?"
+    framed:
+      can: [settle a vawc case at the barangay, mediate domestic violence, settle with my abusive husband at the barangay]
+    answer: |-
+      No. RA 9262 prohibits barangay mediation or conciliation of violence against women and their children. These cases go to the VAWC Desk, never to a Lupon hearing where the woman would have to face the person who hurt her.
+    related: [ask_vawc_help, ask_bpo]
+    en: [can the lupon settle a vawc case, can we just talk it out at the barangay, mediation for domestic violence, can the captain settle my husband and me]
+    tl: [pwede ba ayusin sa lupon ang vawc, pwede ba mag-usap na lang kami sa barangay]
+    ceb: [pwede ba husayon sa lupon ang vawc]
+    test: [can the barangay make my abusive partner and me reconcile, pwede po bang areglo na lang]
+
+  - id: ask_child_abuse
+    label: "Child abuse"
+    question: "How do I report child abuse?"
+    framed:
+      report: [child abuse, abuse of a child, a child being hurt, a maltreated child]
+    answer: |-
+      Go to the VAWC Desk at the Barangay Hall, Monday to Friday, 8:00 AM – 5:00 PM. If the child is in danger now, call 911 or go to the nearest police station and ask for the Women and Children Protection Desk. You do not need to be related to the child to report.
+    related: [ask_vawc_who_can_report, ask_vawc_emergency]
+    en: [how do i report child abuse, a child is being hurt, child is being maltreated, report abuse of a minor, a kid is being beaten]
+    tl: [paano i-report ang pang-aabuso sa bata, may batang sinasaktan]
+    ceb: [unsaon pag report sa pag-abuso sa bata, naay bata nga gisakitan]
+    test: [the child next door always has bruises, may inaabusong bata po dito]
+
+  - id: ask_vawc_location
+    label: "Where is the VAWC Desk?"
+    question: "Where is the VAWC Desk?"
+    framed:
+      where: [the vawc desk, the vawc office, the women's desk]
+      who: [the vawc officer, the vawc desk officer]
+    answer: |-
+      The VAWC Desk is at the Barangay Hall, Barangay Natumolan, Tagoloan, Misamis Oriental — open Monday to Friday, 8:00 AM – 5:00 PM. Ask for the VAWC Desk officer.
+    related: [ask_vawc_help, ask_vawc_emergency]
+    en: [where is the vawc desk, vawc office location, how do i contact the vawc desk, who is the vawc officer, vawc desk hours]
+    tl: [saan ang vawc desk, paano makontak ang vawc desk]
+    ceb: [asa ang vawc desk, unsaon pagkontak sa vawc desk]
+    test: [which room is the women's desk in, saan po pwede pumunta para sa vawc]

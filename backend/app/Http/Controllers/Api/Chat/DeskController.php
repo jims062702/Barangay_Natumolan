@@ -7,13 +7,21 @@ use App\Http\Requests\Chat\ChatMessageRequest;
 use App\Models\Account\Notification;
 use App\Models\Chat\Conversation;
 use App\Services\Chat\ConversationViews;
+use App\Services\Chat\IdleConversations;
 use App\Services\Chat\Shortcuts;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
  * The live desk: the Barangay Clerk's side of the chat, with the Punong
- * Barangay and Admin able to step in. One conversation at a time.
+ * Barangay and Admin able to step in.
+ *
+ * AS MANY CONVERSATIONS AT ONCE AS COME IN (2026-09-30). It was one at a
+ * time, and a resident with a two-line question waited behind somebody else's
+ * long one while the Clerk sat between replies. Now the Clerk takes whoever
+ * is waiting, answers each in turn, and moves between them; what stays is
+ * that a conversation is one staff member's — two people answering the same
+ * resident would contradict each other.
  */
 class DeskController extends BaseController
 {
@@ -37,12 +45,18 @@ class DeskController extends BaseController
     /** The live desk worklist: waiting first, then whatever is still open. */
     public function conversations(Request $request)
     {
+        /* A conversation the resident walked away from closes first — see IdleConversations. */
+        IdleConversations::sweep();
+
         $query = Conversation::with('resident:id,first_name,middle_name,last_name,suffix,zone_purok', 'agent:id,name');
 
         $status = $request->input('status', 'open');
 
         if ($status === 'open') {
             $query->whereIn('status', ['Waiting', 'Active']);
+        } elseif ($status === 'mine') {
+            /* The ones this staff member is in the middle of. */
+            $query->where('status', 'Active')->where('assigned_to', auth()->id());
         } elseif (in_array($status, ['Waiting', 'Active', 'Closed'], true)) {
             $query->where('status', $status);
         }
@@ -67,20 +81,17 @@ class DeskController extends BaseController
     /** How many people are waiting right now — for the sidebar badge. */
     public function waitingCount()
     {
-        $mine = Conversation::where('assigned_to', auth()->id())
-            ->where('status', 'Active')
-            ->with('resident:id,first_name,last_name')
-            ->first();
+        IdleConversations::sweep();
 
         return $this->success([
             'waiting' => Conversation::where('status', 'Waiting')->count(),
             // SUM() comes back as a string from MySQL; the badge wants a number.
             'unread' => (int) Conversation::whereIn('status', ['Waiting', 'Active'])
                 ->sum('unread_for_agent'),
-            // The one conversation this agent is in, so the desk can grey out
-            // the rest instead of letting them be opened and then refused.
-            'active_id' => $mine?->id,
-            'active_with' => $mine?->visitor_name,
+            // How many conversations this staff member is in the middle of.
+            'mine' => Conversation::where('assigned_to', auth()->id())
+                ->where('status', 'Active')
+                ->count(),
         ], 'Live chat queue');
     }
 
@@ -103,10 +114,6 @@ class DeskController extends BaseController
     {
         if ($conversation->status === 'Closed') {
             return $this->error('This conversation is already closed', 409);
-        }
-
-        if ($busy = $this->agentIsBusyWith($conversation)) {
-            return $this->error($this->busyMessage($busy), 409);
         }
 
         if ($conversation->assigned_to && $conversation->assigned_to !== auth()->id()) {
@@ -138,15 +145,18 @@ class DeskController extends BaseController
             return $this->error('This conversation is closed', 409);
         }
 
-        // Replying IS taking the conversation — an agent should never have to
-        // press "claim" before they can help someone. It is still one at a
-        // time: replying into a second thread would open it just as surely as
-        // claiming it would.
-        if (!$conversation->assigned_to) {
-            if ($busy = $this->agentIsBusyWith($conversation)) {
-                return $this->error($this->busyMessage($busy), 409);
-            }
+        /* One staff member to a conversation: two people answering the same
+           resident would contradict each other. */
+        if ($conversation->assigned_to && $conversation->assigned_to !== auth()->id()) {
+            return $this->error(
+                'This conversation is being handled by ' . ($conversation->agent?->name ?? 'another staff member') . '.',
+                409
+            );
+        }
 
+        // Replying IS taking the conversation — an agent should never have to
+        // press "claim" before they can help someone.
+        if (!$conversation->assigned_to) {
             $conversation->update([
                 'status' => 'Active',
                 'assigned_to' => auth()->id(),
@@ -186,29 +196,5 @@ class DeskController extends BaseController
         $conversation->update(['status' => 'Closed', 'closed_at' => now()]);
 
         return $this->success($this->views->agent($conversation->fresh()), 'Conversation closed');
-    }
-
-    /**
-     * Whoever the agent is already with, if it is not this conversation.
-     *
-     * The desk is one person answering one person. Two threads at once means
-     * both visitors get half an answer slowly, and the queue behind them is
-     * told nothing — so the register refuses rather than letting it happen.
-     */
-    private function agentIsBusyWith(Conversation $conversation): ?Conversation
-    {
-        return Conversation::where('assigned_to', auth()->id())
-            ->where('status', 'Active')
-            ->where('id', '!=', $conversation->id)
-            ->with('resident:id,first_name,last_name')
-            ->first();
-    }
-
-    /** Says who, and what to do about it. */
-    private function busyMessage(Conversation $busy): string
-    {
-        return 'You are already in a conversation with ' . $busy->visitor_name
-            . '. Close it when you are done and the next person comes through — '
-            . 'the desk handles one at a time so nobody is left half-answered.';
     }
 }

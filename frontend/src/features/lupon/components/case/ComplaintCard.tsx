@@ -1,5 +1,64 @@
+import { useState } from "react";
 import Card from "../../../../shared/ui/Card";
+import { errorMessage } from "../../../../shared/lib/api";
+import { toast } from "../../../../shared/lib/toast";
+import type { Resident } from "../../../../shared/types";
+import ResidentMultiPicker from "../../../resident/components/ResidentMultiPicker";
+import { luponApi } from "../../api";
 import type { LuponCase } from "../../types";
+
+/**
+ * A case with NO respondent — accepted from an online complaint before the
+ * respondent was required there (2026-09-29). The Lupon names them here,
+ * once, from the register; a case that names its respondent is never
+ * changed (see below, and CaseController::nameRespondents).
+ */
+function NameRespondent({ caseData, onChanged }: { caseData: LuponCase; onChanged?: () => void }) {
+  const [chosen, setChosen] = useState<Resident[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const r = await luponApi.nameRespondents(caseData.id, { respondent_ids: chosen.map((p) => p.id) });
+      toast(r.data.message);
+      onChanged?.();
+    } catch (err) {
+      toast(errorMessage(err), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 rounded-xl border border-warning/40 bg-warning/5 p-3" data-testid="name-respondent">
+      <p className="text-sm font-semibold text-dark">No respondent on the register yet</p>
+      <p className="mt-0.5 text-xs leading-relaxed text-gray-600">
+        This case was accepted before the respondent was required. Search the register for the person the complaint
+        is against — a summons cannot be served on a name alone.
+      </p>
+      <div className="mt-2">
+        <ResidentMultiPicker
+          value={chosen}
+          onChange={setChosen}
+          residentsOnly
+          excludeIds={caseData.complainant_id ? [caseData.complainant_id] : []}
+          placeholder="Search by Name or Resident Number…"
+        />
+      </div>
+      <div className="mt-2 flex justify-end">
+        <button
+          type="button"
+          onClick={() => void save()}
+          disabled={busy || chosen.length === 0}
+          className="cursor-pointer rounded-full bg-primary px-4 py-2 text-xs font-semibold text-white hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {busy ? "Saving…" : "Set the respondent"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 /**
  * What the complaint is about, as filed.
@@ -14,7 +73,7 @@ import type { LuponCase } from "../../types";
  * respondent off a case. So a button re-running those tests on a case that
  * exists could only ever confirm what the case already said.
  */
-export function ComplaintCard({ caseData }: { caseData: LuponCase }) {
+export function ComplaintCard({ caseData, onChanged }: { caseData: LuponCase; onChanged?: () => void }) {
   return (
     <Card title="Complaint">
       <dl className="space-y-2.5 text-sm">
@@ -54,6 +113,9 @@ export function ComplaintCard({ caseData }: { caseData: LuponCase }) {
           </div>
         ))}
       </dl>
+      {caseData.jurisdiction_status === "Accepted" && (caseData.respondents?.length ?? 0) === 0 && (
+        <NameRespondent caseData={caseData} onChanged={onChanged} />
+      )}
       {caseData.complaint && (
         <p className="mt-3 rounded-xl bg-secondary p-3 text-sm text-dark">
           {caseData.complaint.complaint_narrative}

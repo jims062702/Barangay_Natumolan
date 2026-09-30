@@ -1,4 +1,5 @@
 import { useCensusAnswers } from "./useCensusAnswers";
+import { useCensusAutosave } from "./useCensusAutosave";
 import { useCensusLoad } from "./useCensusLoad";
 import { useCensusSubmit } from "./useCensusSubmit";
 import { useHouseholdMatch } from "./useHouseholdMatch";
@@ -8,11 +9,13 @@ import { useHouseholdMatch } from "./useHouseholdMatch";
  */
 export function useCensusForm() {
   const answers = useCensusAnswers();
-  useCensusLoad(answers);
+  const loading = useCensusLoad(answers);
   const submitting = useCensusSubmit(answers);
   const matching = useHouseholdMatch({ ...answers, ...submitting });
+  /* The form saves itself as a draft while it is typed. */
+  useCensusAutosave({ ...answers, ...submitting, ...loading });
 
-  return { ...answers, ...submitting, ...matching };
+  return { ...answers, ...submitting, ...matching, ...loading };
 }
 
 export type CensusFormState = ReturnType<typeof useCensusForm>;

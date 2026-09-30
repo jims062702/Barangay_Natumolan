@@ -35,7 +35,12 @@ export function useHouseholdMatch(ctx: CensusAnswersState & CensusSubmitState) {
      * dialogue about the previous household is an interruption in the wrong
      * place.
      */
-    if (isDirty()) {
+    /*
+     * A sheet already saved as a draft (it has an id) is not "about to go":
+     * the form saves itself, and checking a number never wipes a saved
+     * draft (below). Only a new, unsaved sheet is asked about.
+     */
+    if (!id && isDirty()) {
       const keep = await confirmAction({
         title: "Save what is on this form first?",
         text:
@@ -48,7 +53,7 @@ export function useHouseholdMatch(ctx: CensusAnswersState & CensusSubmitState) {
       if (keep) {
         // Stay put: they pressed Verify, not Save. Bouncing them to the list
         // would take away the number they were in the middle of checking.
-        await save(undefined, false);
+        await save();
         return;
       }
     }
@@ -64,11 +69,12 @@ export function useHouseholdMatch(ctx: CensusAnswersState & CensusSubmitState) {
       });
       setHouseCheck(r.data.data);
 
-      if (!r.data.data.exists) {
+      if (!r.data.data.exists && !id) {
         /*
-         * A free number is a new household, so the sheet starts empty. The
+         * A free number is a new household, so a new sheet starts empty. The
          * number itself is kept — it is what the clerk just typed and just
-         * checked.
+         * checked. A sheet already saved as a draft is never wiped here: the
+         * blank would be saved over it. The free number is simply its number.
          */
         resetForm(number);
       }
@@ -129,6 +135,13 @@ export function useHouseholdMatch(ctx: CensusAnswersState & CensusSubmitState) {
         middle_name: (r.middle_name ?? "").trim().charAt(0).toUpperCase(),
         q3_sex: r.gender === "Male" ? 1 : r.gender === "Female" ? 2 : null,
         q4_age: ageFrom(r.birthdate),
+        /*
+         * The register's date, carried as the date — unless the register
+         * only ever had a month and a year (an estimated date is the last
+         * day of the month), which is carried as just that, not as a day
+         * nobody said.
+         */
+        q5_birthdate: r.birthdate && !r.birthdate_is_estimated ? r.birthdate.slice(0, 10) : null,
         q5_birth_month: r.birthdate ? Number(r.birthdate.slice(5, 7)) : null,
         q5_birth_year: r.birthdate ? Number(r.birthdate.slice(0, 4)) : null,
       }));

@@ -1,7 +1,7 @@
 import { FiArrowLeft } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import sideImage from "../../../../assets/images/barangay-officials.jpg";
-import logo from "../../../../assets/logo/logo.svg";
+import logo from "../../../../assets/logo/barangay-logo.png";
 
 /**
  * The barangay's side of the sign-in page.

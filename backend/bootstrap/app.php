@@ -19,6 +19,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'office' => \App\Http\Middleware\OfficeMiddleware::class,
             'staff' => \App\Http\Middleware\StaffMiddleware::class,
             'deny_role' => \App\Http\Middleware\DenyRoleMiddleware::class,
+            /* The portal is for residents who still live here, and are
+               still alive — see ResidentStillHere. */
+            'resident_still_here' => \App\Http\Middleware\ResidentStillHere::class,
         ]);
 
         /*
@@ -31,6 +34,13 @@ return Application::configure(basePath: dirname(__DIR__))
          * through, so ordinary online use is untouched.
          */
         $middleware->appendToGroup('api', \App\Http\Middleware\ApplyOfflineJobOnce::class);
+
+        /* Age brackets true to today — see AgeSectors for why not the scheduler. */
+        $middleware->appendToGroup('api', \App\Http\Middleware\KeepAgeSectorsCurrent::class);
+
+        /* A Lupon case whose three days to pay the filing fee ran out is
+           closed unpaid — see FilingFeeDeadlines for why not the scheduler. */
+        $middleware->appendToGroup('api', \App\Http\Middleware\CloseUnpaidLuponCases::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

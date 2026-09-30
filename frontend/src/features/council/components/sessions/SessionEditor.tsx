@@ -1,3 +1,4 @@
+import DraftNotice from "../../../../shared/ui/DraftNotice";
 import Modal from "../../../../shared/ui/Modal";
 import FormField from "../../../../shared/ui/FormField";
 import { asDate, input, blankAttendee, ATTENDANCE } from "../../lib/sessions";
@@ -12,7 +13,7 @@ export function SessionEditor({ ctx }: { ctx: SessionRecordsState }) {
     open, setOpen, editing, save, error, sessionType, setSessionType, sessionDate,
     setSessionDate, calledAt, setCalledAt, adjournedAt, setAdjournedAt, venue, setVenue,
     status, setStatus, agenda, setAgenda, minutes, setMinutes, setAttendees, attendees,
-    setAttendee, saving,
+    setAttendee, saving, draft,
   } = ctx;
 
   return (
@@ -169,6 +170,8 @@ export function SessionEditor({ ctx }: { ctx: SessionRecordsState }) {
             ))}
           </div>
         </div>
+
+        <DraftNotice draft={draft} />
 
         <div className="flex justify-end gap-3 border-t border-gray pt-4">
           <button

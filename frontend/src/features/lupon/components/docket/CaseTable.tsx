@@ -1,3 +1,4 @@
+import { feeStanding, TONE_CLASSES } from "../../lib/filingFee";
 import { FiArrowRight } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import Card from "../../../../shared/ui/Card";
@@ -11,14 +12,14 @@ import type { LuponCase } from "../../types";
  * The docket, with each case's next step.
  */
 export function CaseTable({ ctx }: { ctx: LuponDocketState }) {
-  const { rows, total, loading, page, lastPage, setPage } = ctx;
+  const { rows, total, loading, page, lastPage, setPage, search, setSearch } = ctx;
 
   return (
     <Card>
       <DataTable
         columns={[
           {
-            header: "Case #",
+            header: "Case Number",
             /*
              * A case filed with no line has no id to open yet: the server has
              * never seen it. It is shown, because the clerk filed it and it
@@ -35,8 +36,8 @@ export function CaseTable({ ctx }: { ctx: LuponDocketState }) {
               </Link>
             )),
           },
-          { header: "Title", render: (c: LuponCase) => c.case_title },
-          { header: "Classification", render: (c: LuponCase) => c.case_classification },
+          /* One column: the case is named by its nature (the title follows it). */
+          { header: "Nature of the Case", render: (c: LuponCase) => c.case_classification },
           /*
             TWO COLUMNS, not one cell with two labelled lines.
 
@@ -75,33 +76,31 @@ export function CaseTable({ ctx }: { ctx: LuponDocketState }) {
           /*
             THE FEE, ON THE DOCKET.
 
-            The summons cannot go out until the Clerk marks it settled, and
+            The summons cannot go out until the Lupon has seen the receipt, and
             that fact lived only inside the case — so finding which cases were
             ready meant opening them one at a time. Here it is one look down
             a column.
 
-            Three states, and the third is not the second: "not asked for
-            yet" is the Lupon's own job still to do, while "with the Clerk"
-            is a wait on somebody else.
+            Two states: Paid once the Lupon has seen the receipt, Unpaid
+            until then — the Lupon's own job, with nobody else to wait on.
           */
           {
             header: "Filing fee",
             render: (c: LuponCase) => {
-              const fee = (c.payments ?? []).find(
-                (p) => p.kind === "Filing" && p.status !== "Cancelled",
-              );
+              const paid = (c.payments ?? []).some((p) => p.kind === "Filing" && p.status === "Paid");
+              /* The three days, when the fee is still owed: the day it is due, and how long is left. */
+              const standing = feeStanding(c) ?? (paid
+                ? { tone: "success" as const, label: "Paid", detail: "" }
+                : { tone: "warning" as const, label: "Unpaid", detail: "" });
 
-              if (!fee) {
-                return <span className="text-xs text-gray-400">Not sent yet</span>;
-              }
-
-              return fee.status === "Paid" ? (
-                <span className="rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
-                  Paid
-                </span>
-              ) : (
-                <span className="rounded-full bg-warning/10 px-2.5 py-1 text-xs font-semibold text-warning">
-                  With the Clerk
+              return (
+                <span className="inline-flex flex-col items-start gap-0.5" data-testid="fee-standing">
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${TONE_CLASSES[standing.tone]}`}>
+                    {standing.label}
+                  </span>
+                  {standing.label !== "Paid" && standing.detail && (
+                    <span className="max-w-[13rem] text-[11px] leading-snug text-gray-500">{standing.detail}</span>
+                  )}
                 </span>
               );
             },
@@ -128,12 +127,14 @@ export function CaseTable({ ctx }: { ctx: LuponDocketState }) {
         numbered
         total={total}
         searchable
-        searchPlaceholder="Search by case number, title or party…"
-        getSearchText={(c) =>
-          `${c.case_number} ${c.case_title} ${c.case_classification} ${
-            c.complainant_display_name ?? ""
-          } ${c.respondent_display_names ?? ""}`
-        }
+        /* Asked of the server, so a case on another page is still found —
+           a complainant's slip says KP-2026-0003, and that has to be enough. */
+        onSearch={(text) => {
+          setSearch(text);
+          setPage(1);
+        }}
+        searchValue={search}
+        searchPlaceholder="Search by Case Number, Nature of the Case, Complainant or Respondent…"
         filters={[{ label: "Stage", getValue: (c) => c.current_stage }]}
         loading={loading}
         page={page}

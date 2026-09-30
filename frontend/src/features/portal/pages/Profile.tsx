@@ -1,3 +1,4 @@
+import { MyResidentCard } from "../components/MyResidentCard";
 import { useEffect, useState } from "react";
 import { FiCheck, FiEdit2 } from "react-icons/fi";
 import { errorMessage } from "../../../shared/lib/api";
@@ -12,6 +13,7 @@ import FamilyPanel from "../../resident/components/FamilyPanel";
 import ChangePasswordCard from "../../account/components/ChangePasswordCard";
 import ChangeEmailCard from "../components/ChangeEmailCard";
 import { portalApi } from "../api";
+import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
 
 /**
  * "My Profile" — the resident's own record, and the family attached to it.
@@ -192,21 +194,37 @@ export default function Profile() {
 
   /* Named rather than inline: the email card calls it once a change is
      confirmed, so the address on screen is the one now in use. */
-  const loadProfile = () =>
+  const fetchProfile = () =>
     portalApi.profile()
       .then((r) => {
         setAccount(r.data.data.user ?? null);
         setOccupations(r.data.data.occupations ?? []);
         setCivilStatuses(r.data.data.civil_statuses ?? []);
-      })
-      .catch(() => undefined);
+      });
+
+  const loadProfile = () => fetchProfile().catch(() => undefined);
+
+  /*
+   * The page's first load is the profile AND the family, asked together, so
+   * the page appears once — the family card used to say "Loading your
+   * family…" under a page that had already arrived. A family that cannot be
+   * fetched is said in its own card; a profile that cannot be is the page.
+   */
+  const pageLoad = usePageLoad();
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    loadProfile();
-    portalApi.family()
-      .then((r) => setFamily(r.data.data))
-      .catch(() => setFamilyError("Your family record could not be loaded right now."));
-  }, []);
+    void Promise.allSettled([
+      fetchProfile(),
+      portalApi.family()
+        .then((r) => setFamily(r.data.data))
+        .catch(() => setFamilyError("Your family record could not be loaded right now.")),
+    ]).then(([profile]) => {
+      if (profile.status === "fulfilled") pageLoad.done();
+      else pageLoad.fail(profile.reason);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attempt]);
 
   const resident = account?.resident;
 
@@ -262,6 +280,8 @@ export default function Profile() {
     (family.siblings?.length ?? 0) === 0 &&
     !family.spouse;
 
+  if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => setAttempt((n) => n + 1)} />;
+
   return (
     <div>
       <PageHeader
@@ -271,7 +291,7 @@ export default function Profile() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card title="Resident information">
-          <Row label="Resident No." value={resident?.resident_number} />
+          <Row label="Resident Number" value={resident?.resident_number} />
           <Row
             label="Full name"
             value={
@@ -318,7 +338,7 @@ export default function Profile() {
               saveField({ occupation: next }, "Your occupation has been updated.")}
           />
           <EditableRow
-            label="Contact number"
+            label="Contact Number"
             shown={resident?.contact_number}
             initial={resident?.contact_number ?? ""}
             placeholder="09XX XXX XXXX"
@@ -333,10 +353,16 @@ export default function Profile() {
         <Card title="Residency & household">
           <Row label="Zone / Purok" value={resident?.zone_purok} />
           <Row label="Residency status" value={resident?.residency_status} />
-          <Row label="Household No." value={resident?.household?.household_number} />
+          <Row label="Household Number" value={resident?.household?.household_number} />
           <Row label="Household address" value={resident?.household?.street_address} />
           <Row label="Portal email" value={account?.email} />
         </Card>
+      </div>
+
+      {/* The Barangay Resident ID, drawn from the record above — viewed,
+          downloaded for an online complaint, or printed. */}
+      <div className="mt-6">
+        <MyResidentCard />
       </div>
 
       {/*

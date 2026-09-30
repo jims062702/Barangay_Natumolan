@@ -1,9 +1,9 @@
 import { Section } from "../Section";
-import { progressOf, inBand, ageOf, schoolDetailsApply, asInitial, ageFromMonthYear, outOfBand } from "../../lib/rules";
+import { progressOf, inBand, ageOf, schoolDetailsApply, asInitial, ageFromBirth, outOfBand } from "../../lib/rules";
 import { Text } from "../fields/Text";
 import { Coded } from "../fields/Coded";
-import { Choice } from "../fields/Choice";
-import { MONTHS, BIRTH_YEARS } from "../../lib/constants";
+import { MONTHS } from "../../lib/constants";
+import FormField, { inputClasses } from "../../../../shared/ui/FormField";
 import type { CensusFormState } from "../../hooks/useCensusForm";
 import type { Member, Codes } from "../../types";
 
@@ -24,7 +24,7 @@ export function DemographicsSection({ ctx, member, index, m }: {
       openByDefault
       progress={progressOf([
         "last_name", "first_name", "middle_name", "q2_relationship",
-        "q3_sex", "q4_age", "q5_birth_month", "q5_birth_year",
+        "q3_sex", "q4_age", "q5_birthdate",
         "q6_birthplace", "q7_nationality",
         // Only a non-Filipino is asked which nationality.
         String(member.q7_nationality ?? "") === "2" && "q7_nationality_other",
@@ -103,41 +103,55 @@ export function DemographicsSection({ ctx, member, index, m }: {
       <Coded label="Q3 Sex" neededToRegister list={m.sexes} value={member.q3_sex} onChange={(v) => setMember(index, "q3_sex", v)} />
       {/*
         Read-only once Q5 is answered, because then it is not a
-        separate fact: it is this month minus that one. A typed
+        separate fact: it is today minus the date of birth. A typed
         age is only true on the day it was typed, and a census
         form outlives the day it was filled in.
       */}
       <Text
         label="Q4 Age at last birthday"
         digits={3}
-        value={
-          ageFromMonthYear(member.q5_birth_month, member.q5_birth_year) ??
-          member.q4_age
-        }
+        value={ageFromBirth(member) ?? member.q4_age}
         onChange={(v) => setMember(index, "q4_age", v)}
-        readOnly={
-          ageFromMonthYear(member.q5_birth_month, member.q5_birth_year) !== null
-        }
+        readOnly={ageFromBirth(member) !== null}
         hint={
-          ageFromMonthYear(member.q5_birth_month, member.q5_birth_year) !== null
+          ageFromBirth(member) !== null
             ? "Counted from Q5, and it keeps counting."
             : "Or answer Q5 and this fills itself."
         }
       />
-      <Choice
-        label="Q5 Birth month"
-        neededToRegister
-        options={MONTHS.map((name, i) => ({ value: String(i + 1), label: `${i + 1} · ${name}` }))}
-        value={member.q5_birth_month}
-        onChange={(v) => setMember(index, "q5_birth_month", v)}
-      />
-      <Choice
-        label="Q5 Birth year"
-        neededToRegister
-        options={BIRTH_YEARS.map((y) => ({ value: String(y), label: String(y) }))}
-        value={member.q5_birth_year}
-        onChange={(v) => setMember(index, "q5_birth_year", v)}
-      />
+      {/*
+        Q5 — the DATE of birth, as the office asked: the register prints it
+        on certificates and counts senior citizens by it, and a month and a
+        year left it a month out. The month and year the RBIM codebook
+        speaks in are filled in from it, never typed beside it.
+
+        A form saved before this asked only for the month and year; that
+        answer is shown under the box until the full date replaces it.
+      */}
+      <FormField
+        label="Q5 Date of birth"
+        required
+        hint={
+          !member.q5_birthdate && Number(member.q5_birth_month) && Number(member.q5_birth_year)
+            ? `Saved before as ${MONTHS[Number(member.q5_birth_month) - 1]} ${member.q5_birth_year} — enter the full date.`
+            : undefined
+        }
+      >
+        <input
+          type="date"
+          value={String(member.q5_birthdate ?? "")}
+          min="1900-01-01"
+          max={new Date().toLocaleDateString("en-CA")}
+          onChange={(e) => {
+            const date = e.target.value;
+            setMember(index, "q5_birthdate", date);
+            setMember(index, "q5_birth_month", date ? String(Number(date.slice(5, 7))) : "");
+            setMember(index, "q5_birth_year", date ? date.slice(0, 4) : "");
+          }}
+          aria-label={`Q5 Date of birth, line ${index + 1}`}
+          className={inputClasses}
+        />
+      </FormField>
       <Text label="Q6 Place of birth" hint="City/Municipality and Province" maxLength={80} value={member.q6_birthplace} onChange={(v) => setMember(index, "q6_birthplace", v)} />
       <Coded label="Q7 Nationality" list={m.nationalities} value={member.q7_nationality} onChange={(v) => setMember(index, "q7_nationality", v)} />
       {/*

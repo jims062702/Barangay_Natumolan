@@ -34,18 +34,9 @@ export function StageTracker({ caseData, reached }: { caseData: LuponCase; reach
         })}
 
         {/*
-          Arbitration is a branch off the main line, not a step along it —
-          the flowchart draws it to one side, reachable from mediation or
-          from conciliation when both parties agree to it.
+          No arbitration branch. This Lupon mediates and conciliates; a matter
+          it cannot settle is dismissed, not arbitrated.
         */}
-        {(caseData.current_stage === "Arbitration" || reached.has("Arbitration")) && (
-          <>
-            <span className="mx-1 h-0.5 w-6 bg-gray" aria-hidden="true" />
-            <div className="whitespace-nowrap rounded-full bg-warning/20 px-4 py-1.5 text-xs font-semibold text-amber-700">
-              Arbitration · now
-            </div>
-          </>
-        )}
 
         {["Dismissed", "Referred"].includes(caseData.current_stage) && (
           <>

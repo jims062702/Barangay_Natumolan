@@ -54,7 +54,7 @@ export function AccountTable({ ctx, kind }: {
             setSearch(value);
             setPage(1);
           }}
-          placeholder="Search by name or email…"
+          placeholder="Search by Name or Email…"
           label="Search users"
           className="max-w-sm flex-1"
         />

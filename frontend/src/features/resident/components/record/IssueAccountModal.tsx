@@ -1,3 +1,4 @@
+import DraftNotice from "../../../../shared/ui/DraftNotice";
 import Modal from "../../../../shared/ui/Modal";
 import FormField, { inputClasses } from "../../../../shared/ui/FormField";
 import type { Resident } from "../../../../shared/types";
@@ -10,7 +11,7 @@ export function IssueAccountModal({ ctx, resident }: {
   ctx: ResidentRecordState;
   resident: Resident;
 }) {
-  const { accountOpen, setAccountOpen, issueAccount, accountEmail, setAccountEmail } = ctx;
+  const { accountOpen, setAccountOpen, issueAccount, accountEmail, setAccountEmail, accountDraft } = ctx;
 
   return (
     <Modal open={accountOpen} onClose={() => setAccountOpen(false)} title="Issue resident portal account">
@@ -38,6 +39,7 @@ export function IssueAccountModal({ ctx, resident }: {
             placeholder="resident@email.com"
           />
         </FormField>
+        <DraftNotice draft={accountDraft} />
         <button
           type="submit"
           className="w-full cursor-pointer rounded-full bg-primary py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"

@@ -5,10 +5,24 @@ namespace App\Models\Lupon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Models\Account\User;
+use App\Services\Lupon\PartyNotice;
 
 class Settlement extends Model
 {
     protected $table = 'lupon_settlements';
+
+    /**
+     * A settlement that moves on — final, repudiated, complied — reaches the
+     * parties' bells. See PartyNotice for what is said and when.
+     */
+    protected static function booted(): void
+    {
+        static::updated(function (Settlement $settlement) {
+            if ($settlement->wasChanged('status')) {
+                app(PartyNotice::class)->settlementChanged($settlement);
+            }
+        });
+    }
 
     protected $fillable = [
         'lupon_case_id',
@@ -19,8 +33,6 @@ class Settlement extends Model
         'status',
         'compliance_deadline',
         'compliance_notes',
-        'cba_issued',
-        'cba_issued_at',
         'closed_at',
         'recorded_by',
     ];
@@ -33,9 +45,15 @@ class Settlement extends Model
      */
     public static function finaliseLapsedRepudiations(): void
     {
+        /*
+         * One row at a time, not one UPDATE: a bulk update fires no model
+         * events, so the parties would never be told their settlement had
+         * become final. There are only ever a handful of these.
+         */
         static::where('status', 'Within Repudiation Period')
             ->whereDate('repudiation_deadline', '<', today())
-            ->update(['status' => 'Final']);
+            ->get()
+            ->each(fn (Settlement $s) => $s->update(['status' => 'Final']));
     }
 
     protected function casts(): array
@@ -44,8 +62,6 @@ class Settlement extends Model
             'date_agreed' => 'date',
             'repudiation_deadline' => 'date',
             'compliance_deadline' => 'date',
-            'cba_issued' => 'boolean',
-            'cba_issued_at' => 'datetime',
             'closed_at' => 'datetime',
         ];
     }
