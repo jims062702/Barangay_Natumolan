@@ -13,6 +13,9 @@ export const chatApi = {
     api.post(`/chat/${conversationId}/messages`, ...args),
   deskConversations: (...args: QueryArgs) =>
     api.get("/chat/conversations", ...args),
+  /** The counts on the desk's tabs, and what the desk rings for. */
+  deskCounts: (...args: QueryArgs) =>
+    api.get("/chat/queue/count", ...args),
   deskConversation: (conversationId: PathParam, ...args: QueryArgs) =>
     api.get(`/chat/conversations/${conversationId}`, ...args),
   claimConversation: (conversationId: PathParam, ...args: BodyArgs) =>

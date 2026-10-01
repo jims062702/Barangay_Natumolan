@@ -17,7 +17,7 @@ export function IssueAccountModal({ ctx, resident }: {
     <Modal open={accountOpen} onClose={() => setAccountOpen(false)} title="Issue resident portal account">
       <p className="mb-4 rounded-xl bg-primary/10 px-4 py-2.5 text-xs leading-relaxed text-dark">
         The password is set automatically to the resident's{" "}
-        <strong>last name + birthday (MMDDYY)</strong> — e.g. Cruz062702 — and they activate the
+        <strong>Last name + birthyear (YY)</strong> — e.g. Cruz2002 — and they activate the
         account themselves with a code emailed to this address.
       </p>
       <form onSubmit={issueAccount} className="space-y-4">

@@ -166,9 +166,10 @@ class BadgeController extends BaseController
          * the badge was kept from, left over from when the Secretary had it.
          * Waiting conversations AND unread replies in the ones being handled:
          * both are somebody on the other end of a chat window, watching for
-         * an answer. Not the Secretary's: the desk is closed to them.
+         * an answer. The Clerk's alone: the desk is closed to the Secretary
+         * and the Punong Barangay.
          */
-        if ($frontDesk && $role !== 'Secretary') {
+        if ($role === 'Clerk') {
             $badges['/chat'] = Conversation::where('status', 'Waiting')->count()
                 + (int) Conversation::where('status', 'Active')->sum('unread_for_agent');
         }

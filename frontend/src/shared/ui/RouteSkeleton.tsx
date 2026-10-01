@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type ReactElement } from "react";
+import { useLayoutEffect, useRef, type CSSProperties, type ReactElement } from "react";
 import { useLocation } from "react-router-dom";
 import { sessionHint, useAuth } from "../auth/AuthContext";
 import Skeleton from "./Skeleton";
@@ -154,14 +154,28 @@ function Tiles({ n, cols = n as 1 | 2 | 3 | 4, hint = false, className = "mb-6" 
   );
 }
 
-/** A Card of a fixed height with a title — a chart, a list, a panel of facts. */
-function Panel({ h, title = true, className = "" }: { h: number; title?: boolean; className?: string }) {
+/** How many placeholder lines a Panel of this height holds. */
+const panelLines = (h: number, title: boolean) => Math.max(1, Math.floor((h - (title ? 76 : 40)) / 36));
+
+/**
+ * A Card of a fixed height with a title — a chart, a list, a panel of facts.
+ *
+ * `phone` is its height below lg:, for a chart that is stretched to its row
+ * beside other cards but, stacked alone on a narrow screen, draws far
+ * shorter. The lines it has no room for there are left out there.
+ */
+function Panel({ h, phone, title = true, className = "" }: { h: number; phone?: number; title?: boolean; className?: string }) {
+  const sizing = phone === undefined
+    ? { className: "", style: { height: h } as CSSProperties }
+    : { className: "h-[var(--phone)] lg:h-[var(--h)]", style: { "--h": `${h}px`, "--phone": `${phone}px` } as CSSProperties };
+  const fits = phone === undefined ? Infinity : panelLines(phone, title);
+
   return (
-    <div className={`rounded-2xl border border-gray bg-white p-5 shadow-sm ${className}`} style={{ height: h }}>
+    <div className={`rounded-2xl border border-gray bg-white p-5 shadow-sm ${sizing.className} ${className}`} style={sizing.style}>
       {title && <Skeleton className="mb-4 h-5 w-48" />}
       <div className="space-y-3">
-        {Array.from({ length: Math.max(1, Math.floor((h - (title ? 76 : 40)) / 36)) }).map((_, i) => (
-          <div key={i} className="flex items-center justify-between gap-4">
+        {Array.from({ length: panelLines(h, title) }).map((_, i) => (
+          <div key={i} className={`${i < fits ? "flex" : "hidden lg:flex"} items-center justify-between gap-4`}>
             <Skeleton className="h-3.5" style={{ width: `${[62, 48, 55, 40, 58][i % 5]}%` }} />
             <Skeleton className="h-3.5 w-16" />
           </div>
@@ -178,6 +192,32 @@ function Panels({ hs, cols = 2, className = "mt-6" }: { hs: number[]; cols?: 1 |
   return (
     <div className={`${className} ${grid}`}>
       {hs.map((h, i) => <Panel key={i} h={h} />)}
+    </div>
+  );
+}
+
+/**
+ * A wide chart across two thirds, beside a column of smaller cards, from
+ * lg: up — the column first or second, as the page has it. Below lg they
+ * stack, and the chart is only as tall as it draws there (`phone`).
+ */
+function Split({ wide, phone, side, sideFirst = false, className = "mt-6" }: {
+  wide: number;
+  phone: number;
+  side: number[];
+  sideFirst?: boolean;
+  className?: string;
+}) {
+  const chart = <Panel key="wide" h={wide} phone={phone} className="lg:col-span-2" />;
+  const column = (
+    <div key="side" className="space-y-6">
+      {side.map((h, i) => <Panel key={i} h={h} />)}
+    </div>
+  );
+
+  return (
+    <div className={`${className} grid gap-6 lg:grid-cols-3`}>
+      {sideFirst ? [column, chart] : [chart, column]}
     </div>
   );
 }
@@ -335,13 +375,23 @@ function dashboardFor(office: string | undefined, role: string | undefined): [st
           <Panels hs={[640, 640]} className="" />
         </div>
       )];
+    /*
+     * Two rows of tiles — the totals, then male, female, adults and minors
+     * with their "not recorded" line — and the four chart rows: the age
+     * bands beside sex and this year's events; growth and migration beside
+     * the register's line; purok and dependency; sectors and the households
+     * needing intervention.
+     */
     case "Population":
       return ["PopulationDashboardSkeleton", () => (
         <div>
           <DashHead />
           <Tiles n={4} className="" />
-          <Panels hs={[432, 432]} />
-          <Panels hs={[560, 560]} />
+          <Tiles n={4} hint className="mt-4" />
+          <Split wide={432} phone={378} side={[282, 126]} />
+          <Split wide={610} phone={222} side={[334, 252]} sideFirst />
+          <Panels hs={[408, 408]} />
+          <Panels hs={[323, 323]} />
         </div>
       )];
     case "Health Station":
@@ -828,20 +878,20 @@ const PAGES: [string | RegExp, string, Draw][] = [
   )],
   ["/resident/requests", "PortalRequestsSkeleton", () => (
     <div>
-      <DashHead />
+      <Head />
       <Table columns={8} search={false} rows={4} />
     </div>
   )],
   ["/resident/vawc-report", "PortalVawcReportSkeleton", () => (
     <div>
-      <DashHead />
+      <Head />
       <Note h={46} />
       <Table columns={4} search={false} rows={3} title />
     </div>
   )],
   ["/resident/file-complaint", "PortalFileComplaintSkeleton", () => (
     <div>
-      <DashHead />
+      <Head />
       <Table columns={6} search={false} rows={4} title />
     </div>
   )],
@@ -853,14 +903,14 @@ const PAGES: [string | RegExp, string, Draw][] = [
   )],
   ["/resident/health", "PortalHealthSkeleton", () => (
     <div>
-      <DashHead actions={0} />
+      <Head actions={0} />
       <Note h={72} className="mb-6" />
       <Table columns={8} search={false} rows={5} title />
     </div>
   )],
   ["/resident/announcements", "PortalAnnouncementsSkeleton", () => (
     <div>
-      <DashHead actions={0} />
+      <Head actions={0} />
       <Chips n={6} />
       <div className="space-y-4">
         <Panel h={155} />
@@ -870,7 +920,7 @@ const PAGES: [string | RegExp, string, Draw][] = [
   )],
   ["/resident/profile", "PortalProfileSkeleton", () => (
     <div>
-      <DashHead actions={0} />
+      <Head actions={0} />
       <Panels hs={[386, 386]} className="" />
       <Panels hs={[184, 184]} />
       <Panel h={192} className="mt-6" />

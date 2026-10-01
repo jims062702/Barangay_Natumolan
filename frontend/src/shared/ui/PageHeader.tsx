@@ -75,6 +75,22 @@ function trailFor(pathname: string, sections: ReturnType<typeof menuFor>, title:
   const crumbs: Crumb[] = [];
 
   /*
+   * A SECTION WITH NO HEADING STARTS FROM HOME.
+   *
+   * The resident's whole menu is one section with no heading, so every
+   * portal page came out as a single crumb — itself — and a single crumb is
+   * not drawn. Only the Lupon Records sub-pages had a trail, because their
+   * parent made the second crumb. Such a page starts from the menu's first
+   * entry instead, the page the portal opens on, as a link back to it. Home
+   * itself is where the trail starts, so it has none, as the staff
+   * Dashboard has none.
+   */
+  const home = sections[0]?.items[0];
+  if (!found.heading && home && found.item !== home) {
+    crumbs.push({ label: home.label, to: home.to });
+  }
+
+  /*
    * The section heading is not a link — there is no page behind "Population
    * Office", only a group of them. A crumb that looks clickable and is not
    * is worse than a plain one.

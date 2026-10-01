@@ -362,10 +362,11 @@ export default function App() {
                 the Main Office collects and writes the receipt. */}
           </Route>
 
-          {/* Live chat desk — the CLERK answers the website's chat widget now.
-              The person asked "how do I get a clearance?" should be the one
-              who issues it. Mirrors deny_role:Secretary on the API. */}
-          <Route element={<Guarded staffOnly allowedOffices={["Main Office"]} allowedRoles={["Punong Barangay"]} deniedRoles={["Secretary"]} />}>
+          {/* Live chat desk — the CLERK alone answers the website's chat
+              widget. The person asked "how do I get a clearance?" should be
+              the one who issues it. Mirrors the API, which turns away the
+              Secretary and the Punong Barangay. */}
+          <Route element={<Guarded staffOnly allowedRoles={["Clerk"]} />}>
             <Route path="/chat" element={<LiveChat />} />
           </Route>
 

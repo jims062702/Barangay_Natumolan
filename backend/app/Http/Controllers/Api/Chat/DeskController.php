@@ -13,15 +13,19 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * The live desk: the Barangay Clerk's side of the chat, with the Punong
- * Barangay and Admin able to step in.
+ * The live desk: the Barangay Clerk's side of the chat. Nobody else staffs
+ * it (routes/api/chat-desk.php).
  *
  * AS MANY CONVERSATIONS AT ONCE AS COME IN (2026-09-30). It was one at a
  * time, and a resident with a two-line question waited behind somebody else's
  * long one while the Clerk sat between replies. Now the Clerk takes whoever
  * is waiting, answers each in turn, and moves between them; what stays is
- * that a conversation is one staff member's — two people answering the same
- * resident would contradict each other.
+ * that a conversation is one staff member's — should a second Clerk account
+ * ever be made, two people answering the same resident would contradict each
+ * other.
+ *
+ * THREE STATES, AND THE DESK'S THREE LISTS ARE THEM: Waiting (nobody has
+ * accepted it yet), Active — "Open" on the page — and Closed.
  */
 class DeskController extends BaseController
 {
@@ -29,7 +33,6 @@ class DeskController extends BaseController
     {
     }
 
-    /** The live desk worklist: waiting first, then whatever is still open. */
     /**
      * The canned answers the desk can drop into a reply.
      *
@@ -42,56 +45,63 @@ class DeskController extends BaseController
         return $this->success(Shortcuts::all(), 'Shortcuts retrieved');
     }
 
-    /** The live desk worklist: waiting first, then whatever is still open. */
+    /**
+     * One of the desk's three lists: Waiting (not accepted yet), Active (the
+     * page calls it Open) or Closed. Nothing else — the lists do not overlap,
+     * so a conversation is in exactly one of them.
+     */
     public function conversations(Request $request)
     {
         /* A conversation the resident walked away from closes first — see IdleConversations. */
         IdleConversations::sweep();
 
-        $query = Conversation::with('resident:id,first_name,middle_name,last_name,suffix,zone_purok', 'agent:id,name');
+        $status = $request->input('status', 'Waiting');
 
-        $status = $request->input('status', 'open');
-
-        if ($status === 'open') {
-            $query->whereIn('status', ['Waiting', 'Active']);
-        } elseif ($status === 'mine') {
-            /* The ones this staff member is in the middle of. */
-            $query->where('status', 'Active')->where('assigned_to', auth()->id());
-        } elseif (in_array($status, ['Waiting', 'Active', 'Closed'], true)) {
-            $query->where('status', $status);
+        if (! in_array($status, ['Waiting', 'Active', 'Closed'], true)) {
+            return $this->error('Unknown list. Choose Waiting, Active or Closed.', 422);
         }
 
-        $conversations = $query
+        $query = Conversation::with('resident:id,first_name,middle_name,last_name,suffix,zone_purok', 'agent:id,name')
+            ->where('status', $status);
+
+        $conversations = ($status === 'Closed'
+            /* The one closed a minute ago is the one looked for: newest first. */
+            ? $query->orderByDesc('closed_at')->orderByDesc('id')
             /*
-             * Waiting before Active, then oldest ARRIVAL first — the same
-             * order the resident is shown as their queue number. Ranking on
-             * the last message instead would move somebody down the list for
-             * sending a follow-up, and then the number they were quoted would
-             * be a lie.
+             * Oldest ARRIVAL first — the same order the resident is shown as
+             * their queue number. Ranking on the last message instead would
+             * move somebody down the list for sending a follow-up, and then
+             * the number they were quoted would be a lie.
              */
-            ->orderByRaw("CASE status WHEN 'Waiting' THEN 0 WHEN 'Active' THEN 1 ELSE 2 END")
-            ->orderBy('created_at')
-            ->paginate(20);
+            : $query->orderBy('created_at')->orderBy('id')
+        )->paginate(20);
 
         $conversations->getCollection()->transform(fn ($c) => $this->views->agent($c));
 
         return $this->success($conversations, 'Conversations retrieved');
     }
 
-    /** How many people are waiting right now — for the sidebar badge. */
-    public function waitingCount()
+    /**
+     * The counts on the desk's tabs, and what the desk rings for.
+     *
+     * `unread` is the resident lines waiting in THIS Clerk's open
+     * conversations, less the one on screen (`except`) — that one is being
+     * read as it arrives, and ringing for it would ring at every line.
+     */
+    public function waitingCount(Request $request)
     {
         IdleConversations::sweep();
 
+        $onScreen = $request->integer('except');
+
         return $this->success([
             'waiting' => Conversation::where('status', 'Waiting')->count(),
-            // SUM() comes back as a string from MySQL; the badge wants a number.
-            'unread' => (int) Conversation::whereIn('status', ['Waiting', 'Active'])
+            'open' => Conversation::where('status', 'Active')->count(),
+            // SUM() comes back as a string from MySQL; the page wants a number.
+            'unread' => (int) Conversation::where('status', 'Active')
+                ->where('assigned_to', auth()->id())
+                ->when($onScreen > 0, fn ($q) => $q->whereKeyNot($onScreen))
                 ->sum('unread_for_agent'),
-            // How many conversations this staff member is in the middle of.
-            'mine' => Conversation::where('assigned_to', auth()->id())
-                ->where('status', 'Active')
-                ->count(),
         ], 'Live chat queue');
     }
 
@@ -109,18 +119,29 @@ class DeskController extends BaseController
         ], 'Conversation retrieved');
     }
 
-    /** The secretary takes the conversation. */
+    /**
+     * The Clerk accepts a waiting conversation: it becomes theirs, and Open.
+     *
+     * A WAITING conversation is anybody's to accept — a new one, or one a
+     * follow-up reopened, which still names whoever answered it before. Only
+     * an Active one belongs to somebody.
+     */
     public function claim(Conversation $conversation)
     {
         if ($conversation->status === 'Closed') {
             return $this->error('This conversation is already closed', 409);
         }
 
-        if ($conversation->assigned_to && $conversation->assigned_to !== auth()->id()) {
+        if ($this->heldByAnother($conversation)) {
             return $this->error(
                 'This conversation is already being handled by ' . ($conversation->agent?->name ?? 'another staff member') . '.',
                 409
             );
+        }
+
+        /* Accepted already, by this Clerk: a second press says so, once. */
+        if ($conversation->status === 'Active') {
+            return $this->success($this->views->agent($conversation), 'You are already handling this conversation');
         }
 
         $conversation->update([
@@ -147,20 +168,28 @@ class DeskController extends BaseController
 
         /* One staff member to a conversation: two people answering the same
            resident would contradict each other. */
-        if ($conversation->assigned_to && $conversation->assigned_to !== auth()->id()) {
+        if ($this->heldByAnother($conversation)) {
             return $this->error(
                 'This conversation is being handled by ' . ($conversation->agent?->name ?? 'another staff member') . '.',
                 409
             );
         }
 
-        // Replying IS taking the conversation — an agent should never have to
-        // press "claim" before they can help someone.
-        if (!$conversation->assigned_to) {
+        /*
+         * Replying IS accepting — the Clerk should never have to press Accept
+         * before they can help someone.
+         *
+         * On STATUS, not on whether somebody is named. A follow-up reopens a
+         * conversation as Waiting with its old handler still on it, and a
+         * reply that only looked for "no handler" left it Waiting for good:
+         * answered, yet still in the queue, with the resident still shown a
+         * place in line.
+         */
+        if ($conversation->status === 'Waiting') {
             $conversation->update([
                 'status' => 'Active',
                 'assigned_to' => auth()->id(),
-                'claimed_at' => now(),
+                'claimed_at' => $conversation->claimed_at ?? now(),
             ]);
         }
 
@@ -196,5 +225,13 @@ class DeskController extends BaseController
         $conversation->update(['status' => 'Closed', 'closed_at' => now()]);
 
         return $this->success($this->views->agent($conversation->fresh()), 'Conversation closed');
+    }
+
+    /** Open, and in another staff member's hands. A waiting one is nobody's yet. */
+    private function heldByAnother(Conversation $conversation): bool
+    {
+        return $conversation->status === 'Active'
+            && $conversation->assigned_to
+            && (int) $conversation->assigned_to !== (int) auth()->id();
     }
 }

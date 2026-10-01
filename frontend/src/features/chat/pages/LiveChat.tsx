@@ -9,7 +9,6 @@ import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { playNotificationSound } from "../../../shared/lib/sound";
 import Card from "../../../shared/ui/Card";
 import PageHeader from "../../../shared/ui/PageHeader";
-import StatusBadge from "../../../shared/ui/StatusBadge";
 import { RowsSkeleton } from "../../../shared/ui/Skeleton";
 import ShortcutComposer, { type Shortcut } from "../components/ShortcutComposer";
 import { chatApi } from "../api";
@@ -17,9 +16,9 @@ import type { ChatConversation, ChatMessage } from "../types";
 import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
 
 /**
- * The live chat desk — the Barangay Clerk's page.
+ * The live chat desk — the Barangay Clerk's page, and nobody else's.
  *
- * A two-pane inbox: everyone waiting on the left, the open conversation on the
+ * A two-pane inbox: the conversations on the left, the one being read on the
  * right. It refreshes on a timer rather than a socket, matching the widget on
  * the public site.
  *
@@ -28,10 +27,32 @@ import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
  * reply, so switching never sends one resident's answer to another. A
  * conversation the resident stopped answering closes by itself a day after
  * the last reply — the thread says when.
+ *
+ * THREE LISTS, ONE PER STATE, and a conversation is in exactly one: Waiting
+ * (nobody has accepted it yet), Open (accepted, still going) and Closed. A
+ * "Mine" list came off with the Punong Barangay's seat at the desk: with the
+ * Clerk alone on it, every open conversation is theirs.
  */
 
 /** Faster than the usual staff cadence: someone is sitting there waiting. */
 const THREAD_POLL_MS = 4000;
+
+/** The desk's lists — the API's statuses; the page calls Active "Open". */
+type DeskList = "Waiting" | "Active" | "Closed";
+
+/** The counts on the tabs, and what the desk rings for. */
+interface DeskCounts {
+  waiting: number;
+  open: number;
+  /** Resident lines in this Clerk's open conversations, less the one on screen. */
+  unread: number;
+}
+
+const EMPTY_LIST: Record<DeskList, string> = {
+  Waiting: "Nobody is waiting. New conversations appear here on their own.",
+  Active: "No open conversations. A waiting one opens here once you accept it or reply to it.",
+  Closed: "No closed conversations yet.",
+};
 
 const timeOf = (value?: string | null) =>
   value ? new Date(value).toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit" }) : "";
@@ -56,7 +77,8 @@ function waitedFor(since?: string | null): string {
 export default function LiveChat() {
   const { offline, noteOffline } = useNeedsConnection();
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
-  const [filter, setFilter] = useState<"open" | "mine" | "Waiting" | "Closed">("open");
+  const [filter, setFilter] = useState<DeskList>("Waiting");
+  const [counts, setCounts] = useState<DeskCounts>({ waiting: 0, open: 0, unread: 0 });
   const [activeId, setActiveId] = useState<number | null>(null);
   const [active, setActive] = useState<ChatConversation | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -87,22 +109,26 @@ export default function LiveChat() {
 
   const loadList = async () => {
     try {
-      const response = await chatApi.deskConversations({ params: { status: filter } });
+      const [response, queue] = await Promise.all([
+        chatApi.deskConversations({ params: { status: filter } }),
+        /* The counts come from the server, not from the rows: the list on
+           screen is one state only, and a new arrival must ring whichever
+           list the Clerk is reading. */
+        chatApi.deskCounts({ params: { except: shownId.current ?? undefined } }),
+      ]);
       const rows: ChatConversation[] = response.data.data.data ?? [];
       setConversations(rows);
 
-      const waiting = rows.filter((c) => c.status === "Waiting").length;
-      const unread = rows
-        .filter((c) => c.status === "Active" && c.assigned_to === user?.id && c.id !== shownId.current)
-        .reduce((sum, c) => sum + (c.unread ?? 0), 0);
+      const next: DeskCounts = queue.data.data;
+      setCounts(next);
       if (
-        (waitingRef.current !== null && waiting > waitingRef.current)
-        || (unreadRef.current !== null && unread > unreadRef.current)
+        (waitingRef.current !== null && next.waiting > waitingRef.current)
+        || (unreadRef.current !== null && next.unread > unreadRef.current)
       ) {
         playNotificationSound();
       }
-      waitingRef.current = waiting;
-      unreadRef.current = unread;
+      waitingRef.current = next.waiting;
+      unreadRef.current = next.unread;
       pageLoad.done();
     } catch (err) {
       /* The desk is never read from a copy on this device — see NeedsConnection. */
@@ -148,14 +174,10 @@ export default function LiveChat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
-  /* The ones this staff member is in the middle of. */
-  const isMine = (c: ChatConversation) => c.status === "Active" && c.assigned_to === user?.id;
-  const handling = conversations.filter(isMine).length;
-
   // The list keeps up on its own so a new visitor appears without a refresh —
-  // as fast as the open thread while the Clerk is with people, since a reply
-  // in any of their other threads shows up here first.
-  useAutoRefresh(() => void loadList(), handling > 0 ? THREAD_POLL_MS : REFRESH.staff, { evenWhenHidden: true });
+  // as fast as the open thread while any conversation is open, since a reply
+  // in any of the Clerk's other threads shows up here first.
+  useAutoRefresh(() => void loadList(), counts.open > 0 ? THREAD_POLL_MS : REFRESH.staff, { evenWhenHidden: true });
 
   // The open conversation refreshes faster — someone is waiting on the reply.
   useEffect(() => {
@@ -232,10 +254,10 @@ export default function LiveChat() {
     }
   };
 
-  const waiting = conversations.filter((c) => c.status === "Waiting").length;
   const closed = active?.status === "Closed";
-  /* Somebody else on the desk has this one: it is theirs to answer. */
-  const someoneElses = !!active?.assigned_to && active.assigned_to !== user?.id;
+  /* Open and somebody else's — only possible with a second Clerk account. A
+     WAITING one is nobody's yet, whoever answered it before a follow-up. */
+  const someoneElses = active?.status === "Active" && !!active.assigned_to && active.assigned_to !== user?.id;
 
   if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => void loadList()} />;
 
@@ -250,10 +272,10 @@ export default function LiveChat() {
         <NeedsConnection what="the chat desk" why="A conversation only works while both sides can hear each other." />
       )}
 
-      {(waiting > 0 || handling > 0) && (
+      {(counts.waiting > 0 || counts.open > 0) && (
         <p className="mb-4 rounded-2xl bg-warning/10 px-4 py-3 text-sm font-medium text-dark">
-          {waiting > 0 && `${waiting} ${waiting === 1 ? "person is" : "people are"} waiting for a reply. `}
-          {handling > 0 && `You are in ${handling} ${handling === 1 ? "conversation" : "conversations"}.`}
+          {counts.waiting > 0 && `${counts.waiting} ${counts.waiting === 1 ? "person is" : "people are"} waiting for a reply. `}
+          {counts.open > 0 && `${counts.open} ${counts.open === 1 ? "conversation is" : "conversations are"} open.`}
         </p>
       )}
 
@@ -263,21 +285,32 @@ export default function LiveChat() {
           <div className="mb-3 flex gap-2">
             {(
               [
-                ["open", "Open"],
-                ["mine", "Mine"],
-                ["Waiting", "Waiting"],
-                ["Closed", "Closed"],
+                ["Waiting", "Waiting", counts.waiting],
+                ["Active", "Open", counts.open],
+                ["Closed", "Closed", 0],
               ] as const
-            ).map(([value, label]) => (
+            ).map(([value, label, count]) => (
               <button
                 key={value}
                 type="button"
                 onClick={() => setFilter(value)}
-                className={`cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                aria-pressed={filter === value}
+                className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
                   filter === value ? "bg-primary text-white" : "bg-secondary text-dark hover:bg-primary/10"
                 }`}
               >
                 {label}
+                {/* How many are in it, so the Clerk sees where the work is
+                    without opening each list. Closed only grows. */}
+                {count > 0 && (
+                  <span
+                    className={`rounded-full px-1.5 text-[10px] font-bold ${
+                      filter === value ? "bg-white/25 text-white" : "bg-primary/10 text-primary"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -285,9 +318,7 @@ export default function LiveChat() {
           {loading ? (
             <RowsSkeleton rows={5} what="the conversations" />
           ) : conversations.length === 0 ? (
-            <p className="py-8 text-center text-sm text-gray-400">
-              Nobody is waiting. New conversations appear here on their own.
-            </p>
+            <p className="py-8 text-center text-sm text-gray-400">{EMPTY_LIST[filter]}</p>
           ) : (
             <ul className="max-h-[28rem] space-y-1.5 overflow-y-auto">
               {conversations.map((conversation) => (
@@ -311,21 +342,20 @@ export default function LiveChat() {
                         </span>
                       )}
                     </div>
-                    <div className="mt-1 flex items-center justify-between gap-2">
-                      <StatusBadge status={conversation.status} />
-                      <span className="text-[11px] text-gray-400">
-                        {waitedFor(conversation.last_message_at ?? conversation.created_at)}
-                      </span>
-                    </div>
+                    {/* No status badge: the list IS the status. */}
+                    <span className="mt-0.5 block text-[11px] text-gray-400">
+                      {waitedFor(conversation.last_message_at ?? conversation.created_at)}
+                    </span>
                     {conversation.is_resident && (
                       <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-primary">
                         <FiUser className="h-3 w-3" aria-hidden="true" /> Registered resident
                       </span>
                     )}
-                    {/* Whose it is, once somebody has it. */}
-                    {conversation.status === "Active" && (
+                    {/* Whose it is — said only when it is not this Clerk's,
+                        which takes a second Clerk account. */}
+                    {conversation.status === "Active" && conversation.assigned_to !== user?.id && (
                       <span className="mt-1 block text-[11px] font-medium text-gray-500">
-                        {conversation.assigned_to === user?.id ? "Yours" : `With ${conversation.agent_name ?? "another staff member"}`}
+                        With {conversation.agent_name ?? "another staff member"}
                       </span>
                     )}
 
@@ -354,13 +384,15 @@ export default function LiveChat() {
           action={
             active && !closed ? (
               <div className="flex gap-2">
-                {!active.assigned_to && (
+                {/* Waiting is "not accepted yet" — a follow-up included,
+                    whoever answered it the first time. */}
+                {active.status === "Waiting" && (
                   <button
                     type="button"
                     onClick={claim}
                     className="cursor-pointer rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-white hover:bg-primary-dark"
                   >
-                    Take this chat
+                    Accept
                   </button>
                 )}
                 <button
@@ -450,7 +482,7 @@ export default function LiveChat() {
 
               {closed ? (
                 <p className="mt-3 rounded-xl bg-secondary px-4 py-3 text-center text-sm text-gray-500">
-                  This conversation is closed. The resident can follow up on it, and it comes back here.
+                  This conversation is closed. The resident can follow up on it, and it comes back under Waiting.
                 </p>
               ) : someoneElses ? (
                 <p className="mt-3 rounded-xl bg-secondary px-4 py-3 text-center text-sm text-gray-500">
