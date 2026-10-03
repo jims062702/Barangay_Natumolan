@@ -26,6 +26,12 @@ export function useSectorReport() {
   const [lastPage, setLastPage] = useState(1);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const handleSearch = (text: string) => {
+    setSearch(text);
+    setPage(1);
+  };
 
   const [tick, setTick] = useState(0);
   useAutoRefresh(() => setTick((t) => t + 1), REFRESH.staff);
@@ -51,16 +57,25 @@ export function useSectorReport() {
 
   useEffect(() => {
     setLoading(true);
-    populationApi.sectorList(encodeURIComponent(selected), { params: { page } })
-      .then((r) => {
-        setResidents(r.data.data.residents.data ?? []);
-        setTotal(r.data.data.residents.total ?? 0);
-        setLastPage(r.data.data.residents.last_page ?? 1);
+    const timer = setTimeout(() => {
+      populationApi.sectorList(encodeURIComponent(selected), {
+        params: {
+          page,
+          search: search.trim() || undefined,
+        },
       })
-      .then(() => listLoad.done(), (error) => listLoad.fail(error))
-      .finally(() => setLoading(false));
+        .then((r) => {
+          setResidents(r.data.data.residents.data ?? []);
+          setTotal(r.data.data.residents.total ?? 0);
+          setLastPage(r.data.data.residents.last_page ?? 1);
+        })
+        .then(() => listLoad.done(), (error) => listLoad.fail(error))
+        .finally(() => setLoading(false));
+    }, 250);
+
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, page, tick]);
+  }, [selected, page, search, tick]);
 
   const sectors = report?.sectors ?? [];
   const coverage = report?.coverage ?? [];
@@ -104,6 +119,7 @@ export function useSectorReport() {
     report, setReport, selected, setSelected, residents, setResidents, total, setTotal,
     lastPage, setLastPage, page, setPage, loading, setLoading, tick, setTick, sectors,
     coverage, grew, sectorData, pickSector, chosen,
+    search, setSearch, handleSearch,
   };
 }
 

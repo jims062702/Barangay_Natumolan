@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\BaseController;
 use App\Models\Resident\Resident;
 use App\Models\Resident\Sector;
 use App\Support\ManilaTime;
+use Illuminate\Http\Request;
 
 /** The sector lists — PWD, 4Ps, senior citizens — and how much of the barangay they cover. */
 class SectorController extends BaseController
@@ -21,7 +22,7 @@ class SectorController extends BaseController
      * "All" is a real answer here: it is how the office sees everybody who is
      * tagged at all, and — with `untagged` — everybody who is not.
      */
-    public function show($sector)
+    public function show(Request $request, $sector)
     {
         $query = Resident::bonafide()
             ->where('is_active', true)
@@ -31,13 +32,51 @@ class SectorController extends BaseController
                 'suffix', 'gender', 'birthdate', 'zone_purok', 'contact_number',
             ]);
 
+        $searchTerm = trim((string) $request->input('search', $request->input('q', '')));
+
         if ($sector === 'untagged') {
             $query->whereDoesntHave('sectors', fn ($q) => $q->where('is_active', true));
         } elseif ($sector !== 'all') {
             $query->whereHas('sectors', fn ($q) => $q->where('sector_type', $sector)
                 ->where('is_active', true));
         } else {
-            $query->whereHas('sectors', fn ($q) => $q->where('is_active', true));
+            // When not searching on "all", show everyone with at least one active sector tag.
+            // When actively searching, include all residents so any resident can be found and their tags checked.
+            if ($searchTerm === '') {
+                $query->whereHas('sectors', fn ($q) => $q->where('is_active', true));
+            }
+        }
+
+        if ($searchTerm !== '') {
+            $words = preg_split('/\s+/', $searchTerm, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+            if (!empty($words)) {
+                $query->where(function ($outer) use ($words, $searchTerm) {
+                    // Match full search phrase against concatenated names, resident number, or zone
+                    $outer->whereRaw("CONCAT_WS(' ', first_name, middle_name, last_name, suffix) LIKE ?", ["%{$searchTerm}%"])
+                        ->orWhereRaw("CONCAT_WS(' ', first_name, last_name) LIKE ?", ["%{$searchTerm}%"])
+                        ->orWhereRaw("CONCAT_WS(' ', last_name, first_name) LIKE ?", ["%{$searchTerm}%"])
+                        ->orWhere('resident_number', 'like', "%{$searchTerm}%")
+                        ->orWhere('zone_purok', 'like', "%{$searchTerm}%");
+
+                    // Also match each separate word across name parts, resident number, zone, or sector types
+                    $outer->orWhere(function ($wordGroup) use ($words) {
+                        foreach ($words as $word) {
+                            $wordGroup->where(function ($inner) use ($word) {
+                                $inner->where('first_name', 'like', "%{$word}%")
+                                    ->orWhere('middle_name', 'like', "%{$word}%")
+                                    ->orWhere('last_name', 'like', "%{$word}%")
+                                    ->orWhere('suffix', 'like', "%{$word}%")
+                                    ->orWhere('resident_number', 'like', "%{$word}%")
+                                    ->orWhere('zone_purok', 'like', "%{$word}%")
+                                    ->orWhereHas('sectors', function ($sq) use ($word) {
+                                        $sq->where('is_active', true)->where('sector_type', 'like', "%{$word}%");
+                                    });
+                            });
+                        }
+                    });
+                });
+            }
         }
 
         $residents = $query->orderBy('last_name')->paginate(20);

@@ -12,7 +12,7 @@ import type { SectorReportState } from "../../hooks/useSectorReport";
 export function SectorBrowser({ ctx }: { ctx: SectorReportState }) {
   const {
     setSelected, setPage, selected, sectors, report, chosen, residents, total, page, lastPage,
-    loading,
+    loading, search, handleSearch,
   } = ctx;
 
   return (
@@ -63,9 +63,25 @@ export function SectorBrowser({ ctx }: { ctx: SectorReportState }) {
         )}
       </div>
 
-      <p className="mb-3 text-xs text-gray-500">
-        Showing <strong className="text-dark">{chosen}</strong>.
-      </p>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-gray-500">
+          Showing <strong className="text-dark">{chosen}</strong>
+          {search.trim() ? (
+            <>
+              {" "}matching <strong className="text-primary">"{search.trim()}"</strong>
+            </>
+          ) : null}.
+        </p>
+        {search.trim() && (
+          <button
+            type="button"
+            onClick={() => handleSearch("")}
+            className="cursor-pointer text-xs font-semibold text-primary hover:underline"
+          >
+            Clear search
+          </button>
+        )}
+      </div>
 
       <DataTable
         columns={[
@@ -127,6 +143,8 @@ export function SectorBrowser({ ctx }: { ctx: SectorReportState }) {
         onPageChange={setPage}
         loading={loading}
         searchable
+        onSearch={handleSearch}
+        searchValue={search}
         searchPlaceholder="Search by Name, Resident Number or Zone / Purok…"
         getSearchText={(r) =>
           [
@@ -141,7 +159,11 @@ export function SectorBrowser({ ctx }: { ctx: SectorReportState }) {
           { label: "Zone / Purok", getValue: (r) => r.zone_purok ?? "Not recorded" },
           { label: "Sex", getValue: (r) => r.gender ?? "Not recorded" },
         ]}
-        emptyMessage="Nobody is on this list."
+        emptyMessage={
+          search.trim()
+            ? `No residents found matching "${search.trim()}".`
+            : "Nobody is on this list."
+        }
       />
     </Card>
   );
