@@ -100,7 +100,9 @@ export function SidebarGroup({
                   these are was the word that got dropped. A second line
                   costs a few pixels; a name nobody can read costs more.
                 */}
-                <span className="flex-1 leading-snug">{child.label}</span>
+                <span className="flex-1 leading-snug">
+                  {child.label}
+                </span>
                 {badges[child.to] > 0 && (
                   <span className="shrink-0 rounded-full bg-danger px-2 py-0.5 text-[10px] font-bold text-white">
                     {badges[child.to] > 99 ? "99+" : badges[child.to]}

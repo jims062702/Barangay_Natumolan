@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Route;
 | Loaded inside the signed-in staff group of routes/api.php.
 */
 
-Route::prefix('population')->middleware('office:Population')->group(function () {
+Route::prefix('population')->middleware('office:Population,AdminRole')->group(function () {
     Route::get('households', [HouseholdController::class, 'index']);
     Route::post('households', [HouseholdController::class, 'store']);
     Route::put('households/{household}', [HouseholdController::class, 'update']);
@@ -26,10 +26,12 @@ Route::prefix('population')->middleware('office:Population')->group(function () 
     Route::get('sectors/{sector}', [SectorController::class, 'show']);
     Route::get('analytics', [AnalyticsController::class, 'index']);
     Route::get('reports/sectoral', [SectorController::class, 'report']);
+    Route::get('residents/{resident}/check-account-email', [ResidentAccountController::class, 'checkEmail']);
     Route::post('residents/{resident}/create-account', [ResidentAccountController::class, 'store']);
     Route::get('accounts', [ResidentAccountController::class, 'index']);
     // "I never got the email" — sends a fresh activation code.
     Route::post('accounts/{user}/resend-activation', [ResidentAccountController::class, 'resendActivation']);
+    Route::put('accounts/{user}/toggle-status', [ResidentAccountController::class, 'toggleActive']);
 
     /*
     | A password set at the counter, for a resident who cannot get at

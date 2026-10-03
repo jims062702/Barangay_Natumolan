@@ -115,6 +115,66 @@ class ResidentAccountController extends BaseController
     }
 
     /**
+     * Checks whether an email address is available for this resident's portal account.
+     * Answers immediately so the UI can warn the user before submitting.
+     */
+    public function checkEmail(Request $request, Resident $resident)
+    {
+        $email = strtolower(trim((string) $request->input('email')));
+
+        if ($email === '') {
+            return $this->success([
+                'available' => true,
+                'email' => '',
+                'reason' => 'empty',
+            ]);
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return $this->success([
+                'available' => false,
+                'email' => $email,
+                'reason' => 'invalid',
+                'message' => 'That does not look like a valid email address.',
+            ]);
+        }
+
+        // Check if in use by another resident
+        $clashingResident = Resident::where('email', $email)
+            ->where('id', '!=', $resident->id)
+            ->whereNull('merged_into_id')
+            ->exists();
+
+        if ($clashingResident) {
+            return $this->success([
+                'available' => false,
+                'email' => $email,
+                'reason' => 'resident',
+                'message' => 'This email is already in use by another resident.',
+            ]);
+        }
+
+        // Check if in use by a user account
+        $clashingUser = User::where('email', $email)->exists();
+
+        if ($clashingUser) {
+            return $this->success([
+                'available' => false,
+                'email' => $email,
+                'reason' => 'user',
+                'message' => 'This email is already in use by another account.',
+            ]);
+        }
+
+        return $this->success([
+            'available' => true,
+            'email' => $email,
+            'reason' => 'available',
+            'message' => 'This email address is available.',
+        ]);
+    }
+
+    /**
      * Sends a fresh activation code to a resident who has not yet completed
      * their first sign-in — the counter answer to "I never got the email".
      */
@@ -141,16 +201,22 @@ class ResidentAccountController extends BaseController
         return $this->success(null, 'A new activation code was emailed to ' . $user->email);
     }
 
-    /*
-     * There is no changePassword, resetPassword or toggle here any more.
-     *
-     * An office that can set a resident's portal password is an office that
-     * can sign in as them, and the one on the resident page even offered a
-     * DEFAULT built from their last name and birthday — a password anybody
-     * holding the register could compute for every resident at once.
-     *
-     * A resident who cannot reach their email gets resendActivation above:
-     * it proves the mailbox rather than going around it. Disabling an account
-     * went with it; it was the same reach into somebody else's login.
+    /**
+     * Toggles whether this resident portal account can sign in.
      */
+    public function toggleActive(User $user)
+    {
+        if ($user->role !== 'Resident') {
+            return $this->error('Only resident portal accounts can be managed here', 422);
+        }
+
+        $user->forceFill(['is_active' => ! $user->is_active])->save();
+
+        return $this->success(
+            $user,
+            $user->is_active
+                ? 'Sign-in enabled for ' . $user->email . '.'
+                : 'Sign-in disabled for ' . $user->email . '.'
+        );
+    }
 }

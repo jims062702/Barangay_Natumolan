@@ -222,7 +222,31 @@ export function IdentificationSection({ ctx }: { ctx: CensusFormState }) {
             fillLineOneFrom(v);
           }}
         />
-        <Text label="Respondent" hint="Last Name, First Name M.I." maxLength={80} value={form.respondent_name as string} onChange={(v) => set("respondent_name", v)} />
+        <div>
+          <Text
+            label="Respondent"
+            hint="Last Name, First Name M.I. — automatically fills Name on the consent below."
+            maxLength={80}
+            value={(form.respondent_name as string) ?? ""}
+            onChange={(v) => {
+              set("respondent_name", v);
+              set("consent_name", v);
+            }}
+          />
+          {Boolean(form.household_head_name) && form.respondent_name !== form.household_head_name && (
+            <button
+              type="button"
+              onClick={() => {
+                const head = String(form.household_head_name);
+                set("respondent_name", head);
+                set("consent_name", head);
+              }}
+              className="mt-1 text-xs font-medium text-primary hover:underline cursor-pointer"
+            >
+              Same as household head ({String(form.household_head_name)})
+            </button>
+          )}
+        </div>
         {/*
           Counted, not typed.
 

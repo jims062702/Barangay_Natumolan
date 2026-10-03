@@ -18,16 +18,16 @@ const TERM = "2023 – 2026";
  * [0] head, [1–4] first row, [5–7] second row, [8–9] secretary & treasurer.
  */
 export const barangayOfficials: Official[] = [
-  { id: 1, position: "Punong Barangay", name: "Hon. Ricardo M. Balagtas", term: TERM, photo: avatar1 },
-  { id: 2, position: "Barangay Kagawad", name: "Hon. Maria Lourdes P. Santos", term: TERM, photo: avatar2 },
-  { id: 3, position: "Barangay Kagawad", name: "Hon. Ernesto D. Villanueva", term: TERM, photo: avatar3 },
-  { id: 4, position: "Barangay Kagawad", name: "Hon. Josefina T. Ramos", term: TERM, photo: avatar4 },
-  { id: 5, position: "Barangay Kagawad", name: "Hon. Antonio C. Mabini", term: TERM, photo: avatar1 },
-  { id: 6, position: "Barangay Kagawad", name: "Hon. Rowena S. Dagohoy", term: TERM, photo: avatar2 },
-  { id: 7, position: "Barangay Kagawad", name: "Hon. Felipe G. Lacson", term: TERM, photo: avatar3 },
-  { id: 8, position: "Barangay Kagawad", name: "Hon. Cristina B. Ocampo", term: TERM, photo: avatar4 },
-  { id: 9, position: "Barangay Secretary", name: "Ms. Liezel A. Fernandez", term: TERM, photo: avatar2 },
-  { id: 10, position: "Barangay Treasurer", name: "Mr. Nestor J. Padilla", term: TERM, photo: avatar3 },
+  { id: 1, position: "Punong Barangay", name: "Hon. Rafael P. Vidal", term: TERM, photo: avatar1 },
+  { id: 2, position: "Barangay Kagawad", name: "Hon. Angelie Quin M. Agustero", term: TERM, photo: avatar2 },
+  { id: 3, position: "Barangay Kagawad", name: "Hon. Josephine S. Daradar", term: TERM, photo: avatar3 },
+  { id: 4, position: "Barangay Kagawad", name: "Hon. Rosendo A. Manto", term: TERM, photo: avatar4 },
+  { id: 5, position: "Barangay Kagawad", name: "Hon. Novelito A. Palapo", term: TERM, photo: avatar1 },
+  { id: 6, position: "Barangay Kagawad", name: "Hon. Lamberto S. Neri", term: TERM, photo: avatar2 },
+  { id: 7, position: "Barangay Kagawad", name: "Hon. Jocelyn A. Lim", term: TERM, photo: avatar3 },
+  { id: 8, position: "Barangay Kagawad", name: "Hon. Marivic B. Ajon", term: TERM, photo: avatar4 },
+  { id: 9, position: "Barangay Secretary", name: "Grace G. Galola", term: TERM, photo: avatar2 },
+  { id: 10, position: "Barangay Treasurer", name: "Donna Lyn R. Quilang", term: TERM, photo: avatar3 },
 ];
 
 export const skOfficials: Official[] = [

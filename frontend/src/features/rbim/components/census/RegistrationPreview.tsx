@@ -81,26 +81,48 @@ export function RegistrationPreview({ ctx, m }: { ctx: CensusFormState; m: Codes
           </span>
         </p>
 
-        <div className="rounded-xl border border-gray p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-            A. Identification
-          </p>
-          <dl className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
-            {[
-              ["Form no.", String(form.census_no ?? "—")],
-              ["Household head", String(form.household_head_name ?? "—")],
-              ["Purok", String(form.zone_purok ?? "—")],
-              ["Address", [form.address_unit, form.address_house_lot, form.address_street]
-                .map((x) => String(x ?? "").trim()).filter(Boolean).join(", ") || "—"],
-              ["Respondent", String(form.respondent_name ?? "—")],
-              ["Total members", String(filledLines)],
-            ].map(([label, value]) => (
-              <div key={label} className="flex justify-between gap-4">
-                <dt className="text-gray-500">{label}</dt>
-                <dd className="text-right font-medium text-dark">{value}</dd>
-              </div>
-            ))}
-          </dl>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-gray p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+              A. Identification
+            </p>
+            <dl className="mt-2 space-y-1.5 text-sm">
+              {[
+                ["Form no.", String(form.census_no ?? "—")],
+                ["Household head", String(form.household_head_name ?? "—")],
+                ["Purok", String(form.zone_purok ?? "—")],
+                ["Address", [form.address_unit, form.address_house_lot, form.address_street]
+                  .map((x) => String(x ?? "").trim()).filter(Boolean).join(", ") || "—"],
+                ["Respondent", String(form.respondent_name ?? "—")],
+                ["Total members", String(filledLines)],
+              ].map(([label, value]) => (
+                <div key={label} className="flex justify-between gap-4">
+                  <dt className="text-gray-500">{label}</dt>
+                  <dd className="text-right font-medium text-dark">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+
+          <div className="rounded-xl border border-gray p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+              Consent &amp; Encoding
+            </p>
+            <dl className="mt-2 space-y-1.5 text-sm">
+              {[
+                ["Consent given", form.consent_given ? "Yes" : "No"],
+                ["Name on consent", String(form.consent_name || form.respondent_name || "—")],
+                ["Date encoded", String(form.date_encoded ?? "—").slice(0, 10)],
+                ["Encoder", String(form.encoder_name ?? "—")],
+                ["Supervisor", String(form.supervisor_name ?? "—")],
+              ].map(([label, value]) => (
+                <div key={label} className="flex justify-between gap-4">
+                  <dt className="text-gray-500">{label}</dt>
+                  <dd className="text-right font-medium text-dark">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
         </div>
 
         <div className="max-h-[24rem] space-y-2 overflow-y-auto">

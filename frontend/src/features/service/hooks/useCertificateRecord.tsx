@@ -540,6 +540,52 @@ export function useCertificateRecord(ctx: CertificateRowsState) {
       // keep the list-row data if the detail fetch fails
     }
   };
+  const confirmDeath = async (certificate: Certificate) => {
+    const confirmed = await confirmAction({
+      title: "Confirm Death of Resident?",
+      text: "Confirming death will permanently update the resident's status to Deceased in the official Population register, deactivate their portal account, and end any active marriage records. Are you sure you want to proceed?",
+      confirmText: "Yes, Confirm Death",
+      cancelText: "Cancel",
+    });
+    if (!confirmed) return;
+
+    try {
+      const response = await serviceApi.confirmDeath(certificate.id);
+      toast(response.data.message);
+      if (detail && detail.id === certificate.id) {
+        setDetail({
+          ...detail,
+          template_fields: {
+            ...detail.template_fields,
+            death_confirmed: "1",
+            death_confirmed_at: new Date().toISOString(),
+          },
+        });
+      }
+      load(true);
+    } catch (err) {
+      toast(errorMessage(err), "error");
+    }
+  };
+
+  const rejectCertificate = async (certificate: Certificate) => {
+    const reason = window.prompt("Reject this Certification of Death request? Please state the reason for rejection (this will be sent to the resident):");
+    if (reason === null) return;
+    if (!reason.trim()) {
+      toast("A rejection reason is required.", "error");
+      return;
+    }
+
+    try {
+      const response = await serviceApi.rejectCertificate(certificate.id, { reason: reason.trim() });
+      toast(response.data.message);
+      setDetail(null);
+      load(true);
+    } catch (err) {
+      toast(errorMessage(err), "error");
+    }
+  };
+
   /** The buttons that make sense for a certificate at its current stage. */
   const actionsFor = (c: Certificate, size: "sm" | "lg") => {
     const base =
@@ -550,12 +596,27 @@ export function useCertificateRecord(ctx: CertificateRowsState) {
     const outline = `${base} border border-primary/40 text-primary hover:bg-primary hover:text-white`;
     const success = `${base} bg-success text-white hover:opacity-90`;
     const quiet = `${base} border border-gray text-gray-500 hover:border-primary hover:text-primary`;
+    const danger = `${base} border border-danger/40 text-danger hover:bg-danger hover:text-white`;
+    const warning = `${base} bg-warning text-white hover:bg-warning-dark`;
+
+    const isDeathCert = c.certificate_type === "Certification of Death";
+    const deathConfirmed = Boolean(c.template_fields?.death_confirmed);
 
     return (
       <>
+        {isDeathCert && !deathConfirmed && c.status !== "Cancelled" && (
+          <button type="button" onClick={() => confirmDeath(c)} className={warning}>
+            Verify &amp; Confirm Death
+          </button>
+        )}
+        {isDeathCert && ["Pending", "Processing"].includes(c.status) && (
+          <button type="button" onClick={() => rejectCertificate(c)} className={danger}>
+            Reject
+          </button>
+        )}
         {c.status === "Pending" && (
           <button type="button" onClick={() => act(c, "accept")} className={primary}>
-            Accept &amp; start
+            {isDeathCert ? "Accept & process" : "Accept & start"}
           </button>
         )}
         {c.status === "Processing" && (
@@ -580,12 +641,6 @@ export function useCertificateRecord(ctx: CertificateRowsState) {
             </button>
           </>
         )}
-        {/*
-          No cancel. The office decided a filed request is not withdrawn —
-          it is worked, or it waits. A certificate already Cancelled keeps
-          that status and stays findable; what has gone is the ability to
-          put a new one there.
-        */}
       </>
     );
   };
@@ -594,7 +649,7 @@ export function useCertificateRecord(ctx: CertificateRowsState) {
     detail, setDetail, editingDetail, setEditingDetail, detailType, setDetailType,
     detailPurpose, setDetailPurpose, asksPurpose, openDetailEdit, saveDetailEdit, PROMPTS, act,
     photoFile, setPhotoFile, photoUpload, attachPhoto, printAndFinish, openDetail, actionsFor,
-    saveDetailFields, detailDraft, siblings,
+    saveDetailFields, detailDraft, siblings, confirmDeath, rejectCertificate,
   };
 }
 

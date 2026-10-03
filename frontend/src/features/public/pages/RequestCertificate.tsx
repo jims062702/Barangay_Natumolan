@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import axios from "axios";
-import { FiArrowLeft, FiCheckCircle, FiFileText, FiSend } from "react-icons/fi";
+import { FiAlertTriangle, FiArrowLeft, FiCheckCircle, FiFileText, FiInfo, FiSearch, FiSend, FiUser, FiX } from "react-icons/fi";
 import { Link, useSearchParams } from "react-router-dom";
 import { errorMessage } from "../../../shared/lib/api";
 import { toast } from "../../../shared/lib/toast";
@@ -16,6 +16,19 @@ import {
 import type { CertificateService } from "../../portal/types";
 import logo from "../../../assets/logo/barangay-logo.png";
 import { publicApi } from "../api";
+
+interface DeceasedSearchMatch {
+  id: number;
+  full_name: string;
+  resident_number: string;
+  birthdate?: string | null;
+  age?: number | null;
+  address?: string;
+  zone_purok?: string | null;
+  life_status?: string;
+  is_deceased?: boolean;
+  relationship?: string | null;
+}
 
 /** One detail the certificate prints about the person, and whether their record has it. */
 interface Need {
@@ -65,6 +78,24 @@ export default function RequestCertificate() {
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const upload = useUpload();
 
+  const [deceasedResidentId, setDeceasedResidentId] = useState("");
+  const [deceasedName, setDeceasedName] = useState("");
+  const [deceasedAge, setDeceasedAge] = useState("");
+  const [deceasedAddress, setDeceasedAddress] = useState("");
+  const [dateOfDeath, setDateOfDeath] = useState("");
+  const [timeOfDeath, setTimeOfDeath] = useState("");
+  const [placeOfDeath, setPlaceOfDeath] = useState("");
+  const [relationshipToDeceased, setRelationshipToDeceased] = useState("");
+  const [dirtyRelationship, setDirtyRelationship] = useState(false);
+  const [dirtyAge, setDirtyAge] = useState(false);
+  const [dirtyAddress, setDirtyAddress] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<DeceasedSearchMatch[]>([]);
+  const [searchingDeceased, setSearchingDeceased] = useState(false);
+  const [showDeceasedDropdown, setShowDeceasedDropdown] = useState(false);
+  const deceasedDropdownRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     publicApi.certificateServices()
       .then((r) => {
@@ -82,7 +113,7 @@ export default function RequestCertificate() {
 
   /* What this certificate needs about them — asked again whenever the card or the certificate changes. */
   useEffect(() => {
-    if (!code || !serviceType) {
+    if (!code || !serviceType || serviceType === "Certification of Death") {
       setNeeds(null);
       return;
     }
@@ -105,6 +136,65 @@ export default function RequestCertificate() {
     return () => { live = false; };
   }, [code, serviceType]);
 
+  useEffect(() => {
+    if (!code || serviceType !== "Certification of Death") {
+      setSearchResults([]);
+      return;
+    }
+    let active = true;
+    setSearchingDeceased(true);
+    const timer = setTimeout(() => {
+      publicApi.searchDeceased({ resident_card_code: code, query: searchQuery.trim() })
+        .then((res) => {
+          if (!active) return;
+          setSearchResults((res.data?.data ?? []) as DeceasedSearchMatch[]);
+        })
+        .catch(() => {
+          if (active) setSearchResults([]);
+        })
+        .finally(() => {
+          if (active) setSearchingDeceased(false);
+        });
+    }, searchQuery ? 250 : 0);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [code, serviceType, searchQuery]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (deceasedDropdownRef.current && !deceasedDropdownRef.current.contains(event.target as Node)) {
+        setShowDeceasedDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSelectDeceased = (r: DeceasedSearchMatch) => {
+    setDeceasedResidentId(String(r.id));
+    setDeceasedName(r.full_name);
+    if (!dirtyAge && r.age !== null && r.age !== undefined) {
+      setDeceasedAge(String(r.age));
+    }
+    if (!dirtyAddress && r.address) {
+      setDeceasedAddress(r.address);
+    }
+    if (!dirtyRelationship && r.relationship) {
+      setRelationshipToDeceased(r.relationship);
+    }
+    setShowDeceasedDropdown(false);
+    setSearchQuery("");
+  };
+
+  const handleClearDeceased = () => {
+    setDeceasedResidentId("");
+    setDeceasedName("");
+    setSearchQuery("");
+  };
+
   const missing = (needs ?? []).filter((n) => !n.on_record);
   const fee = useMemo(() => {
     if (!chosen) return null;
@@ -116,22 +206,48 @@ export default function RequestCertificate() {
     return list && Object.prototype.hasOwnProperty.call(list, answer) ? list[answer] : chosen.other_fee ?? null;
   }, [chosen, purpose, businessKind]);
 
-  const purposeOk = chosen?.asks_purpose === false || purpose.trim() !== "";
+  const isDeathCert = serviceType === "Certification of Death";
+  const deathCertOk = Boolean(
+    deceasedResidentId &&
+    relationshipToDeceased.trim() &&
+    deceasedAge.trim() &&
+    deceasedAddress.trim() &&
+    dateOfDeath.trim() &&
+    timeOfDeath.trim() &&
+    placeOfDeath.trim()
+  );
+
+  const purposeOk = chosen?.asks_purpose === false || isDeathCert || purpose.trim() !== "";
   const businessOk = chosen?.fee_from !== "business" || (businessName.trim() !== "" && businessKind.trim() !== "");
-  const detailsOk = missing.every((n) => (details[n.field] ?? "").trim() !== "");
-  const complete = Boolean(code && chosen && needs !== null && purposeOk && businessOk && detailsOk);
+  const detailsOk = isDeathCert || missing.every((n) => (details[n.field] ?? "").trim() !== "");
+  const complete = Boolean(code && chosen && (isDeathCert ? deathCertOk : (needs !== null && purposeOk && businessOk && detailsOk)));
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!complete || !chosen) return;
     setSending(true);
     try {
+      const templateFields = isDeathCert
+        ? {
+            deceased_resident_id: deceasedResidentId,
+            deceased_name: deceasedName,
+            deceased_age: deceasedAge,
+            deceased_address: deceasedAddress,
+            date_of_death: dateOfDeath,
+            time_of_death: timeOfDeath,
+            place_of_death: placeOfDeath,
+            relationship_to_deceased: relationshipToDeceased,
+          }
+        : chosen.fee_from === "business"
+        ? { business_name: businessName.trim(), business_kind: businessKind.trim() }
+        : undefined;
+
       const r = await publicApi.sendCertificateRequest({
         resident_card_code: code,
         service_type: chosen.certificate_type,
-        purpose: chosen.asks_purpose === false ? undefined : purpose.trim(),
-        template_fields: chosen.fee_from === "business" ? { business_name: businessName.trim(), business_kind: businessKind.trim() } : undefined,
-        details: Object.fromEntries(missing.map((n) => [n.field, (details[n.field] ?? "").trim()])),
+        purpose: chosen.asks_purpose === false || isDeathCert ? undefined : purpose.trim(),
+        template_fields: templateFields,
+        details: isDeathCert ? {} : Object.fromEntries(missing.map((n) => [n.field, (details[n.field] ?? "").trim()])),
       });
       setReceipt({ ...r.data.data, message: r.data.message });
     } catch (err) {
@@ -274,7 +390,247 @@ export default function RequestCertificate() {
                   </div>
                 </section>
 
-                {chosen && (
+                {chosen && isDeathCert ? (
+                  <section className={section} data-testid="certificate-details">
+                    <h2 className="text-base font-bold text-dark">3. Deceased &amp; Death Information</h2>
+                    <p className="mt-1 mb-4 text-sm leading-relaxed text-gray-500">
+                      Search and select the deceased resident from the official register and provide the required death certificate information.
+                    </p>
+
+                    <div className="space-y-4">
+                      {/* Notice Banner */}
+                      <div className="flex items-start gap-2.5 rounded-xl border border-primary/30 bg-primary/10 p-3 text-xs leading-relaxed text-dark">
+                        <FiInfo className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                        <div>
+                          <p className="font-semibold text-primary">Important Review Notice</p>
+                          <p className="text-gray-600">
+                            This request will be verified and reviewed by the Barangay Office. Submitting this request does <strong>not</strong> immediately mark the resident as deceased in official records.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Requester Identity display */}
+                      <div className="flex items-center justify-between rounded-xl border border-gray bg-secondary/30 px-3.5 py-2.5">
+                        <div>
+                          <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Requested by</span>
+                          <p className="text-sm font-bold text-dark">
+                            {residentId.maskedName || "Verified Cardholder"}
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-success/10 px-2.5 py-1 text-xs font-medium text-success">
+                          Verified Resident ID
+                        </span>
+                      </div>
+
+                      {/* Deceased Resident Search */}
+                      <div className="relative" ref={deceasedDropdownRef}>
+                        <FormField
+                          label="Name of the deceased"
+                          required
+                          hint={deceasedResidentId ? "Selected resident from official records" : "Type to search registered residents"}
+                        >
+                          {deceasedResidentId && deceasedName ? (
+                            <div className="flex items-center justify-between rounded-xl border border-primary/40 bg-white px-3 py-2">
+                              <div className="flex items-center gap-2">
+                                <FiUser className="h-4 w-4 text-primary" aria-hidden="true" />
+                                <span className="text-sm font-semibold text-dark">{deceasedName}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={handleClearDeceased}
+                                className="cursor-pointer text-xs font-semibold text-gray-400 hover:text-danger"
+                                aria-label="Change deceased resident"
+                              >
+                                <FiX className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="relative">
+                              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                <FiSearch className="h-4 w-4 text-gray-400" aria-hidden="true" />
+                              </div>
+                              <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => {
+                                  setSearchQuery(e.target.value);
+                                  setShowDeceasedDropdown(true);
+                                }}
+                                onFocus={() => setShowDeceasedDropdown(true)}
+                                placeholder="Type resident's name to search…"
+                                className={`${inputClasses} pl-9`}
+                              />
+                            </div>
+                          )}
+                        </FormField>
+
+                        {/* Search Dropdown */}
+                        {showDeceasedDropdown && !deceasedResidentId && (
+                          <div className="absolute z-30 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-gray bg-white p-1.5 shadow-lg">
+                            {searchingDeceased ? (
+                              <p className="p-3 text-center text-xs text-gray-500">Searching records…</p>
+                            ) : searchResults.length === 0 ? (
+                              <p className="p-3 text-center text-xs text-gray-500">
+                                {searchQuery ? "No matching resident found on the register." : "No family members found to suggest. Type to search."}
+                              </p>
+                            ) : (
+                              <ul className="space-y-1">
+                                {searchResults.map((r) => (
+                                  <li key={r.id}>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSelectDeceased(r)}
+                                      className="flex w-full cursor-pointer flex-col rounded-lg px-3 py-2 text-left hover:bg-secondary transition-colors"
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-sm font-semibold text-dark">{r.full_name}</span>
+                                        {r.relationship && (
+                                          <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+                                            {r.relationship}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                                        {r.age !== null && r.age !== undefined && <span>{r.age} yrs old</span>}
+                                        {r.zone_purok && <span>Zone {r.zone_purok}</span>}
+                                        {(r.is_deceased || r.life_status === "Deceased") && (
+                                          <span className="flex items-center gap-1 text-warning">
+                                            <FiAlertTriangle className="h-3 w-3" /> Already recorded as Deceased
+                                          </span>
+                                        )}
+                                      </div>
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        {/* Relationship */}
+                        <FormField
+                          label="Your relationship to the deceased"
+                          required
+                          hint="e.g. Spouse, Child, Parent, Sibling"
+                        >
+                          <input
+                            list="public-death-cert-relationships"
+                            value={relationshipToDeceased}
+                            onChange={(e) => {
+                              setDirtyRelationship(true);
+                              setRelationshipToDeceased(e.target.value);
+                            }}
+                            required
+                            className={inputClasses}
+                            placeholder="e.g. Spouse, Child, Parent"
+                          />
+                          <datalist id="public-death-cert-relationships">
+                            <option value="Spouse" />
+                            <option value="Child" />
+                            <option value="Parent" />
+                            <option value="Sibling" />
+                            <option value="Grandchild" />
+                            <option value="Grandparent" />
+                            <option value="Relative" />
+                            <option value="Guardian" />
+                            <option value="Legal Representative" />
+                          </datalist>
+                        </FormField>
+
+                        {/* Age of Deceased */}
+                        <FormField
+                          label="Age of the deceased"
+                          required
+                          hint="Auto-filled from records. Editable if needed."
+                        >
+                          <input
+                            type="number"
+                            min="0"
+                            max="150"
+                            value={deceasedAge}
+                            onChange={(e) => {
+                              setDirtyAge(true);
+                              setDeceasedAge(e.target.value);
+                            }}
+                            required
+                            className={inputClasses}
+                            placeholder="e.g. 70"
+                          />
+                        </FormField>
+
+                        {/* Address of Deceased */}
+                        <div className="sm:col-span-2">
+                          <FormField
+                            label="Address of the deceased"
+                            required
+                            hint="Auto-filled from records. Editable if needed."
+                          >
+                            <input
+                              value={deceasedAddress}
+                              onChange={(e) => {
+                                setDirtyAddress(true);
+                                setDeceasedAddress(e.target.value);
+                              }}
+                              required
+                              className={inputClasses}
+                              placeholder="e.g. Zone 2, Barangay Natumolan"
+                            />
+                          </FormField>
+                        </div>
+
+                        {/* Date of death */}
+                        <FormField
+                          label="Date of death"
+                          required
+                          hint="Actual date of death"
+                        >
+                          <input
+                            type="date"
+                            max={new Date().toISOString().slice(0, 10)}
+                            value={dateOfDeath}
+                            onChange={(e) => setDateOfDeath(e.target.value)}
+                            required
+                            className={inputClasses}
+                          />
+                        </FormField>
+
+                        {/* Time of death */}
+                        <FormField
+                          label="Time of death"
+                          required
+                          hint="e.g. 10:30 AM or 3:00 PM"
+                        >
+                          <input
+                            value={timeOfDeath}
+                            onChange={(e) => setTimeOfDeath(e.target.value)}
+                            required
+                            className={inputClasses}
+                            placeholder="e.g. 10:30 AM"
+                          />
+                        </FormField>
+
+                        {/* Place of death */}
+                        <div className="sm:col-span-2">
+                          <FormField
+                            label="Place of death"
+                            required
+                            hint="Exact place of death (home, hospital, municipality/city)"
+                          >
+                            <input
+                              value={placeOfDeath}
+                              onChange={(e) => setPlaceOfDeath(e.target.value)}
+                              required
+                              className={inputClasses}
+                              placeholder="e.g. Northern Mindanao Medical Center, Cagayan de Oro City"
+                            />
+                          </FormField>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                ) : chosen ? (
                   <section className={section} data-testid="certificate-details">
                     <h2 className="text-base font-bold text-dark">3. What the certificate states about you</h2>
                     <p className="mt-1 mb-4 text-sm leading-relaxed text-gray-500">
@@ -331,7 +687,7 @@ export default function RequestCertificate() {
                       </ul>
                     )}
                   </section>
-                )}
+                ) : null}
               </>
             )}
 

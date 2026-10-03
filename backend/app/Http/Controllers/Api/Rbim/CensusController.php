@@ -107,6 +107,13 @@ class CensusController extends BaseController
             $members = $validated['members'] ?? [];
             unset($validated['members']);
 
+            $validated['date_encoded'] = $validated['date_encoded'] ?? now()->toDateString();
+            $validated['encoder_name'] = $validated['encoder_name'] ?? auth()->user()?->name;
+            $validated['supervisor_name'] = $validated['supervisor_name'] ?? auth()->user()?->name;
+            if (empty($validated['consent_name']) && !empty($validated['respondent_name'])) {
+                $validated['consent_name'] = $validated['respondent_name'];
+            }
+
             $census = Census::create($validated + [
                 // ?? not ?: — a nullable rule leaves the key ABSENT when
                 // nothing was sent, and reading it directly is a 500 at the
@@ -150,6 +157,10 @@ class CensusController extends BaseController
         DB::transaction(function () use ($validated, $rbimCensus) {
             $members = $validated['members'] ?? null;
             unset($validated['members']);
+
+            if (empty($validated['consent_name']) && !empty($validated['respondent_name'])) {
+                $validated['consent_name'] = $validated['respondent_name'];
+            }
 
             $rbimCensus->update($validated);
 

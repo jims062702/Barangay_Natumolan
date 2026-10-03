@@ -45,15 +45,37 @@ const monthYear = (ymd: string) => {
   return `${new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long" })}, ${y}`;
 };
 
-/** "09:00:00" → "9:00 o'clock in the morning" — the form says it in words. */
-function clockInWords(iso: string): string {
-  const hh = Number(iso.slice(11, 13));
-  const mm = iso.slice(14, 16) || "00";
-  if (Number.isNaN(hh)) return "____ o'clock";
-  const h12 = hh % 12 === 0 ? 12 : hh % 12;
-  /* The handbook's own phrasing: forenoon and afternoon, not AM and PM. */
-  const half = hh < 12 ? "in the forenoon" : "in the afternoon";
-  return `${h12}:${mm} o'clock ${half}`;
+/** Formats clock time to 12-hour AM/PM string, e.g. "8:00 AM" */
+export function formatScheduleTime(iso?: string | null): string {
+  if (!iso) return "";
+  const timePart = iso.includes("T") ? iso.slice(11, 16) : iso.slice(0, 5);
+  const [hStr, mStr] = timePart.split(":");
+  const h = Number(hStr);
+  const m = mStr ?? "00";
+  if (Number.isNaN(h)) return "";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  const ampm = h < 12 ? "AM" : "PM";
+  return `${h12}:${m} ${ampm}`;
+}
+
+/** Formats hearing schedule start and end time range, e.g. "8:00 AM – 10:00 AM" */
+export function formatHearingRange(h: LuponHearing): string {
+  if (h.schedule_time_range) return h.schedule_time_range;
+  const start = formatScheduleTime(h.scheduled_at);
+  if (h.scheduled_end_at) {
+    const end = formatScheduleTime(h.scheduled_end_at);
+    return `${start} – ${end}`;
+  }
+  const d = new Date(h.scheduled_at);
+  if (!Number.isNaN(d.getTime())) {
+    d.setMinutes(d.getMinutes() + 120);
+    const endH = d.getHours();
+    const endM = String(d.getMinutes()).padStart(2, "0");
+    const h12 = endH % 12 === 0 ? 12 : endH % 12;
+    const ampm = endH < 12 ? "AM" : "PM";
+    return `${start} – ${h12}:${endM} ${ampm}`;
+  }
+  return start;
 }
 
 /*
@@ -247,7 +269,7 @@ function noticeOfHearing(p: KpFormPayload, h: LuponHearing, names: KpNames): Pap
       ${parties.map((x) => `<p class="addr"><span class="b">${e(x.name)}</span><br/>${e(x.address)}</p>`).join("")}
     </div>
 
-    <p class="body">You are hereby notified to appear before me on the <span class="u b">${ordinalDay(h.scheduled_at)}</span> day of <span class="u b">${monthYear(h.scheduled_at)}</span>, at <span class="u b">${clockInWords(h.scheduled_at)}</span>, at the ${e(where.office)}, Barangay Natumolan, Tagoloan, Misamis Oriental, for the ${e(where.act)} of your dispute.</p>
+    <p class="body">You are hereby notified to appear before me on the <span class="u b">${ordinalDay(h.scheduled_at)}</span> day of <span class="u b">${monthYear(h.scheduled_at)}</span>, at <span class="u b">${formatHearingRange(h)}</span>, at the ${e(where.office)}, Barangay Natumolan, Tagoloan, Misamis Oriental, for the ${e(where.act)} of your dispute.</p>
 
     <p class="warn">You are further notified to appear IN PERSON, without the assistance of counsel or representative, except for minors and incompetents who may be assisted by their next of kin who are not lawyers.</p>
 
@@ -276,7 +298,7 @@ function summons(p: KpFormPayload, h: LuponHearing, names: KpNames): Paper {
       ).map((x) => `<p class="addr"><span class="b">${e(x.name)}</span><br/>${e(x.address)}</p>`).join("")}
     </div>
 
-    <p class="body">You are hereby summoned to appear before me in person, together with your witnesses, on the <span class="u b">${ordinalDay(h.scheduled_at)}</span> day of <span class="u b">${monthYear(h.scheduled_at)}</span>, at <span class="u b">${clockInWords(h.scheduled_at)}</span>, at the ${e(where.office)}, Barangay Natumolan, Tagoloan, Misamis Oriental, then and there to answer to a complaint made before me, a copy of which is attached hereto, for ${e(where.act)} of your dispute with the complainant.</p>
+    <p class="body">You are hereby summoned to appear before me in person, together with your witnesses, on the <span class="u b">${ordinalDay(h.scheduled_at)}</span> day of <span class="u b">${monthYear(h.scheduled_at)}</span>, at <span class="u b">${formatHearingRange(h)}</span>, at the ${e(where.office)}, Barangay Natumolan, Tagoloan, Misamis Oriental, then and there to answer to a complaint made before me, a copy of which is attached hereto, for ${e(where.act)} of your dispute with the complainant.</p>
 
     <p class="warn">You are hereby warned that if you refuse or wilfully fail to appear in obedience to this summons, you may be barred from filing any counterclaim arising from the said complaint.</p>
 

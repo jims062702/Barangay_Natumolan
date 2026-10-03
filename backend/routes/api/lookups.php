@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Route;
 | It returns identity fields only — never the browsable registry.
 */
 Route::get('residents/search', [ResidentController::class, 'search']);
+Route::get('residents/{resident}/relationship/{other}', [ResidentController::class, 'relationship']);
 
 /*
  | The register in pages, for a device that keeps working offline.

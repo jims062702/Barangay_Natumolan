@@ -72,6 +72,41 @@ class StoreCertificateRequest extends FormRequest
         ];
     }
 
+    public function withValidator(\Illuminate\Validation\Validator $validator): void
+    {
+        $validator->after(function (\Illuminate\Validation\Validator $v) {
+            if ($this->input('certificate_type') === 'Certification of Death') {
+                $tf = $this->input('template_fields', []);
+                $deceasedId = $tf['deceased_resident_id'] ?? null;
+                $requesterId = $this->input('resident_id');
+
+                if (! $deceasedId) {
+                    $v->errors()->add('template_fields.deceased_resident_id', 'Please search and select the deceased resident.');
+                } elseif ($requesterId && (int) $deceasedId === (int) $requesterId) {
+                    $v->errors()->add('template_fields.deceased_resident_id', 'The deceased resident cannot be the same person as the requester.');
+                }
+
+                if (empty($tf['date_of_death'])) {
+                    $v->errors()->add('template_fields.date_of_death', 'Date of death is required.');
+                } elseif ($tf['date_of_death'] > \App\Support\ManilaTime::today()) {
+                    $v->errors()->add('template_fields.date_of_death', 'Date of death cannot be in the future.');
+                }
+
+                if (empty($tf['time_of_death']) || trim($tf['time_of_death']) === '') {
+                    $v->errors()->add('template_fields.time_of_death', 'Time of death is required.');
+                }
+
+                if (empty($tf['place_of_death']) || trim($tf['place_of_death']) === '') {
+                    $v->errors()->add('template_fields.place_of_death', 'Place of death is required.');
+                }
+
+                if (empty($tf['relationship_to_deceased']) || trim($tf['relationship_to_deceased']) === '') {
+                    $v->errors()->add('template_fields.relationship_to_deceased', 'Relationship to the deceased is required.');
+                }
+            }
+        });
+    }
+
     public function messages(): array
     {
         return [

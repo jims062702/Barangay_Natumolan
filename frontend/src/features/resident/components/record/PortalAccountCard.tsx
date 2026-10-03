@@ -1,7 +1,12 @@
+import { useState } from "react";
 import Card from "../../../../shared/ui/Card";
 import type { Resident } from "../../../../shared/types";
 import { Row } from "./Row";
 import type { ResidentRecordState } from "../../hooks/useResidentRecord";
+import { populationApi } from "../../../population/api";
+import { toast } from "../../../../shared/lib/toast";
+import { errorMessage } from "../../../../shared/lib/api";
+import { confirmAction } from "../../../../shared/lib/confirm";
 
 /**
  * The resident's portal account: whether it exists, and whether it is in use.
@@ -15,7 +20,32 @@ export function PortalAccountCard({ ctx, account, activated, resident }: {
   activated: boolean;
   resident: Resident;
 }) {
-  const { resendActivation, setAccountEmail, setAccountOpen } = ctx;
+  const { resendActivation, setAccountEmail, setAccountOpen, load } = ctx;
+  const [toggling, setToggling] = useState(false);
+
+  const toggleStatus = async () => {
+    if (!account) return;
+    const confirmed = await confirmAction({
+      title: `${account.is_active ? "Disable" : "Enable"} portal sign-in?`,
+      text: account.is_active
+        ? `This will prevent ${resident.first_name} ${resident.last_name} (${account.email}) from logging into their resident portal.`
+        : `This will re-enable portal sign-in for ${resident.first_name} ${resident.last_name} (${account.email}).`,
+      confirmText: account.is_active ? "Disable sign-in" : "Enable sign-in",
+      danger: account.is_active,
+    });
+    if (!confirmed) return;
+
+    setToggling(true);
+    try {
+      const response = await populationApi.toggleAccountStatus(account.id);
+      toast(response.data.message);
+      load();
+    } catch (err) {
+      toast(errorMessage(err), "error");
+    } finally {
+      setToggling(false);
+    }
+  };
 
   return (
     <div className="mt-6">
@@ -23,7 +53,26 @@ export function PortalAccountCard({ ctx, account, activated, resident }: {
         {account ? (
           <div className="space-y-3">
             <Row label="Login email" value={account.email} />
-            <Row label="Sign-in enabled" value={account.is_active ? "Yes" : "No — disabled by this office"} />
+            <div className="flex items-center justify-between border-b border-gray/60 py-2.5 text-sm last:border-0">
+              <span className="text-gray-500">Sign-in enabled</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-dark">
+                  {account.is_active ? "Yes" : "No — disabled by this office"}
+                </span>
+                <button
+                  type="button"
+                  disabled={toggling}
+                  onClick={toggleStatus}
+                  className={`inline-flex cursor-pointer items-center rounded-full px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50 ${
+                    account.is_active
+                      ? "border border-danger/40 text-danger hover:bg-danger hover:text-white"
+                      : "bg-primary text-white hover:bg-primary-dark"
+                  }`}
+                >
+                  {toggling ? "Saving…" : account.is_active ? "Disable sign-in" : "Enable sign-in"}
+                </button>
+              </div>
+            </div>
             <Row
               label="Email verified"
               value={

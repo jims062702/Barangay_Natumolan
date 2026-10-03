@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { FiAlertCircle, FiBookOpen, FiCalendar, FiClock } from "react-icons/fi";
 import { Link } from "react-router-dom";
-import { formatWallClock } from "../../../shared/lib/datetime";
+import { formatWallClock, parseWallClock } from "../../../shared/lib/datetime";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { usePulse } from "../../../shared/hooks/usePulse";
 import { PageLoading, settleAll, usePageLoad } from "../../../shared/ui/PageLoad";
@@ -71,31 +71,126 @@ export default function LuponDashboard() {
       </RevealGroup>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <Card title="Upcoming hearings">
-          {(deadlines?.upcoming_hearings ?? []).length === 0 ? (
-            <p className="py-6 text-center text-sm text-gray-400">No hearings scheduled.</p>
-          ) : (
-            <ul className="divide-y divide-gray/70">
-              {deadlines?.upcoming_hearings.map((hearing) => (
-                <li key={hearing.id} className="flex items-center justify-between gap-3 py-3">
-                  <div>
-                    <p className="text-sm font-semibold text-dark">
-                      {hearing.lupon_case?.case_number} — {hearing.hearing_type}
-                    </p>
-                    <p className="text-xs text-gray-500">{hearing.lupon_case?.case_title}</p>
+        <Card title="Hearings schedule">
+          {(() => {
+            const upcoming = deadlines?.upcoming_hearings ?? [];
+            const pbHearings = upcoming.filter((h) => h.hearing_type === "Mediation");
+            const luponHearings = upcoming.filter((h) => h.hearing_type === "Conciliation");
+
+            if (upcoming.length === 0) {
+              return <p className="py-6 text-center text-sm text-gray-400">No hearings scheduled.</p>;
+            }
+
+            return (
+              <div className="space-y-5">
+                {/* Punong Barangay section */}
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-dark">Punong Barangay (Tuesday)</span>
+                    <span className="text-[11px] text-gray-500 font-medium">{pbHearings.length} scheduled</span>
                   </div>
-                  <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                    {formatWallClock(hearing.scheduled_at, {
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+                  {pbHearings.length === 0 ? (
+                    <p className="rounded-lg bg-gray-50 p-2.5 text-xs text-gray-400">No Punong Barangay hearings scheduled.</p>
+                  ) : (
+                    <ul className="divide-y divide-gray/70">
+                      {pbHearings.map((h) => {
+                        const hearingDate = parseWallClock(h.scheduled_at);
+                        const dateFormatted = hearingDate && !isNaN(hearingDate.getTime())
+                          ? hearingDate.toLocaleDateString("en-PH", {
+                              weekday: "long",
+                              month: "short",
+                              day: "numeric",
+                            })
+                          : "";
+                        const timeText = dateFormatted
+                          ? `${dateFormatted} · ${h.schedule_time_range || formatWallClock(h.scheduled_at)}`
+                          : (h.formatted_schedule ?? formatWallClock(h.scheduled_at, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }));
+
+                        return (
+                          <li key={h.id} className="flex items-center justify-between gap-3 py-2.5">
+                            <div>
+                              <p className="text-sm font-semibold text-dark">
+                                {timeText}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {h.lupon_case?.id ? (
+                                  <Link
+                                    to={`/lupon/cases/${h.lupon_case.id}`}
+                                    className="font-semibold text-primary hover:underline"
+                                  >
+                                    {h.lupon_case.case_number}
+                                  </Link>
+                                ) : (
+                                  <span className="font-semibold text-primary">{h.lupon_case?.case_number}</span>
+                                )}
+                                {h.lupon_case?.case_title ? ` · ${h.lupon_case.case_title}` : ""}
+                              </p>
+                            </div>
+                            <span className="shrink-0 rounded bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 border border-blue-200">
+                              {h.schedule_time_range ?? "2 hrs"}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+
+                {/* Lupon section */}
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-dark">Lupon (Thursday)</span>
+                    <span className="text-[11px] text-gray-500 font-medium">{luponHearings.length} scheduled (Max 7/day)</span>
+                  </div>
+                  {luponHearings.length === 0 ? (
+                    <p className="rounded-lg bg-gray-50 p-2.5 text-xs text-gray-400">No Lupon hearings scheduled.</p>
+                  ) : (
+                    <ul className="divide-y divide-gray/70">
+                      {luponHearings.map((h) => {
+                        const hearingDate = parseWallClock(h.scheduled_at);
+                        const dateFormatted = hearingDate && !isNaN(hearingDate.getTime())
+                          ? hearingDate.toLocaleDateString("en-PH", {
+                              weekday: "long",
+                              month: "short",
+                              day: "numeric",
+                            })
+                          : "";
+                        const timeText = dateFormatted
+                          ? `${dateFormatted} · ${h.schedule_time_range || formatWallClock(h.scheduled_at)}`
+                          : (h.formatted_schedule ?? formatWallClock(h.scheduled_at, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }));
+
+                        return (
+                          <li key={h.id} className="flex items-center justify-between gap-3 py-2.5">
+                            <div>
+                              <p className="text-sm font-semibold text-dark">
+                                {timeText}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {h.lupon_case?.id ? (
+                                  <Link
+                                    to={`/lupon/cases/${h.lupon_case.id}`}
+                                    className="font-semibold text-primary hover:underline"
+                                  >
+                                    {h.lupon_case.case_number}
+                                  </Link>
+                                ) : (
+                                  <span className="font-semibold text-primary">{h.lupon_case?.case_number}</span>
+                                )}
+                                {h.lupon_case?.case_title ? ` · ${h.lupon_case.case_title}` : ""}
+                              </p>
+                            </div>
+                            <span className="shrink-0 rounded bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700 border border-purple-200">
+                              {h.schedule_time_range ?? "2 hrs"}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </Card>
 
         <Card title="10-day repudiation countdown">

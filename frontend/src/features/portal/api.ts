@@ -25,6 +25,8 @@ export const portalApi = {
     api.post("/portal/complaints", ...args),
   certificateServices: (...args: QueryArgs) =>
     api.get("/portal/certificate-services", ...args),
+  searchDeceased: (...args: QueryArgs) =>
+    api.get("/portal/death-certificate/deceased-search", ...args),
   dashboard: (...args: QueryArgs) =>
     api.get("/portal/dashboard", ...args),
   family: (...args: QueryArgs) =>

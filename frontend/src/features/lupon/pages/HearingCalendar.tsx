@@ -11,27 +11,26 @@ import { luponApi } from "../api";
 import { CaseFileModal } from "../components/hearings/CaseFileModal";
 import type { LuponCase, LuponHearing } from "../types";
 import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
+import { useAuth } from "../../../shared/auth/AuthContext";
 
 /**
- * The Punong Barangay's month, laid out as the hall reads it.
+ * The Punong Barangay's month (Tuesdays) or Lupon's conciliation month (Thursdays).
  *
- * THEY PRESIDE AND RECORD NOTHING. A paginated table with an Actions column
- * was the wrong shape for that job entirely: twenty rows of buttons they may
- * not press, and no way to see that next Tuesday carries four sittings while
- * the one after carries none. What the office asked for is the month —
- * which days the hall sits, at what hour, and who is coming — and a case
- * they can open to read the whole dispute before walking into the room.
- *
- * The Lupon reads the same screen. A case on its third Tuesday is a case
- * about to land on their desk, and an office that cannot see that coming
- * prepares nothing until it arrives.
- *
- * Nothing here writes. There is not a control on the page that changes a
- * date, a minute or a case.
+ * Distinct calendars per office:
+ * - Lupon: Thursday conciliation hearings for forwarded unsettled cases.
+ * - PB / Secretary: Tuesday mediation hearings.
  */
 export default function HearingCalendar() {
+  const { user } = useAuth();
+  const isPbUser = user?.role === "Punong Barangay";
+  const defaultType = (user?.office === "Lupon" && !isPbUser) ? "Conciliation" : "Mediation";
+  const [hearingType, setHearingType] = useState<"Mediation" | "Conciliation">(defaultType);
+
+  const isLupon = hearingType === "Conciliation";
+
   const [month, setMonth] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }).slice(0, 7));
   const [hearings, setHearings] = useState<LuponHearing[]>([]);
+  const [capacities, setCapacities] = useState<Record<string, { date: string; count: number; max: number; is_full: boolean }>>({});
   const [loading, setLoading] = useState(true);
   /* Its skeleton until the first answer — see PageLoad. */
   const pageLoad = usePageLoad();
@@ -39,9 +38,10 @@ export default function HearingCalendar() {
 
   const load = (silent = false) => {
     if (!silent) setLoading(true);
-    luponApi.hearingCalendar({ params: { month } })
+    luponApi.hearingCalendar({ params: { month, hearing_type: hearingType } })
       .then((r) => {
         setHearings(r.data.data.hearings ?? []);
+        setCapacities(r.data.data.capacities ?? {});
       })
       .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
       .catch(() => undefined)
@@ -51,7 +51,7 @@ export default function HearingCalendar() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [month]);
+  }, [month, hearingType]);
 
   useAutoRefresh(() => load(true), REFRESH.staff);
   usePulse("lupon_cases", () => load(true));
@@ -139,7 +139,7 @@ export default function HearingCalendar() {
       const h = Math.floor(mins / 60) % 24;
       return `${h % 12 === 0 ? 12 : h % 12}:${String(mins % 60).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
     };
-    return `${face(from)} – ${face(from + 90)}`;
+    return `${face(from)} – ${face(from + 120)}`;
   };
 
   if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => load()} />;
@@ -147,16 +147,55 @@ export default function HearingCalendar() {
   return (
     <div>
       <PageHeader
-        title="Hearing Schedule"
-        subtitle="The Punong Barangay's sittings, month by month — open a case to read it before the room"
+        title={isLupon ? "Lupon Hearings Calendar" : "Punong Barangay Hearings Calendar"}
+        subtitle={
+          isLupon
+            ? "Conciliation hearings on Thursdays for forwarded unsettled cases (Maximum 7 cases per Thursday)"
+            : "The Punong Barangay's mediation sittings on Tuesdays (Maximum 7 cases per Tuesday)"
+        }
       />
 
-      <div className="mb-6">
+      {/* Stage Switcher (punong barangay sees only PB; other staff can switch) */}
+      {!isPbUser && (
+        <div className="mb-5 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setHearingType("Mediation")}
+            className={`cursor-pointer rounded-full px-4 py-2 text-xs font-bold transition-all ${
+              !isLupon
+                ? "bg-primary text-white shadow-sm ring-2 ring-primary/20"
+                : "bg-white text-gray-600 border border-gray hover:bg-gray-50"
+            }`}
+          >
+            Punong Barangay (Tuesdays · Max 7 cases)
+          </button>
+          <button
+            type="button"
+            onClick={() => setHearingType("Conciliation")}
+            className={`cursor-pointer rounded-full px-4 py-2 text-xs font-bold transition-all ${
+              isLupon
+                ? "bg-purple-700 text-white shadow-sm ring-2 ring-purple-500/20"
+                : "bg-white text-gray-600 border border-gray hover:bg-gray-50"
+            }`}
+          >
+            Lupon (Thursdays · Max 7 cases)
+          </button>
+        </div>
+      )}
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-2">
         <StatTile
-          label={`Sittings in ${monthName}`}
+          label={`Scheduled Sittings in ${monthName}`}
           value={hearings.filter((h) => h.status === "Scheduled").length}
           icon={FiCalendar}
-          hint="Still to be held"
+          hint={isLupon ? "Thursday conciliations" : "Tuesday mediations"}
+        />
+        <StatTile
+          label="Daily Hearing Capacity"
+          value="7 cases max"
+          icon={FiCalendar}
+          tone="primary"
+          hint={isLupon ? "Strictly 7 active cases per Thursday" : "Strictly 7 active cases per Tuesday"}
         />
       </div>
 
@@ -184,12 +223,6 @@ export default function HearingCalendar() {
         {loading ? (
           /*
             THE MONTH, HELD OPEN.
-
-            A line of text reserved nothing, so the card was a hundred
-            pixels tall while the data came and then jumped to a thousand
-            — and the reader lost their place twice over, once when the
-            page chunk landed and again when the sittings did. The grid is
-            a fixed shape whatever comes back: six weeks of seven days.
           */
           <div className="overflow-x-auto" aria-hidden="true">
             <span role="status" aria-live="polite" className="sr-only">Loading the month</span>
@@ -215,32 +248,69 @@ export default function HearingCalendar() {
             <div className="min-w-[46rem]">
               <div className="grid grid-cols-7 gap-1.5 pb-1.5">
                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-                  <p key={d} className="px-1 text-center text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-                    {d}
+                  <p
+                    key={d}
+                    className={`px-1 text-center text-[11px] font-bold uppercase tracking-wide ${
+                      (!isLupon && d === "Tue") || (isLupon && d === "Thu")
+                        ? isLupon ? "text-purple-700 bg-purple-50 rounded py-0.5" : "text-primary bg-primary/10 rounded py-0.5"
+                        : "text-gray-400"
+                    }`}
+                  >
+                    {d} {((!isLupon && d === "Tue") || (isLupon && d === "Thu")) && "(Hearing Day)"}
                   </p>
                 ))}
               </div>
 
               <div className="grid grid-cols-7 gap-1.5">
-                {weeks.flat().map((cell) => (
-                  <div
-                    key={cell.key}
-                    /*
-                      NO MARK ON TODAY. It was a tinted cell with a coloured
-                      number, and the first person to open the month asked
-                      what the colour on the 25th meant — a mark nobody can
-                      read is not a mark, it is a question. The date is on
-                      the wall behind them.
-                    */
-                    className={`min-h-24 rounded-xl border p-1.5 ${
-                      cell.inMonth ? "border-gray bg-white" : "border-gray/40 bg-secondary/40"
-                    }`}
-                  >
-                    <p className={`px-0.5 text-xs font-semibold ${
-                      cell.inMonth ? "text-dark" : "text-gray-400"
-                    }`}>
-                      {cell.day}
-                    </p>
+                {weeks.flat().map((cell) => {
+                  const cellDate = new Date(`${cell.key}T00:00:00`);
+                  const dayOfWeek = cellDate.getDay(); // 0 = Sun, 2 = Tue, 4 = Thu
+                  const isHearingDay = !isLupon ? dayOfWeek === 2 : dayOfWeek === 4;
+                  const dayCap = capacities[cell.key];
+                  const scheduledCount = dayCap?.count ?? cell.sittings.filter((s) => s.status === "Scheduled").length;
+                  const isFull = dayCap?.is_full ?? scheduledCount >= 7;
+
+                  return (
+                    <div
+                      key={cell.key}
+                      className={`min-h-24 rounded-xl border p-1.5 transition-colors ${
+                        cell.inMonth
+                          ? isHearingDay
+                            ? isFull
+                              ? "border-rose-300 bg-rose-50/30"
+                              : "border-primary/30 bg-primary/[0.02]"
+                            : "border-gray bg-white"
+                          : "border-gray/40 bg-secondary/40"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between px-0.5 pb-1">
+                        <span
+                          className={`text-xs font-bold ${
+                            cell.inMonth
+                              ? isHearingDay
+                                ? isLupon ? "text-purple-700" : "text-primary"
+                                : "text-dark"
+                              : "text-gray-400"
+                          }`}
+                        >
+                          {cell.day}
+                        </span>
+
+                        {cell.inMonth && isHearingDay && (
+                          <span
+                            className={`rounded px-1.5 py-0.5 text-[9px] font-bold tracking-tight ${
+                              isFull
+                                ? "bg-rose-100 text-rose-800 border border-rose-300"
+                                : scheduledCount > 0
+                                ? "bg-blue-100 text-blue-800 border border-blue-200"
+                                : "bg-gray-100 text-gray-500 border border-gray-200"
+                            }`}
+                            title={`${scheduledCount} out of 7 maximum cases scheduled for this day`}
+                          >
+                            {scheduledCount} / 7 {isFull ? "FULL" : "cases"}
+                          </span>
+                        )}
+                      </div>
 
                     {/*
                       NO SCROLL INSIDE A DAY. A box that scrolls hides what
@@ -273,7 +343,7 @@ export default function HearingCalendar() {
                           }`}
                         >
                           <span className="block text-[11px] font-semibold text-dark">
-                            {window(h.scheduled_at)}
+                            {h.schedule_time_range || window(h.scheduled_at)}
                           </span>
                           {/* Both parties on ONE line. Six sittings at three
                               lines each made a row tall enough to push the
@@ -305,7 +375,8 @@ export default function HearingCalendar() {
                       ))}
                     </div>
                   </div>
-                ))}
+                );
+              })}
               </div>
             </div>
           </div>

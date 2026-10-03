@@ -38,6 +38,7 @@ export function useResidentRecord() {
   const [sectorValidUntil, setSectorValidUntil] = useState("");
   const [accountOpen, setAccountOpen] = useState(false);
   const [accountEmail, setAccountEmail] = useState("");
+  const [issuingAccount, setIssuingAccount] = useState(false);
   // Which of Add parent / Add child / Add spouse is open, if any.
   const [relation, setRelation] = useState<Relation | null>(null);
   /*
@@ -195,6 +196,7 @@ export function useResidentRecord() {
    */
   const issueAccount = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (issuingAccount) return;
     if (
       !(await confirmAction({
         title: "Issue a portal account?",
@@ -204,6 +206,7 @@ export function useResidentRecord() {
     )
       return;
     try {
+      setIssuingAccount(true);
       const response = await populationApi.createResidentAccount(id, {
         email: accountEmail || undefined,
       });
@@ -215,6 +218,8 @@ export function useResidentRecord() {
       load();
     } catch (err) {
       toast(errorMessage(err), "error");
+    } finally {
+      setIssuingAccount(false);
     }
   };
 
@@ -238,7 +243,7 @@ export function useResidentRecord() {
     id, navigate, pathname, user, resident, setResident, loadError, setLoadError, sectorOpen,
     setSectorOpen, sectorType, setSectorType, sectorRef, setSectorRef, sectorIssued,
     setSectorIssued, sectorValidUntil, setSectorValidUntil, accountOpen, setAccountOpen,
-    accountEmail, setAccountEmail, sectorDraft, accountDraft,
+    accountEmail, setAccountEmail, issuingAccount, sectorDraft, accountDraft,
     relation, setRelation, endingGuardian, setEndingGuardian, isBpo, canEdit, load, addSector,
     removeSector, unlinkRelative, issueAccount, resendActivation,
   };

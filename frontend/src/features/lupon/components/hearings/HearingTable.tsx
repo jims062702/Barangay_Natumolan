@@ -1,12 +1,15 @@
-import { FiClock, FiCornerUpLeft, FiEye, FiPlay, FiPrinter } from "react-icons/fi";
+import { useState } from "react";
+import { FiCalendar, FiCheck, FiClock, FiCornerUpLeft, FiEdit2, FiEye, FiPlay, FiPlus, FiPrinter } from "react-icons/fi";
 import Card from "../../../../shared/ui/Card";
 import DataTable from "../../../../shared/ui/DataTable";
-import { formatWallClock } from "../../../../shared/lib/datetime";
+import { formatWallClock, parseWallClock } from "../../../../shared/lib/datetime";
 import { deskForType, worksSitting } from "../../lib/hearings";
-import StatusBadge from "../../../../shared/ui/StatusBadge";
+import { getHearingDisplayStatus } from "../case/HearingsCard";
 import RowAction, { RowActions } from "../../../../shared/ui/RowAction";
 import type { HearingCalendarState } from "../../hooks/useHearingCalendar";
-import type { LuponHearing } from "../../types";
+import type { LuponCase, LuponHearing } from "../../types";
+import { CaseSchedulesModal } from "./CaseSchedulesModal";
+import { EditHearingTimeModal } from "./EditHearingTimeModal";
 
 /**
  * The Punong Barangay's sittings.
@@ -20,7 +23,23 @@ export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
   const {
     view, rows, total, loading, page, lastPage, setPage, user,
     startSession, printSummons, openWithdraw, setResultFor, openCaseFile, setStartTime,
+    openMinutes, timeEditFor, closeEditTime, load,
   } = ctx;
+
+  const [schedulesForCase, setSchedulesForCase] = useState<Partial<LuponCase> | null>(null);
+
+  // In Upcoming Hearing: ensure strictly 1 row per Case File
+  const displayRows = view === "upcoming"
+    ? rows.filter(
+        (h, index, self) =>
+          index ===
+          self.findIndex(
+            (other) =>
+              (other.lupon_case_id && other.lupon_case_id === h.lupon_case_id) ||
+              other.id === h.id
+          )
+      )
+    : rows;
 
   const party = (name?: string | null, nonResident?: boolean) => (
     <span className="text-xs text-dark">
@@ -39,19 +58,22 @@ export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
     {
       header: "Case Number",
       /*
-       * OPENS THE CASE, not the docket.
-       *
-       * This was a link to /lupon/cases, which the Barangay Secretary is
-       * refused — so the officer who writes the minutes could not read the
-       * complaint they were writing about. It opens the case file instead:
-       * the complaint, the parties and every sitting, read-only.
+       * In upcoming view: opens the modal showing all schedules for this case file.
+       * In other views: opens the case file modal.
        */
       render: (h: LuponHearing) =>
         h.lupon_case ? (
           <button
             type="button"
-            onClick={() => openCaseFile(h.lupon_case?.id)}
-            className="cursor-pointer font-medium text-primary hover:underline"
+            onClick={() => {
+              if (view === "upcoming") {
+                setSchedulesForCase(h.lupon_case ?? null);
+              } else {
+                openCaseFile(h.lupon_case?.id);
+              }
+            }}
+            className="cursor-pointer font-bold text-primary hover:underline text-left block text-xs whitespace-nowrap"
+            title={view === "upcoming" ? "Click to view all hearing schedules for this case" : "Click to view case file"}
           >
             {h.lupon_case.case_number}
           </button>
@@ -60,10 +82,9 @@ export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
         ),
     },
     {
-      /* The case is named by its nature — the same column the docket shows. */
-      header: "Nature of the Case",
+      header: "Nature of Case",
       render: (h: LuponHearing) => (
-        <span className="block max-w-xs truncate">
+        <span className="block max-w-xs truncate font-medium text-dark text-xs">
           {h.lupon_case?.case_classification ?? "—"}
         </span>
       ),
@@ -77,46 +98,136 @@ export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
       header: "Respondent",
       render: (h: LuponHearing) => party(h.lupon_case?.respondent_display_names),
     },
-    /* The date, where the date is the news. Today's list is today. */
-    ...(view === "today"
-      ? []
-      : [{
-          header: "Schedule",
-          render: (h: LuponHearing) => (
-            <div>
-              <span className="whitespace-nowrap">{formatWallClock(h.scheduled_at)}</span>
-              {/*
-                TWO THINGS THE APPOINTMENT ITSELF CANNOT SAY.
+    {
+      header: "Hearing Stage",
+      render: (h: LuponHearing) => {
+        const isMediation = h.hearing_type === "Mediation";
+        return (
+          <span
+            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+              isMediation
+                ? "bg-blue-50 text-blue-700 border border-blue-200"
+                : "bg-purple-50 text-purple-700 border border-purple-200"
+            }`}
+          >
+            {isMediation ? "Punong Barangay" : "Lupon"}
+          </span>
+        );
+      },
+    },
+    {
+      header: "Hearing Number",
+      render: (h: LuponHearing) => {
+        const stageHearings = (h.lupon_case?.hearings ?? [])
+          .filter((x) => x.hearing_type === h.hearing_type)
+          .sort((a, b) => (parseWallClock(a.scheduled_at)?.getTime() ?? 0) - (parseWallClock(b.scheduled_at)?.getTime() ?? 0));
+        const seqIndex = stageHearings.findIndex((x) => x.id === h.id);
+        const seq = seqIndex >= 0 ? seqIndex + 1 : (h.hearing_sequence ?? 1);
+        return (
+          <span className="text-xs font-bold text-dark whitespace-nowrap">
+            Hearing #{seq}
+          </span>
+        );
+      },
+    },
+    {
+      header: "Schedule",
+      render: (h: LuponHearing) => {
+        const d = parseWallClock(h.scheduled_at);
+        const dayName = d && !isNaN(d.getTime())
+          ? d.toLocaleDateString("en-US", { weekday: "long" })
+          : "";
+        const dateStr = d && !isNaN(d.getTime())
+          ? d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+          : "";
+        const caseHearings = h.lupon_case?.hearings ?? [];
+        const totalSchedules = caseHearings.length > 0 ? caseHearings.length : 1;
 
-                Ten cases on one Tuesday do not fit six ninety-minute slots
-                between eight and five, so some are handed an hour past
-                closing and want one chosen by hand. And when a sitting
-                overruns, the one after it starts late — said here rather
-                than by quietly rewriting the hour, because the summons in
-                that party's hand names it.
-              */}
-              {h.past_closing && h.status === "Scheduled" && (
-                <span className="mt-0.5 block text-[11px] font-medium text-warning">
-                  Past closing — set an hour
-                </span>
-              )}
-              {!!h.delayed_minutes && h.delayed_minutes > 0 && (
-                <span className="mt-0.5 block text-[11px] font-medium text-danger">
-                  Running {h.delayed_minutes} min late
-                </span>
-              )}
-            </div>
-          ),
-        }]),
+        return (
+          <div>
+            <span className="block whitespace-nowrap font-medium text-dark text-xs">
+              {dayName}
+            </span>
+            <span className="block whitespace-nowrap text-[11px] text-gray-500">
+              {dateStr}
+            </span>
+            {view === "upcoming" && (
+              <button
+                type="button"
+                onClick={() => setSchedulesForCase(h.lupon_case ?? null)}
+                className="mt-1 inline-flex cursor-pointer items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary/20 hover:underline"
+                title="Click to view all hearing schedules in modal"
+              >
+                <FiCalendar className="h-2.5 w-2.5" />
+                {totalSchedules > 1 ? `View all ${totalSchedules} schedules` : "View schedules"}
+              </button>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      header: "Time",
+      render: (h: LuponHearing) => (
+        <div>
+          <span className="whitespace-nowrap font-semibold text-dark text-xs">
+            {h.schedule_time_range || formatWallClock(h.scheduled_at, { hour: "numeric", minute: "2-digit" })}
+          </span>
+          {h.past_closing && h.status === "Scheduled" && (
+            <span className="mt-0.5 block text-[10px] font-medium text-warning">
+              Past closing — set hour
+            </span>
+          )}
+          {!!h.delayed_minutes && h.delayed_minutes > 0 && (
+            <span className="mt-0.5 block text-[10px] font-medium text-danger">
+              Running {h.delayed_minutes} min late
+            </span>
+          )}
+        </div>
+      ),
+    },
     ...(view === "past"
-      ? [{
-          header: "Outcome",
-          render: (h: LuponHearing) => (
-            <span className="text-xs text-dark">{h.outcome || "—"}</span>
-          ),
-        }]
+      ? [
+          {
+            header: "Minutes",
+            render: (h: LuponHearing) => {
+              const hasMin = !!((h.minutes && h.minutes.trim()) || (h.proceedings_notes && h.proceedings_notes.trim()));
+              return hasMin ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                  <FiCheck className="h-3 w-3" />
+                  Minutes recorded
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 border border-amber-200">
+                  Minutes not yet recorded
+                </span>
+              );
+            },
+          },
+          {
+            header: "Outcome",
+            render: (h: LuponHearing) => (
+              <span className="text-xs text-dark">{h.outcome || "—"}</span>
+            ),
+          },
+        ]
       : []),
-    { header: "Status", render: (h: LuponHearing) => <StatusBadge status={h.status} /> },
+    {
+      header: "Status",
+      render: (h: LuponHearing) => {
+        const displayStatus = getHearingDisplayStatus(h);
+        return (
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${displayStatus.tone}`}
+          >
+            {displayStatus.label === "On-going" && (
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
+            )}
+            {displayStatus.label}
+          </span>
+        );
+      },
+    },
     /*
      * WHAT A ROW OFFERS DEPENDS ON WHEN THE SITTING IS — AND WHOSE IT IS.
      *
@@ -145,10 +256,11 @@ export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
       render: (h: LuponHearing) => {
         const open = h.status === "Scheduled";
         const mine = worksSitting(user, h);
+        const hasMin = !!((h.minutes && h.minutes.trim()) || (h.proceedings_notes && h.proceedings_notes.trim()));
 
         /* Not this desk's, and not yet decided: there is nothing to say
            beyond whose it is. */
-        if (!mine && open) {
+        if (!mine && open && !hasMin && view !== "past") {
           return (
             <span className="text-xs text-gray-400">
               {deskForType(h.hearing_type) === "Lupon" ? "The Lupon's" : "The Secretary's"}
@@ -159,22 +271,63 @@ export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
         return (
           <RowActions>
             {view === "today" && open && (
-              <RowAction
-                label="Start the sitting"
-                icon={FiPlay}
-                tone="primary"
-                onClick={() => startSession(h)}
-              />
+              <>
+                <RowAction
+                  label="Start the sitting"
+                  icon={FiPlay}
+                  tone="primary"
+                  onClick={() => startSession(h)}
+                />
+                {mine && (
+                  <RowAction
+                    label={hasMin ? "Edit Minutes" : "Add Minutes"}
+                    icon={hasMin ? FiEdit2 : FiPlus}
+                    onClick={() => openMinutes(h, "edit")}
+                  />
+                )}
+              </>
             )}
 
             {/*
-              PAST SITTINGS CARRY NO MINUTES BUTTON.
-              The minutes are written in the room, on the day, with the
-              parties in front of the Punong Barangay — a screen that let
-              them be entered a week later is a screen that lets the record
-              be composed after the fact. Today's list is the only place a
-              sitting is written up.
+              PAST SITTINGS:
+              Secretary / authorized staff can always Add or Edit Minutes for past hearings,
+              even if hearing_date < current_date or status is Completed.
             */}
+            {view === "past" && (
+              <>
+                {hasMin ? (
+                  <>
+                    <RowAction
+                      label="View Minutes"
+                      icon={FiEye}
+                      onClick={() => openMinutes(h, "view")}
+                    />
+                    {mine && (
+                      <RowAction
+                        label="Edit Minutes"
+                        icon={FiEdit2}
+                        tone="primary"
+                        onClick={() => openMinutes(h, "edit")}
+                      />
+                    )}
+                  </>
+                ) : (
+                  mine && (
+                    <RowAction
+                      label="Add Minutes"
+                      icon={FiPlus}
+                      tone="primary"
+                      onClick={() => openMinutes(h, "edit")}
+                    />
+                  )
+                )}
+                <RowAction
+                  label={h.status === "Cancelled" ? "Why it did not sit" : "View the result"}
+                  icon={FiEye}
+                  onClick={() => setResultFor(h)}
+                />
+              </>
+            )}
 
             {/*
               A REPRINT, not the first printing. The summons that opened
@@ -185,6 +338,12 @@ export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
             */}
             {view === "upcoming" && open && (
               <>
+                <RowAction
+                  label="View all schedules"
+                  icon={FiCalendar}
+                  tone="primary"
+                  onClick={() => setSchedulesForCase(h.lupon_case ?? null)}
+                />
                 <RowAction
                   label={h.summons_issued ? "Print the summons again" : "Print the summons"}
                   icon={FiPrinter}
@@ -209,15 +368,47 @@ export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
               </>
             )}
 
-            {/* What was decided — or, where the sitting was stood down,
-                why it never sat. The button says which, because those are
-                two different things to open. */}
-            {!open && (
-              <RowAction
-                label={h.status === "Cancelled" ? "Why it did not sit" : "View the result"}
-                icon={FiEye}
-                onClick={() => setResultFor(h)}
-              />
+            {/* Upcoming hearings that are closed/cancelled */}
+            {view === "upcoming" && !open && (
+              <>
+                <RowAction
+                  label="View all schedules"
+                  icon={FiCalendar}
+                  tone="primary"
+                  onClick={() => setSchedulesForCase(h.lupon_case ?? null)}
+                />
+                <RowAction
+                  label={h.status === "Cancelled" ? "Why it did not sit" : "View the result"}
+                  icon={FiEye}
+                  onClick={() => setResultFor(h)}
+                />
+              </>
+            )}
+
+            {/* Today hearings that are closed */}
+            {view === "today" && !open && (
+              <>
+                {hasMin && (
+                  <RowAction
+                    label="View Minutes"
+                    icon={FiEye}
+                    onClick={() => openMinutes(h, "view")}
+                  />
+                )}
+                {mine && (
+                  <RowAction
+                    label="Edit Minutes"
+                    icon={FiEdit2}
+                    tone="primary"
+                    onClick={() => openMinutes(h, "edit")}
+                  />
+                )}
+                <RowAction
+                  label={h.status === "Cancelled" ? "Why it did not sit" : "View the result"}
+                  icon={FiEye}
+                  onClick={() => setResultFor(h)}
+                />
+              </>
             )}
           </RowActions>
         );
@@ -229,10 +420,10 @@ export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
     <Card>
       <DataTable
         columns={columns}
-        rows={rows}
-        rowKey={(h) => h.id}
+        rows={displayRows}
+        rowKey={(h) => (view === "upcoming" ? (h.lupon_case_id ?? h.id) : h.id)}
         numbered
-        total={total}
+        total={view === "upcoming" ? displayRows.length : total}
         searchable
         searchPlaceholder="Search by Case Number, Nature of the Case, Complainant or Respondent…"
         getSearchText={(h) =>
@@ -252,6 +443,28 @@ export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
               ? "No upcoming hearings scheduled."
               : "No past hearings on record."
         }
+      />
+
+      {schedulesForCase && (
+        <CaseSchedulesModal
+          caseFor={schedulesForCase}
+          onClose={() => setSchedulesForCase(null)}
+          onViewCaseFile={(caseId) => {
+            setSchedulesForCase(null);
+            openCaseFile(caseId);
+          }}
+          onPrintSummons={printSummons}
+          onSetStartTime={setStartTime}
+          onStartSession={startSession}
+          onOpenMinutes={openMinutes}
+        />
+      )}
+
+      <EditHearingTimeModal
+        hearing={timeEditFor}
+        isOpen={timeEditFor !== null}
+        onClose={closeEditTime}
+        onSaved={load}
       />
     </Card>
   );

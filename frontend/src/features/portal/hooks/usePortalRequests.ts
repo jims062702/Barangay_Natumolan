@@ -19,12 +19,22 @@ export interface RequestItem {
   purpose: string;
   businessName: string;
   businessKind: string;
+  deceasedResidentId?: string;
+  deceasedName?: string;
+  deceasedAge?: string;
+  deceasedAddress?: string;
+  dateOfDeath?: string;
+  timeOfDeath?: string;
+  placeOfDeath?: string;
+  relationshipToDeceased?: string;
 }
 
 let itemKey = 1;
 const newItemKey = () => `r${itemKey++}`;
 const blankItem = (serviceType: string): RequestItem => ({
   key: newItemKey(), serviceType, purpose: "", businessName: "", businessKind: "",
+  deceasedResidentId: "", deceasedName: "", deceasedAge: "", deceasedAddress: "",
+  dateOfDeath: "", timeOfDeath: "", placeOfDeath: "", relationshipToDeceased: "",
 });
 import { usePageLoad } from "../../../shared/ui/PageLoad";
 
@@ -214,12 +224,20 @@ export function usePortalRequests() {
         setItems(offered.map((i) => ({
           key: i.key || newItemKey(), serviceType: i.serviceType, purpose: i.purpose ?? "",
           businessName: i.businessName ?? "", businessKind: i.businessKind ?? "",
+          deceasedResidentId: i.deceasedResidentId ?? "",
+          deceasedName: i.deceasedName ?? "",
+          deceasedAge: i.deceasedAge ?? "",
+          deceasedAddress: i.deceasedAddress ?? "",
+          dateOfDeath: i.dateOfDeath ?? "",
+          timeOfDeath: i.timeOfDeath ?? "",
+          placeOfDeath: i.placeOfDeath ?? "",
+          relationshipToDeceased: i.relationshipToDeceased ?? "",
         })));
       }
     },
     {
       isEmpty: (v) => v.items.length <= 1 && v.items.every((i) =>
-        (i.serviceType === firstType || !i.serviceType) && !i.purpose && !i.businessName && !i.businessKind),
+        (i.serviceType === firstType || !i.serviceType) && !i.purpose && !i.businessName && !i.businessKind && !i.deceasedResidentId),
       reset: () => setItems([blankItem(firstType)]),
     },
   );
@@ -232,6 +250,39 @@ export function usePortalRequests() {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (items.length === 0) return;
+
+    for (const item of items) {
+      if (item.serviceType === "Certification of Death") {
+        if (!item.deceasedResidentId) {
+          toast("Please search and select the deceased resident.", "error");
+          return;
+        }
+        if (!item.relationshipToDeceased?.trim()) {
+          toast("Please enter your relationship to the deceased.", "error");
+          return;
+        }
+        if (!item.deceasedAge?.trim()) {
+          toast("Please enter the age of the deceased.", "error");
+          return;
+        }
+        if (!item.deceasedAddress?.trim()) {
+          toast("Please enter the address of the deceased.", "error");
+          return;
+        }
+        if (!item.dateOfDeath?.trim()) {
+          toast("Please select the date of death.", "error");
+          return;
+        }
+        if (!item.timeOfDeath?.trim()) {
+          toast("Please enter the time of death.", "error");
+          return;
+        }
+        if (!item.placeOfDeath?.trim()) {
+          toast("Please enter the place of death.", "error");
+          return;
+        }
+      }
+    }
 
     const lines = items.map((item, i) => {
       const total = quotes[i];
@@ -259,8 +310,18 @@ export function usePortalRequests() {
           return {
             service_type: item.serviceType,
             purpose: chosen?.asks_purpose === false ? undefined : item.purpose,
-            /* Only a business clearance asks; the server keeps only these two. */
-            template_fields: chosen?.fee_from === "business"
+            template_fields: item.serviceType === "Certification of Death"
+              ? {
+                  deceased_resident_id: item.deceasedResidentId,
+                  deceased_name: item.deceasedName,
+                  deceased_age: item.deceasedAge,
+                  deceased_address: item.deceasedAddress,
+                  date_of_death: item.dateOfDeath,
+                  time_of_death: item.timeOfDeath,
+                  place_of_death: item.placeOfDeath,
+                  relationship_to_deceased: item.relationshipToDeceased,
+                }
+              : chosen?.fee_from === "business"
               ? { business_name: item.businessName, business_kind: item.businessKind }
               : undefined,
           };

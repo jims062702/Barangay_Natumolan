@@ -27,6 +27,7 @@ export function Text({
   max,
   money = false,
   prefix,
+  preserveValue = false,
 }: {
   label: string;
   value: string | number | null | undefined;
@@ -46,6 +47,8 @@ export function Text({
    * required-check, and these still have to be filled.
    */
   readOnly?: boolean;
+  /** Preserve and show the value even when disabled */
+  preserveValue?: boolean;
   /** Digits only, and no more than this many of them. */
   digits?: number;
   /** The largest value the box will accept — 11 months, 12 pregnancies. */
@@ -65,7 +68,7 @@ export function Text({
   */
   const numeric = digits !== undefined || money;
 
-  const shown = disabled ? "" : money ? groupThousands(value) : (value ?? "");
+  const shown = (disabled && !preserveValue) ? "" : money ? groupThousands(value) : (value ?? "");
 
   const handle = (raw: string) => {
     if (!numeric) {
@@ -96,10 +99,10 @@ export function Text({
           value={shown}
           maxLength={money ? undefined : maxLength}
           onChange={(e) => handle(e.target.value)}
-          placeholder={disabled ? "" : placeholder}
+          placeholder={disabled && !preserveValue ? "" : placeholder}
           required={required && !disabled}
           disabled={disabled}
-          readOnly={readOnly}
+          readOnly={readOnly || disabled}
           style={prefix ? { paddingLeft: 14 + prefix.length * 9 } : undefined}
           /*
             One look for every box that cannot be typed in.
@@ -109,7 +112,7 @@ export function Text({
             grey for one meaning just makes the clerk wonder which is which.
           */
           className={`${inputClasses} ${
-            disabled || readOnly ? "cursor-not-allowed bg-secondary text-gray-400" : ""
+            disabled || readOnly ? "cursor-not-allowed bg-secondary text-gray-700 font-medium select-none" : ""
           }`}
         />
       </span>

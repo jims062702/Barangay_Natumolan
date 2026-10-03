@@ -25,13 +25,14 @@ class OfficeAccountsSeeder extends Seeder
     public function run(): void
     {
         $rows = [
-            ['Hon. Ricardo M. Balagtas', 'pb@natumolan.local', 'Punong Barangay', 'Main Office'],
-            ['Liezel A. Fernandez', 'secretary@natumolan.local', 'Secretary', 'Main Office'],
-            ['Marco T. Villarin', 'clerk@natumolan.local', 'Clerk', 'Main Office'],
-            ['Maria Lourdes P. Santos', 'vawc@natumolan.local', 'VAWC Officer', 'VAWC'],
-            ['Ernesto D. Villanueva', 'lupon@natumolan.local', 'Lupon Secretary', 'Lupon'],
-            ['Allan T. Mercado', 'population@natumolan.local', 'Population Worker', 'Population'],
-            ['Angelica R. Cruz', 'health@natumolan.local', 'Health Personnel', 'Health Station'],
+            ['Hon. Rafael P. Vidal', 'pb@natumolan.local', 'Punong Barangay', 'Main Office'],
+            ['Grace G. Galola', 'secretary@natumolan.local', 'Secretary', 'Main Office'],
+            ['June A. Cavan', 'clerk@natumolan.local', 'Clerk', 'Main Office'],
+            ['Charmil G. Manto', 'clerk2@natumolan.local', 'Clerk', 'Main Office'],
+            ['Gina Caayaman', 'vawc@natumolan.local', 'VAWC Officer', 'VAWC'],
+            ['Maria Faye C. Ordiz', 'lupon@natumolan.local', 'Lupon Secretary', 'Lupon'],
+            ['Abbess Kristel P. Pacaldo', 'population@natumolan.local', 'Population Worker', 'Population'],
+            ['Rosa F. Moreno', 'health@natumolan.local', 'Health Personnel', 'Health Station'],
             ['Hon. Kyla Marie D. Torres', 'sk@natumolan.local', 'SK Chairperson', 'SK'],
             ['System Administrator', 'admin@natumolan.local', 'Admin', 'Admin'],
         ];

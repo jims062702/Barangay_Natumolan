@@ -1,18 +1,30 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useAuth } from "../../../shared/auth/AuthContext";
 import type { Resident } from "../../../shared/types";
 import { HOME, BLANK_MEMBER } from "../lib/constants";
 import { splitHeadName } from "../lib/rules";
 import type { Codes, FormValue, Member, HouseCheck, DeathRow } from "../types";
 
+export function todayDateString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 /**
  * The form's answers: the household's fields, the member lines, and whether anything has changed since it was loaded.
  */
 export function useCensusAnswers() {
-
+  const { user } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
   const editing = Boolean(id);
+  const today = todayDateString();
+  const workerName = user?.name ?? "";
+
   const [codes, setCodes] = useState<{ member: Codes; household: Codes }>({
     member: {},
     household: {},
@@ -22,6 +34,11 @@ export function useCensusAnswers() {
     ...HOME,
     is_institutional: false,
     consent_given: false,
+    respondent_name: "",
+    consent_name: "",
+    date_encoded: today,
+    encoder_name: workerName,
+    supervisor_name: workerName,
   });
   const [members, setMembers] = useState<Member[]>([{ ...BLANK_MEMBER }]);
   const [status, setStatus] = useState<"Draft" | "Submitted">("Draft");
@@ -78,6 +95,35 @@ export function useCensusAnswers() {
   const [loading, setLoading] = useState(editing);
   const set = (key: string, value: FormValue) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  // Populate worker name and date_encoded if user profile loads after initial mount
+  useEffect(() => {
+    if (!user?.name || editing) return;
+    setForm((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      if (!next.encoder_name) {
+        next.encoder_name = user.name;
+        changed = true;
+      }
+      if (!next.supervisor_name) {
+        next.supervisor_name = user.name;
+        changed = true;
+      }
+      if (!next.date_encoded) {
+        next.date_encoded = todayDateString();
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [user?.name, editing]);
+
+  // Name on the consent automatically tracks respondent_name
+  useEffect(() => {
+    if (form.consent_name !== form.respondent_name) {
+      set("consent_name", form.respondent_name ?? "");
+    }
+  }, [form.respondent_name, form.consent_name]);
   /*
    * A list answer, read back safely.
    *
@@ -229,7 +275,17 @@ export function useCensusAnswers() {
   const isDirty = () => snapshot() !== pristine.current;
   /** Nothing typed on this sheet at all — a new form's starting state. */
   const isBlankSheet = () => snapshot() === snapshot(
-    { household_head_name: "", ...HOME, is_institutional: false, consent_given: false },
+    {
+      household_head_name: "",
+      ...HOME,
+      is_institutional: false,
+      consent_given: false,
+      respondent_name: "",
+      consent_name: "",
+      date_encoded: (form.date_encoded as string) || today,
+      encoder_name: (form.encoder_name as string) || workerName,
+      supervisor_name: (form.supervisor_name as string) || workerName,
+    },
     [{ ...BLANK_MEMBER }],
   );
   /** Back to an empty sheet, keeping the number that was just checked. */
@@ -240,6 +296,11 @@ export function useCensusAnswers() {
       ...HOME,
       is_institutional: false,
       consent_given: false,
+      respondent_name: "",
+      consent_name: "",
+      date_encoded: todayDateString(),
+      encoder_name: user?.name ?? "",
+      supervisor_name: user?.name ?? "",
     };
 
     setForm(blank);

@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Population\Bhw;
 use App\Models\Population\Zone;
 use Illuminate\Database\Seeder;
 
@@ -35,54 +34,11 @@ class ZoneSeeder extends Seeder
         'Zone 21A', 'Zone 21B', 'Zone 21C',
     ];
 
-    /**
-     * Who covers what. A BHW may hold more than one zone.
-     *
-     * ZONE 21C IS NOT HERE, and that is not an omission in this file — no
-     * BHW was named for it. It is seeded unassigned so the office can see
-     * the gap and fill it, rather than having it quietly attached to whoever
-     * happened to be next in the list.
-     */
-    private const ASSIGNMENTS = [
-        'FLORA G. MANTO' => ['Zone 1', 'Zone 5'],
-        'CHERLIE B. LABIAL' => ['Zone 2'],
-        'MARILIE B. AJON' => ['Zone 3'],
-        'ROWENA TADEO' => ['Zone 4'],
-        'ANNABELLE INDINO' => ['Zone 6A'],
-        'GEMMA M. TACBOBO' => ['Zone 7', 'Zone 8'],
-        'MAY ELEN GERONIMO' => ['Zone 9', 'Zone 10'],
-        'MARIA FE E. FERNANDEZ' => ['Zone 11'],
-        'MICHELLE C. DACLAG' => ['Zone 12', 'Zone 13'],
-        'JOSEPHINE VALDEHUESA' => ['Zone 14'],
-        'RHEA RODESSA A. MACABALE' => ['Zone 15', 'Zone 16'],
-        'JULIET M. DAGANDAN' => ['Zone 17'],
-        'ROMAYLE B. AQUIT' => ['Zone 18A'],
-        'JENNYLYN C. BAIRAN' => ['Zone 18B'],
-        'CHONA B. CABANDAY' => ['Zone 19'],
-        'LENY B. PACIFICO' => ['Zone 20A', 'Zone 20B'],
-        'RUSAMBRITCHE C. LOMOPOG' => ['Zone 21A'],
-        'INGRID L. BONGOLTO' => ['Zone 21B'],
-    ];
-
     public function run(): void
     {
         foreach (self::ZONES as $name) {
             /* sort_order is filled in by the model from the name. */
             Zone::firstOrCreate(['name' => $name], ['is_active' => true]);
-        }
-
-        foreach (self::ASSIGNMENTS as $bhwName => $zoneNames) {
-            $bhw = Bhw::firstOrCreate(['name' => $bhwName], ['is_active' => true]);
-
-            foreach ($zoneNames as $zoneName) {
-                $zone = Zone::where('name', $zoneName)->first();
-
-                /* Only where nobody is assigned yet. A zone the office has
-                   since moved to somebody else stays where they put it. */
-                if ($zone && $zone->bhw_id === null) {
-                    $zone->forceFill(['bhw_id' => $bhw->id])->save();
-                }
-            }
         }
     }
 }

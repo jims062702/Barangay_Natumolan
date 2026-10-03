@@ -67,7 +67,7 @@ class BarangayCouncilSeeder extends Seeder
              * as the format, so it wins — but their own file still disagrees
              * with itself, and this is one edit on the Officials screen.
              */
-            ['Barangay Secretary', 'GRACE L. GALOLA', null, 9],
+            ['Barangay Secretary', 'GRACE G. GALOLA', null, 9],
             ['Barangay Treasurer', 'DONNA LYN R. QUILANG', null, 10],
         ];
 
@@ -102,7 +102,7 @@ class BarangayCouncilSeeder extends Seeder
         /* The SK chairperson signs nothing on these forms but stands in the
            sidebar, which is where the council is listed in full. */
         Official::updateOrCreate(
-            ['group' => 'SK', 'name' => 'HON. MARIA THERESE MARTINEZ'],
+            ['group' => 'SK', 'name' => 'HON. KYLA MARIE D. TORRES'],
             [
                 'position' => 'SK Chairperson',
                 'committees' => 'Committee on Youth & Sports Development',

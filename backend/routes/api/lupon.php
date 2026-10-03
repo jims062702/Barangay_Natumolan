@@ -60,6 +60,8 @@ Route::prefix('lupon')
         /* The sittings the papers would book — the papers print from it, BEFORE anything is booked. */
         Route::get('cases/{case}/summons-plan', [SummonsController::class, 'plan']);
         Route::post('cases/{case}/summons', [SummonsController::class, 'issue']);
+        Route::post('cases/{case}/generate-summon', [SummonsController::class, 'generateSummon']);
+        Route::post('cases/{case}/schedule-next', [SummonsController::class, 'scheduleNextHearing']);
         /* The room's other two lists: withdrawn cases, and cases certified
            to court. Cases, but only what the hearing room needs of them. */
         Route::get('hearing-cases', [HearingController::class, 'closedCases']);
@@ -76,6 +78,7 @@ Route::prefix('lupon')
         /* The sitting itself: the minutes, and which of the two endings
            it reached. An agreement settles and closes the case here. */
         Route::post('hearings/{hearing}/session', [HearingController::class, 'session']);
+        Route::post('hearings/{hearing}/minutes', [HearingController::class, 'saveMinutes']);
         /*
         | The HOUR of a sitting, moved by the desk that works it.
         |

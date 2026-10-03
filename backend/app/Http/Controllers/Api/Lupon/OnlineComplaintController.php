@@ -323,6 +323,8 @@ class OnlineComplaintController extends BaseController
             'office_notes' => $validated['reason'],
         ]);
 
+        ChangeLog::bump('lupon_cases');
+
         return $this->success($complaint->fresh(), 'Recorded as not accepted.');
     }
 }

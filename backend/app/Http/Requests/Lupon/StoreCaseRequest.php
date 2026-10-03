@@ -31,6 +31,18 @@ class StoreCaseRequest extends FormRequest
         ];
     }
 
+    public function withValidator(\Illuminate\Validation\Validator $validator): void
+    {
+        $validator->after(function (\Illuminate\Validation\Validator $v) {
+            if ($this->filled('complainant_id')) {
+                $resident = \App\Models\Resident\Resident::find($this->input('complainant_id'));
+                if ($resident && $resident->isDeceased()) {
+                    $v->errors()->add('complainant_id', $resident->full_name . ' is recorded as deceased, so they cannot initiate a new Lupon complaint.');
+                }
+            }
+        });
+    }
+
     public function messages(): array
     {
         return [

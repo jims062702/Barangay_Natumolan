@@ -9,6 +9,7 @@ use App\Http\Requests\Lupon\ScheduleHearingRequest;
 use App\Models\Lupon\CaseFile;
 use App\Models\Lupon\Hearing;
 use App\Services\Lupon\FilingFeeDeadlines;
+use App\Services\Lupon\HearingCalendar;
 use App\Services\Lupon\HearingDesk;
 use App\Services\Lupon\HearingNotice;
 use App\Services\Lupon\HearingSession;
@@ -94,7 +95,12 @@ class HearingController extends BaseController
     /** 3.4 — the hearing calendar across the whole docket. */
     public function index(Request $request)
     {
-        $query = Hearing::with(array_merge(CaseFile::WITH_PARTIES, ['recorder:id,name']));
+        $query = Hearing::with(array_merge(CaseFile::WITH_PARTIES, [
+            'recorder:id,name',
+            'luponCase.hearings' => fn ($q) => $q->orderBy('scheduled_at', 'asc'),
+        ]))->whereHas('luponCase', function ($q) {
+            $q->whereNotIn('current_stage', ['Filed', 'For Summons']);
+        });
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -113,8 +119,20 @@ class HearingController extends BaseController
          * Thursdays. The Lupon's conciliation is not the Punong Barangay's
          * to read: the case left them when their three sittings were spent.
          */
-        if ($request->user()?->role === 'Punong Barangay') {
-            $query->where('hearing_type', 'Mediation');
+        /*
+         * DESK BOUNDARY:
+         * Secretary and Punong Barangay work PB Mediation (Tuesdays).
+         * Lupon works Conciliation (Thursdays).
+         */
+        if (! $request->filled('hearing_type')) {
+            $role = $request->user()?->role;
+            $userOffice = $request->user()?->office;
+
+            if (in_array($role, ['Punong Barangay', 'Secretary'], true) || ($userOffice === 'Main Office' && $role !== 'Admin')) {
+                $query->where('hearing_type', 'Mediation');
+            } elseif ($userOffice === 'Lupon' || $role === 'Lupon Secretary') {
+                $query->where('hearing_type', 'Conciliation');
+            }
         }
 
         /*
@@ -133,13 +151,22 @@ class HearingController extends BaseController
 
         if ($request->filled('when')) {
             match ($request->when) {
-                'today' => $query->whereDate('scheduled_at', $day)->orderBy('scheduled_at'),
-                'upcoming' => $query->whereDate('scheduled_at', '>', $day)->orderBy('scheduled_at'),
-                'past' => $query->whereDate('scheduled_at', '<', $day)->orderByDesc('scheduled_at'),
-                default => $query->orderByDesc('scheduled_at'),
+                'today' => $query->whereDate('scheduled_at', $day)->orderBy('scheduled_at', 'asc')->orderBy('lupon_case_id', 'asc'),
+                'upcoming' => $query->whereDate('scheduled_at', '>', $day)
+                    ->whereRaw('id = (
+                        SELECT h2.id FROM lupon_hearings h2
+                        WHERE h2.lupon_case_id = lupon_hearings.lupon_case_id
+                          AND DATE(h2.scheduled_at) > ?
+                        ORDER BY (CASE WHEN h2.status = \'Cancelled\' THEN 1 ELSE 0 END) ASC, h2.scheduled_at ASC, h2.id ASC
+                        LIMIT 1
+                    )', [$day])
+                    ->orderBy('scheduled_at', 'asc')
+                    ->orderBy('lupon_case_id', 'asc'),
+                'past' => $query->whereDate('scheduled_at', '<', $day)->orderBy('scheduled_at', 'asc')->orderBy('lupon_case_id', 'asc'),
+                default => $query->orderBy('scheduled_at', 'asc')->orderBy('lupon_case_id', 'asc'),
             };
         } else {
-            $query->orderByDesc('scheduled_at');
+            $query->orderBy('scheduled_at', 'asc')->orderBy('lupon_case_id', 'asc');
         }
 
         // Hearings set but with no summons served yet — the service backlog.
@@ -169,8 +196,21 @@ class HearingController extends BaseController
 
         $stages = $validated['state'] === 'cfa' ? ['CFA'] : ['Withdrawn'];
 
-        $cases = CaseFile::with(['complainant:id,first_name,middle_name,last_name', 'respondents:id,first_name,middle_name,last_name'])
-            ->whereIn('current_stage', $stages)
+        $casesQuery = CaseFile::with(['complainant:id,first_name,middle_name,last_name', 'respondents:id,first_name,middle_name,last_name'])
+            ->whereIn('current_stage', $stages);
+
+        $role = $request->user()?->role;
+        $userOffice = $request->user()?->office;
+        $isSecretary = in_array($role, ['Punong Barangay', 'Secretary'], true) || ($userOffice === 'Main Office' && $role !== 'Admin');
+        $isLupon = $userOffice === 'Lupon' || $role === 'Lupon Secretary';
+
+        if ($isSecretary) {
+            $casesQuery->whereDoesntHave('hearings', fn ($q) => $q->where('hearing_type', 'Conciliation'));
+        } elseif ($isLupon) {
+            $casesQuery->whereHas('hearings', fn ($q) => $q->where('hearing_type', 'Conciliation'));
+        }
+
+        $cases = $casesQuery
             ->orderByDesc('date_resolved')
             ->orderByDesc('id')
             ->paginate(20);
@@ -199,26 +239,23 @@ class HearingController extends BaseController
             ? $request->month
             : substr(ManilaTime::today(), 0, 7);
 
+        $type = $request->get('hearing_type');
+        if (! $type) {
+            $type = ($request->user()?->office === 'Lupon' && $request->user()?->role !== 'Punong Barangay')
+                ? 'Conciliation'
+                : 'Mediation';
+        }
+
         $sittings = Hearing::with(CaseFile::WITH_PARTIES)
-            ->where('hearing_type', 'Mediation')
+            ->where('hearing_type', $type)
+            ->whereHas('luponCase', function ($q) {
+                $q->whereNotIn('current_stage', ['Filed', 'For Summons']);
+            })
             ->whereRaw("DATE_FORMAT(scheduled_at, '%Y-%m') = ?", [$month])
             ->orderBy('scheduled_at')
             ->get();
 
-        /*
-         * WHAT CAME OF EACH SITTING, in the words the office uses.
-         *
-         * "Completed" alone says a sitting happened and nothing about what
-         * it decided — so the month read as a wall of identical grey tiles
-         * whether the parties had settled, failed to, or run out of
-         * sittings altogether. The third spent Tuesday is the one that
-         * matters most: it is when the case leaves the Punong Barangay.
-         *
-         * Worked out here because a month is a window: the sitting that
-         * ended a case's mediation may be in this month while the two
-         * before it are in the last, so the page cannot count them.
-         */
-        $lastOfCase = Hearing::where('hearing_type', 'Mediation')
+        $lastOfCase = Hearing::where('hearing_type', $type)
             ->whereIn('lupon_case_id', $sittings->pluck('lupon_case_id')->filter()->unique())
             ->whereIn('status', ['Scheduled', 'Completed'])
             ->selectRaw('lupon_case_id, MAX(scheduled_at) AS last_at')
@@ -231,11 +268,15 @@ class HearingController extends BaseController
 
         $this->markDelays($sittings);
 
+        $calendarService = app(\App\Services\Lupon\HearingCalendar::class);
+        $capacities = $calendarService->monthCapacities($month, $type);
+
         return $this->success([
             'month' => $month,
             /* Manila's today, so the calendar highlights the day the hall
                is actually in — app.timezone is UTC and eight hours behind. */
             'today' => ManilaTime::today(),
+            'capacities' => $capacities,
             'hearings' => $sittings,
         ], 'Hearing calendar retrieved');
     }
@@ -460,15 +501,22 @@ class HearingController extends BaseController
 
         if ($first) {
             $hearing->update(['summons_issued' => true, 'summons_printed_at' => ManilaTime::now()]);
+
+            if (in_array($case->current_stage, ['Filed', 'For Summons'], true) && $hearing->hearing_type === 'Mediation') {
+                $case->update(['current_stage' => 'Mediation']);
+            } elseif ($case->current_stage === 'For Lupon Summons' && $hearing->hearing_type === 'Conciliation') {
+                $case->update(['current_stage' => 'Conciliation']);
+            }
         }
 
         /* Once per party, whichever sitting the summons was printed for. */
         $told = $parties->recordOpened($case->fresh(), $hearing->fresh());
+        \App\Support\ChangeLog::bump('lupon_cases');
 
         return $this->success(
             $hearing->fresh()->load(CaseFile::WITH_PARTIES),
             $first
-                ? 'Summons printed.' . ($told ? ' The parties were told the schedule.' : '')
+                ? 'Summons marked as printed.' . ($told ? ' The parties were told the schedule.' : '')
                 : 'Summons reprinted. The parties were told when it was first printed.'
         );
     }
@@ -478,7 +526,21 @@ class HearingController extends BaseController
      *
      * One of three endings, chosen rather than typed — see HearingSession.
      */
+    /**
+     * The sitting was held: record or edit the minutes, and what came of it.
+     * Authorized Lupon staff (especially Barangay Secretary) can add or edit
+     * minutes even for past or already completed hearings.
+     */
     public function session(Request $request, Hearing $hearing, HearingSession $session)
+    {
+        return $this->saveMinutes($request, $hearing, $session);
+    }
+
+    /**
+     * Records or edits the official minutes / hearing notes / proceedings of a sitting.
+     * Allowed even when hearing_date < current_date or status is Completed.
+     */
+    public function saveMinutes(Request $request, Hearing $hearing, HearingSession $session)
     {
         if (! $hearing->luponCase) {
             return $this->notFound('This hearing is not attached to a case.');
@@ -488,8 +550,8 @@ class HearingController extends BaseController
             return $refusal;
         }
 
-        if ($hearing->status !== 'Scheduled') {
-            return $this->error('This sitting is already ' . strtolower($hearing->status) . '.', 422);
+        if ($hearing->status === 'Cancelled') {
+            return $this->error('This sitting was cancelled and did not take place.', 422);
         }
 
         $validated = $request->validate([
@@ -498,18 +560,7 @@ class HearingController extends BaseController
             'agreement' => ['nullable', 'string', 'required_if:outcome,' . HearingSession::AGREEMENT],
             'complainant_present' => ['nullable', 'boolean'],
             'respondent_present' => ['nullable', 'boolean'],
-            /*
-             * WHEN IT ACTUALLY RAN, beside when it was set to.
-             *
-             * A sitting booked for nine may begin at twenty past because a
-             * party was late, and run to eleven because the dispute needed
-             * it. The barangay does not cut a mediation short because a
-             * slot expired, so these two are the record and the ninety
-             * minutes are only how the day was laid out.
-             *
-             * Optional: an office writing up a sitting at the end of a long
-             * morning should not be blocked for want of a clock reading.
-             */
+            'attendance_notes' => ['nullable', 'string'],
             'started_at' => ['nullable', 'date_format:H:i'],
             'ended_at' => ['nullable', 'date_format:H:i', 'after:started_at'],
         ], [
@@ -518,7 +569,7 @@ class HearingController extends BaseController
             'ended_at.after' => 'A sitting cannot end before it began.',
         ]);
 
-        $result = $session->record($hearing, $validated);
+        $result = $session->recordOrUpdate($hearing, $validated);
 
         return $this->success(
             ['hearing' => $result['hearing'], 'case' => $result['case']],
@@ -528,46 +579,103 @@ class HearingController extends BaseController
 
     /**
      * MOVE THE HOUR, NEVER THE DAY.
-     *
-     * Ten cases on one Tuesday do not fit six ninety-minute slots between
-     * eight and five, so the arithmetic hands out hours past closing and
-     * the desk that knows the hall puts them right. That is a different
-     * thing from rescheduling: the DATE on the summons in a party's hand
-     * does not move, and nothing here cancels a sitting.
-     *
-     * Only before it is held. A sitting already written up has an hour on
-     * the record; changing the appointment afterwards would edit history.
      */
     public function startTime(Request $request, Hearing $hearing)
     {
-        if ($refusal = $this->refuseWrongDesk($hearing)) {
-            return $refusal;
+        $user = auth()->user();
+        $allowedRoles = ['Admin', 'Secretary', 'Clerk', 'Lupon Secretary', 'Punong Barangay'];
+        $allowedOffices = ['Admin', 'Main Office', 'Lupon'];
+        if ($user && ! in_array($user->role, $allowedRoles, true) && ! in_array($user->office, $allowedOffices, true)) {
+            return $this->error('You are not authorized to adjust hearing hours.', 403);
         }
 
         if ($hearing->status !== 'Scheduled') {
             return $this->error('This sitting is already ' . strtolower($hearing->status) . '.', 422);
         }
 
-        $validated = $request->validate([
-            'start_time' => ['required', 'date_format:H:i'],
-        ], ['start_time.required' => 'Say what hour the sitting should begin.']);
+        $raw = trim((string) $request->input('start_time'));
+        if (! $raw) {
+            return $this->error('Say what hour the sitting should begin.', 422);
+        }
 
-        [$hour, $minute] = array_map('intval', explode(':', $validated['start_time']));
-        $moved = $hearing->scheduled_at->copy()->setTime($hour, $minute);
+        // If user entered a range like "8:00 AM – 10:00 AM" or "10:15 - 12:15", take the first part
+        if (preg_match('/^(.*?)(?:\s*[\x{2013}\x{2014}\-]\s*.*)$/u', $raw, $m)) {
+            $raw = trim($m[1]);
+        }
 
-        /* The hall holds one sitting at a time, and a second appointment on
-           the same hour is two families in one corridor. */
+        try {
+            $parsed = \Carbon\Carbon::parse($raw);
+            $hour = $parsed->hour;
+            $minute = $parsed->minute;
+        } catch (\Throwable $e) {
+            return $this->error('Invalid time format. Please provide an hour such as 10:15 AM or 14:45.', 422);
+        }
+
+        $moved = $hearing->scheduled_at->copy()->setTime($hour, $minute, 0);
+
+        // If the hour and minute are already identical, return success immediately
+        if ($moved->format('H:i') === $hearing->scheduled_at->format('H:i')) {
+            return $this->success(
+                $hearing->fresh()->load(CaseFile::WITH_PARTIES),
+                'The sitting is already set to begin at ' . $moved->format('g:i A') . '.'
+            );
+        }
+
+        $movedEnd = $moved->copy()->addMinutes(HearingCalendar::DURATION_MINUTES);
+        $movedBufferEnd = $movedEnd->copy()->addMinutes(HearingCalendar::BUFFER_MINUTES);
+
+        /* The hall holds one sitting at a time, check collision with duration & buffer. */
         $clash = Hearing::where('id', '!=', $hearing->id)
             ->where('hearing_type', $hearing->hearing_type)
-            ->where('status', 'Scheduled')
-            ->where('scheduled_at', $moved->toDateTimeString())
-            ->exists();
+            ->whereIn('status', ['Scheduled', 'Completed'])
+            ->whereDate('scheduled_at', $moved->toDateString())
+            ->get()
+            ->contains(function ($other) use ($moved, $movedBufferEnd) {
+                $otherStart = $other->scheduled_at->copy();
+                $otherEnd = $other->scheduled_at->copy()->addMinutes(HearingCalendar::DURATION_MINUTES);
+                $otherBufferEnd = $otherEnd->copy()->addMinutes(HearingCalendar::BUFFER_MINUTES);
+
+                return $moved->lt($otherBufferEnd) && $otherStart->lt($movedBufferEnd);
+            });
 
         if ($clash) {
-            return $this->error('Another sitting is already set for that hour. Pick a different one.', 422);
+            return $this->error('Another sitting or its 15-minute buffer conflicts with that hour. Pick a different one.', 422);
         }
 
         $hearing->update(['scheduled_at' => $moved]);
+
+        // If requested, also adjust subsequent Scheduled hearings of this case to the same time of day!
+        if ($request->boolean('apply_to_subsequent')) {
+            $subsequentHearings = Hearing::where('lupon_case_id', $hearing->lupon_case_id)
+                ->where('hearing_type', $hearing->hearing_type)
+                ->where('status', 'Scheduled')
+                ->where('id', '!=', $hearing->id)
+                ->where('scheduled_at', '>', $hearing->scheduled_at)
+                ->get();
+
+            foreach ($subsequentHearings as $sub) {
+                $subMoved = $sub->scheduled_at->copy()->setTime($hour, $minute, 0);
+                $subMovedEnd = $subMoved->copy()->addMinutes(HearingCalendar::DURATION_MINUTES);
+                $subMovedBufferEnd = $subMovedEnd->copy()->addMinutes(HearingCalendar::BUFFER_MINUTES);
+
+                $subClash = Hearing::where('id', '!=', $sub->id)
+                    ->where('hearing_type', $sub->hearing_type)
+                    ->whereIn('status', ['Scheduled', 'Completed'])
+                    ->whereDate('scheduled_at', $subMoved->toDateString())
+                    ->get()
+                    ->contains(function ($other) use ($subMoved, $subMovedBufferEnd) {
+                        $otherStart = $other->scheduled_at->copy();
+                        $otherEnd = $other->scheduled_at->copy()->addMinutes(HearingCalendar::DURATION_MINUTES);
+                        $otherBufferEnd = $otherEnd->copy()->addMinutes(HearingCalendar::BUFFER_MINUTES);
+
+                        return $subMoved->lt($otherBufferEnd) && $otherStart->lt($subMovedBufferEnd);
+                    });
+
+                if (! $subClash) {
+                    $sub->update(['scheduled_at' => $subMoved]);
+                }
+            }
+        }
 
         return $this->success(
             $hearing->fresh()->load(CaseFile::WITH_PARTIES),

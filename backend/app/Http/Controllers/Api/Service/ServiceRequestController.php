@@ -55,7 +55,19 @@ class ServiceRequestController extends BaseController
             $query->where('resident_id', $request->resident_id);
         }
 
-        $requests = $query->orderBy('created_at', 'desc')->orderBy('id', 'desc')->paginate(20);
+        // First Come, First Served priority based on actual request/filing timestamp (created_at ASC, id ASC)
+        if ($request->input('status') === 'Pending' || $request->input('order') === 'fcfs' || $request->input('sort') === 'fcfs') {
+            $query->orderBy('created_at', 'asc')->orderBy('id', 'asc');
+        } elseif ($request->filled('status') && in_array($request->status, ['Completed', 'Rejected', 'Cancelled'])) {
+            $query->orderBy('created_at', 'desc')->orderBy('id', 'desc');
+        } else {
+            // Prioritize pending/in progress requests in first-come first-served order
+            $query->orderByRaw("CASE WHEN status IN ('Pending', 'In Progress') THEN 0 ELSE 1 END ASC")
+                ->orderBy('created_at', 'asc')
+                ->orderBy('id', 'asc');
+        }
+
+        $requests = $query->paginate(20);
 
         return $this->success(
             $requests->toArray() + ['counts' => $counts],

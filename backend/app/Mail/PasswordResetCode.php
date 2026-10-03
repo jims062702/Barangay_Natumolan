@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use App\Models\Account\User;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -15,7 +16,7 @@ use Illuminate\Queue\SerializesModels;
  * Carries the plain code, which exists only for the length of this send —
  * the row stores a hash, the same as the activation code does.
  */
-class PasswordResetCode extends Mailable
+class PasswordResetCode extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

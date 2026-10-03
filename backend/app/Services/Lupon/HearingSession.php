@@ -47,7 +47,7 @@ final class HearingSession
     }
 
     /**
-     * @param array{minutes: string, outcome: string, agreement?: ?string, complainant_present?: ?bool, respondent_present?: ?bool, started_at?: ?string, ended_at?: ?string} $data
+     * @param array{minutes: string, outcome: string, agreement?: ?string, complainant_present?: ?bool, respondent_present?: ?bool, attendance_notes?: ?string, started_at?: ?string, ended_at?: ?string} $data
      * @return array{hearing: Hearing, case: CaseFile, message: string}
      */
     public function record(Hearing $hearing, array $data): array
@@ -57,9 +57,16 @@ final class HearingSession
 
         return DB::transaction(function () use ($hearing, $case, $data, $outcome) {
             /* The clock readings are hours on the sitting's OWN day. */
-            $onTheDay = fn (?string $hhmm) => $hhmm && $hearing->scheduled_at
-                ? $hearing->scheduled_at->copy()->setTimeFromTimeString($hhmm . ':00')
-                : null;
+            $onTheDay = function (?string $timeStr) use ($hearing) {
+                if (! $timeStr || ! $hearing->scheduled_at) {
+                    return null;
+                }
+                $timePart = substr($timeStr, 0, 8);
+                if (strlen($timePart) === 5) {
+                    $timePart .= ':00';
+                }
+                return $hearing->scheduled_at->copy()->setTimeFromTimeString($timePart);
+            };
 
             $hearing->update([
                 'status' => 'Completed',
@@ -69,6 +76,7 @@ final class HearingSession
                 'outcome' => $outcome,
                 'complainant_present' => $data['complainant_present'] ?? $hearing->complainant_present,
                 'respondent_present' => $data['respondent_present'] ?? $hearing->respondent_present,
+                'attendance_notes' => $data['attendance_notes'] ?? $hearing->attendance_notes,
                 'recorded_by' => auth()->id(),
             ]);
 
@@ -77,6 +85,58 @@ final class HearingSession
                 : $this->unsettled($case, $hearing);
 
             return ['hearing' => $hearing->fresh(), 'case' => $case->fresh()->load('hearings'), 'message' => $message];
+        });
+    }
+
+    /**
+     * Records or updates minutes and session outcome for a hearing.
+     * Works for both Scheduled (first-time) and Completed (editing past minutes) hearings.
+     *
+     * @param array{minutes: string, outcome: string, agreement?: ?string, complainant_present?: ?bool, respondent_present?: ?bool, attendance_notes?: ?string, started_at?: ?string, ended_at?: ?string} $data
+     * @return array{hearing: Hearing, case: CaseFile, message: string}
+     */
+    public function recordOrUpdate(Hearing $hearing, array $data): array
+    {
+        if ($hearing->status === 'Scheduled') {
+            return $this->record($hearing, $data);
+        }
+
+        $case = $hearing->luponCase;
+        $outcome = $data['outcome'] ?? ($hearing->outcome ?: 'Unsettled');
+
+        return DB::transaction(function () use ($hearing, $case, $data, $outcome) {
+            $onTheDay = function (?string $timeStr) use ($hearing) {
+                if (! $timeStr || ! $hearing->scheduled_at) {
+                    return null;
+                }
+                $timePart = substr($timeStr, 0, 8);
+                if (strlen($timePart) === 5) {
+                    $timePart .= ':00';
+                }
+                return $hearing->scheduled_at->copy()->setTimeFromTimeString($timePart);
+            };
+
+            $hearing->update([
+                'status' => 'Completed',
+                'started_at' => $onTheDay($data['started_at'] ?? null) ?? $hearing->started_at,
+                'ended_at' => $onTheDay($data['ended_at'] ?? null) ?? $hearing->ended_at,
+                'proceedings_notes' => $data['minutes'] ?? ($data['proceedings_notes'] ?? $hearing->proceedings_notes),
+                'outcome' => $outcome,
+                'complainant_present' => $data['complainant_present'] ?? $hearing->complainant_present,
+                'respondent_present' => $data['respondent_present'] ?? $hearing->respondent_present,
+                'attendance_notes' => $data['attendance_notes'] ?? $hearing->attendance_notes,
+                'recorded_by' => auth()->id(),
+            ]);
+
+            if ($outcome === self::AGREEMENT && ! empty($data['agreement'])) {
+                $this->agreed($case, $hearing, (string) $data['agreement']);
+            }
+
+            return [
+                'hearing' => $hearing->fresh(),
+                'case' => $case ? $case->fresh()->load('hearings') : null,
+                'message' => 'Minutes saved successfully.',
+            ];
         });
     }
 
@@ -134,26 +194,67 @@ final class HearingSession
     {
         $type = $hearing->hearing_type;
 
-        $next = $case->hearings()
+        // Count completed hearings of this type on this case
+        $completedCount = $case->hearings()
             ->where('hearing_type', $type)
-            ->where('status', 'Scheduled')
-            ->orderBy('scheduled_at')
-            ->first();
-
-        if ($next) {
-            return 'Recorded as unsettled. The next sitting is on '
-                . $next->scheduled_at->format('F j, Y g:i A') . '.';
-        }
+            ->where('status', 'Completed')
+            ->count();
 
         if ($type === 'Mediation') {
+            if ($completedCount < 3) {
+                // Must complete 3 PB mediation attempts before moving to Lupon stage
+                $next = $case->hearings()
+                    ->where('hearing_type', 'Mediation')
+                    ->where('status', 'Scheduled')
+                    ->first();
+
+                if (! $next) {
+                    $prevDate = $hearing->scheduled_at ? $hearing->scheduled_at->copy() : Carbon::now(ManilaTime::ZONE);
+                    $nextTuesday = $prevDate->copy()->addWeek();
+                    $result = $this->calendar->getOrCreateHearing($case, 'Mediation', $nextTuesday, false);
+                    $next = $result['hearing'];
+                }
+
+                $nextSeq = $completedCount + 1;
+                $timeRange = $next->schedule_time_range ?: $next->scheduled_at->format('g:i A');
+                $dayName = $next->scheduled_at->format('l, F j, Y');
+
+                return "Recorded as unsettled (Punong Barangay Hearing #{$completedCount}). Punong Barangay Hearing #{$nextSeq} is scheduled for {$dayName} at {$timeRange}.";
+            }
+
+            // Exactly 3 Punong Barangay hearings completed unsettled! Move to Lupon stage
             $case->update(['current_stage' => 'For Lupon Summons']);
 
-            return 'Recorded as unsettled. The three sittings with the Punong Barangay are spent, '
-                . 'so the case has gone to the Lupon — they print the summons and the notice of '
-                . 'hearing, and that books three Thursdays.';
+            return 'Recorded as unsettled. All 3 mediation hearings with the Punong Barangay are completed without settlement. '
+                . 'The case has advanced to the Lupon conciliation stage (For Lupon Summons). '
+                . 'The Lupon office may now print the summons to schedule the first Lupon hearing.';
         }
 
-        return 'Recorded as unsettled. The three sittings with the Lupon are spent; '
-            . 'the Lupon may now certify the case to file action.';
+        // Lupon Conciliation stage
+        if ($completedCount < 3) {
+            $next = $case->hearings()
+                ->where('hearing_type', 'Conciliation')
+                ->where('status', 'Scheduled')
+                ->first();
+
+            if (! $next) {
+                $prevDate = $hearing->scheduled_at ? $hearing->scheduled_at->copy() : Carbon::now(ManilaTime::ZONE);
+                $nextThursday = $prevDate->copy()->addWeek();
+                $result = $this->calendar->getOrCreateHearing($case, 'Conciliation', $nextThursday, false);
+                $next = $result['hearing'];
+            }
+
+            $nextSeq = $completedCount + 1;
+            $timeRange = $next->schedule_time_range ?: $next->scheduled_at->format('g:i A');
+            $dayName = $next->scheduled_at->format('l, F j, Y');
+
+            return "Recorded as unsettled (Lupon Hearing #{$completedCount}). Lupon Hearing #{$nextSeq} is scheduled for {$dayName} at {$timeRange}.";
+        }
+
+        // 3 Lupon conciliation hearings completed without settlement!
+        $case->update(['current_stage' => 'CFA']);
+
+        return 'Recorded as unsettled. All 3 conciliation hearings with the Lupon are completed without settlement. '
+            . 'The case is now eligible for a Certificate to File Action (CFA).';
     }
 }

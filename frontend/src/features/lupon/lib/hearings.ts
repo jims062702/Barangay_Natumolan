@@ -12,8 +12,14 @@ export const OUTCOME_STATUSES = ["Completed", "Rescheduled", "Cancelled", "No Sh
 
 export const today = () => new Date().toISOString().slice(0, 10);
 
-export const asDate = (value?: string | null) =>
-  value ? new Date(value).toLocaleDateString("en-PH") : "—";
+export const asDate = (value?: string | null) => {
+  if (!value) return "—";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [y, m, d] = value.split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString("en-PH");
+  }
+  return new Date(value).toLocaleDateString("en-PH");
+};
 
 /** Scheduled, summons issued, but no proof of service on file. */
 export const unserved = (h: LuponHearing) =>

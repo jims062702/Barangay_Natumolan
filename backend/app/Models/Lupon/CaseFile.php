@@ -103,8 +103,8 @@ class CaseFile extends Model
     protected function casts(): array
     {
         return [
-            'date_filed' => 'date',
-            'date_resolved' => 'date',
+            'date_filed' => 'date:Y-m-d',
+            'date_resolved' => 'date:Y-m-d',
             'payment_required_at' => 'datetime',
             'payment_due_at' => 'datetime',
             'auto_closed_at' => 'datetime',
@@ -119,6 +119,10 @@ class CaseFile extends Model
         'complainant_display_contact',
         'complainant_reference',
         'respondent_display_names',
+        'docket_number',
+        'hearing_stage',
+        'current_stage_label',
+        'next_hearing_info',
     ];
 
     /** The complainant's name, whether they are a resident or an outsider. */
@@ -204,6 +208,133 @@ class CaseFile extends Model
         return $this->respondents
             ->map(fn ($r) => trim($r->first_name . ' ' . $r->last_name))
             ->implode(', ');
+    }
+
+    /**
+     * Permanent Case Docket Numbering in reverse chronological order:
+     * Newest case = #1, Previous case = #2, Oldest case = #N.
+     * Remains permanently associated with the case across search, filter, pagination, refresh.
+     */
+    public function getDocketNumberAttribute(): int
+    {
+        if (isset($this->attributes['docket_number'])) {
+            return (int) $this->attributes['docket_number'];
+        }
+
+        if (! $this->exists || ! $this->date_filed) {
+            return 1;
+        }
+
+        return (int) DB::table('lupon_cases')
+            ->where(function ($q) {
+                $q->where('date_filed', '>', $this->date_filed)
+                    ->orWhere(function ($q2) {
+                        $q2->where('date_filed', $this->date_filed)
+                            ->where('id', '>=', $this->id);
+                    });
+            })
+            ->count();
+    }
+
+    /**
+     * Current hearing stage of the case for docket display:
+     * e.g. "Hearing with Punong Barangay", "Hearing with Lupon (Pangkat)", etc.
+     */
+    public function getHearingStageAttribute(): string
+    {
+        return match ($this->current_stage) {
+            'Mediation' => 'Hearing with Punong Barangay',
+            'Conciliation' => 'Hearing with Lupon',
+            'For Summons' => 'For Summons (Punong Barangay)',
+            'For Lupon Summons' => 'For Summons (Lupon)',
+            'Filed' => 'Filed',
+            'Settled' => 'Amicable Settlement',
+            'Repudiated' => 'Repudiated Settlement',
+            'CFA' => 'Certified to File Action',
+            'Withdrawn' => 'Withdrawn',
+            'Closed — Unpaid', 'Closed Unpaid' => 'Closed (Unpaid)',
+            default => $this->current_stage ?: '—',
+        };
+    }
+
+    /**
+     * Clear high-level stage label: "Punong Barangay" vs "Lupon"
+     */
+    public function getCurrentStageLabelAttribute(): string
+    {
+        if (in_array($this->current_stage, ['Filed', 'For Summons', 'Mediation'], true)) {
+            return 'Punong Barangay';
+        }
+        if (in_array($this->current_stage, ['For Lupon Summons', 'Conciliation'], true)) {
+            return 'Lupon';
+        }
+        return match ($this->current_stage) {
+            'Settled' => 'Settled',
+            'CFA' => 'Certified to File Action',
+            'Withdrawn' => 'Withdrawn',
+            'Dismissed' => 'Dismissed',
+            'Closed — Unpaid', 'Closed Unpaid' => 'Closed (Unpaid)',
+            default => $this->current_stage ?: '—',
+        };
+    }
+
+    /**
+     * Returns next scheduled hearing info for the case docket.
+     */
+    public function getNextHearingInfoAttribute(): ?array
+    {
+        if ($this->isClosed()) {
+            return [
+                'stage' => $this->current_stage_label,
+                'title' => 'None (' . $this->current_stage . ')',
+                'schedule' => '—',
+                'day_time' => '—',
+                'summons_status' => 'None',
+                'hearing_id' => null,
+            ];
+        }
+
+        $isPB = in_array($this->current_stage, ['Filed', 'For Summons', 'Mediation'], true);
+        $stageName = $isPB ? 'Punong Barangay' : 'Lupon';
+        $type = $isPB ? 'Mediation' : 'Conciliation';
+
+        // Find active scheduled hearing for this stage
+        $hearingsColl = $this->relationLoaded('hearings') ? $this->hearings : null;
+        $activeHearing = $hearingsColl
+            ? $hearingsColl->where('hearing_type', $type)->where('status', 'Scheduled')->sortBy('scheduled_at')->first()
+            : $this->hearings()->where('hearing_type', $type)->where('status', 'Scheduled')->orderBy('scheduled_at')->first();
+
+        if ($activeHearing) {
+            $seq = $activeHearing->hearing_sequence;
+            $title = "{$stageName} Hearing #{$seq}";
+            $timeRange = $activeHearing->schedule_time_range ?: $activeHearing->scheduled_at->format('g:i A');
+            $dayName = $activeHearing->scheduled_at->format('l');
+
+            return [
+                'stage' => $stageName,
+                'title' => $title,
+                'schedule' => "{$dayName}, {$timeRange}",
+                'day_time' => "{$dayName}, " . $activeHearing->scheduled_at->format('g:i A'),
+                'summons_status' => $activeHearing->summons_issued ? 'Issued' : 'Prepared',
+                'hearing_id' => $activeHearing->id,
+            ];
+        }
+
+        // If not yet scheduled
+        $pastCount = $hearingsColl
+            ? $hearingsColl->where('hearing_type', $type)->count()
+            : $this->hearings()->where('hearing_type', $type)->count();
+        $seq = $pastCount + 1;
+        $title = "{$stageName} Hearing #{$seq}";
+
+        return [
+            'stage' => $stageName,
+            'title' => $title,
+            'schedule' => $isPB ? 'Tuesday (Pending Summons)' : 'Thursday (Pending Summons)',
+            'day_time' => 'Pending Summons',
+            'summons_status' => 'Pending',
+            'hearing_id' => null,
+        ];
     }
 
     public function complainant(): BelongsTo

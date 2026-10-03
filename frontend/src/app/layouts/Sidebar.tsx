@@ -124,7 +124,11 @@ export function Sidebar({ compact, user, sections, setSidebarOpen, badges, activ
                     }`}
                   >
                     <item.icon className="h-4.5 w-4.5 shrink-0" aria-hidden="true" />
-                    {!compact && <span className="flex-1 truncate">{item.label}</span>}
+                    {!compact && (
+                      <span className="flex-1 truncate">
+                        {item.label}
+                      </span>
+                    )}
                     {/*
                       What is waiting behind this page. Shown only when there
                       is something — a row of zeros is a row of noise, and a

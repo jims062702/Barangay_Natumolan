@@ -32,9 +32,9 @@ Route::post('assistant/inquiry', [AssistantController::class, 'ask']);
 | browser, where another browser on the same phone started the count again.
 | See App\Services\Chat\GuestAllowance.
 */
-Route::get('assistant/allowance', [GuestAllowanceController::class, 'show'])->middleware('throttle:60,1');
-Route::post('assistant/allowance', [GuestAllowanceController::class, 'take'])->middleware('throttle:60,1');
-Route::post('assistant/allowance/return', [GuestAllowanceController::class, 'giveBack'])->middleware('throttle:60,1');
+Route::get('assistant/allowance', [GuestAllowanceController::class, 'show'])->middleware('throttle:60,1,assistant-allowance');
+Route::post('assistant/allowance', [GuestAllowanceController::class, 'take'])->middleware('throttle:60,1,assistant-take');
+Route::post('assistant/allowance/return', [GuestAllowanceController::class, 'giveBack'])->middleware('throttle:60,1,assistant-return');
 
 /*
 | Checking a Barangay Resident ID — the page its QR opens, and the check a
@@ -42,8 +42,8 @@ Route::post('assistant/allowance/return', [GuestAllowanceController::class, 'giv
 | in part; never an address or a birthday. See ResidentCards.
 */
 Route::get('resident-id/{code}', [ResidentIdController::class, 'show'])
-    ->where('code', '[A-Za-z0-9-]{1,40}')->middleware('throttle:30,1');
-Route::post('resident-id/verify', [ResidentIdController::class, 'verify'])->middleware('throttle:30,1');
+    ->where('code', '[A-Za-z0-9-]{1,40}')->middleware('throttle:120,1,public-id-show');
+Route::post('resident-id/verify', [ResidentIdController::class, 'verify'])->middleware('throttle:120,1,public-id-verify');
 
 /*
 | A VAWC report sent online — by a WOMAN who is a resident, identified by her
@@ -51,17 +51,18 @@ Route::post('resident-id/verify', [ResidentIdController::class, 'verify'])->midd
 | a case only once the desk has verified it (and found the respondent on the
 | register). See App\Services\Vawc\OnlineReports.
 */
-Route::post('vawc/report', [PublicVawcReportController::class, 'store'])->middleware('throttle:10,60');
+Route::post('vawc/report', [PublicVawcReportController::class, 'store'])->middleware('throttle:60,1,public-vawc-report');
 
 /*
 | ONLINE CERTIFICATE REQUEST — residents only, without signing in, by their
 | Barangay Resident ID. See App\Services\Portal\CertificateRequests.
 */
-Route::get('certificate-request/services', [PublicCertificateRequestController::class, 'services'])->middleware('throttle:60,1');
-Route::post('certificate-request/check', [PublicCertificateRequestController::class, 'check'])->middleware('throttle:30,1');
-Route::post('certificate-request', [PublicCertificateRequestController::class, 'store'])->middleware('throttle:10,60');
+Route::get('certificate-request/services', [PublicCertificateRequestController::class, 'services'])->middleware('throttle:120,1,public-cert-services');
+Route::post('certificate-request/check', [PublicCertificateRequestController::class, 'check'])->middleware('throttle:120,1,public-cert-check');
+Route::post('certificate-request/deceased-search', [PublicCertificateRequestController::class, 'deceasedSearch'])->middleware('throttle:120,1,public-deceased-search');
+Route::post('certificate-request', [PublicCertificateRequestController::class, 'store'])->middleware('throttle:60,1,public-cert-request');
 
-Route::post('contact', [ContactController::class, 'store'])->middleware('throttle:5,1');
+Route::post('contact', [ContactController::class, 'store'])->middleware('throttle:30,1,public-contact');
 
 /*
 | BEGINNING A KP COMPLAINT FROM THE PUBLIC PAGE.

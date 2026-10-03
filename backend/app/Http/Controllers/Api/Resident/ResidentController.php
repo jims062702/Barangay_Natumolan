@@ -601,4 +601,19 @@ class ResidentController extends BaseController
             'Prenatal records' => \App\Models\Health\PrenatalVisit::where('mother_id', $resident->id)->count(),
         ];
     }
+
+    /**
+     * Determine relationship between two residents based on family records.
+     */
+    public function relationship(Resident $resident, Resident $other, \App\Services\Resident\DeathConfirmationService $deathService): JsonResponse
+    {
+        $relationship = $deathService->getRelationship($resident, $other);
+
+        return $this->success([
+            'relationship' => $relationship,
+            'requester_id' => $resident->id,
+            'other_id' => $other->id,
+        ], 'Relationship retrieved');
+    }
 }
+

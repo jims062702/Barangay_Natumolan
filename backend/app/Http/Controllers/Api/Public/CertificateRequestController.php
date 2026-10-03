@@ -10,8 +10,10 @@ use App\Models\Resident\Resident;
 use App\Models\Service\ServiceRequest;
 use App\Services\Portal\CertificateRequests;
 use App\Services\Portal\OnlineCertificate;
+use App\Services\Resident\DeathConfirmationService;
 use App\Services\Resident\ResidentCards;
 use App\Services\Service\CertificateCatalogue;
+use App\Support\ManilaTime;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -30,6 +32,63 @@ class CertificateRequestController extends BaseController
     public function services()
     {
         return $this->success(PortalCertificateController::onlineServices(), 'Certificate services');
+    }
+
+    /**
+     * Search residents to find the deceased resident (requires valid Resident ID).
+     */
+    public function deceasedSearch(Request $request, ResidentCards $cards, DeathConfirmationService $deathService)
+    {
+        $data = $request->validate([
+            'resident_card_code' => 'required|string|max:300',
+            'query' => 'nullable|string|max:100',
+        ], ['resident_card_code.required' => 'Upload your Barangay Resident ID first.']);
+
+        $resident = $this->resident($data['resident_card_code'], $cards);
+        if (! $resident instanceof Resident) {
+            return $resident;
+        }
+
+        $term = trim((string) ($data['query'] ?? ''));
+
+        $query = Resident::query()
+            ->where('id', '!=', $resident->id)
+            ->where('record_type', '!=', Resident::NON_RESIDENT);
+
+        if ($term !== '') {
+            $query->nameSearch($term);
+        } else {
+            $familyIds = $resident->parents()->pluck('residents.id')
+                ->merge($resident->children()->pluck('residents.id'))
+                ->merge($resident->spouse_id ? [$resident->spouse_id] : [])
+                ->merge($resident->siblings()->pluck('id'))
+                ->unique();
+
+            if ($familyIds->isNotEmpty()) {
+                $query->whereIn('id', $familyIds);
+            }
+        }
+
+        $results = $query->limit(20)->get()->map(function (Resident $r) use ($resident, $deathService) {
+            $age = $r->birthdate ? $r->birthdate->age : null;
+            $relationship = $deathService->getRelationship($resident, $r);
+            $address = $r->address ?: ($r->zone_purok ? 'Zone ' . $r->zone_purok . ', Barangay Natumolan' : 'Barangay Natumolan');
+
+            return [
+                'id' => $r->id,
+                'full_name' => $r->full_name,
+                'resident_number' => $r->resident_number,
+                'birthdate' => $r->birthdate?->toDateString(),
+                'age' => $age,
+                'address' => $address,
+                'zone_purok' => $r->zone_purok,
+                'life_status' => $r->life_status,
+                'is_deceased' => $r->isDeceased(),
+                'relationship' => $relationship,
+            ];
+        });
+
+        return $this->success($results, 'Matching residents');
     }
 
     /** The resident the card names — or the reason there is none. */
@@ -114,13 +173,55 @@ class CertificateRequestController extends BaseController
             'template_fields' => 'nullable|array',
             'template_fields.business_name' => 'nullable|string|max:150',
             'template_fields.business_kind' => 'nullable|string|max:150',
+            'template_fields.deceased_resident_id' => 'nullable|integer|exists:residents,id',
+            'template_fields.deceased_name' => 'nullable|string|max:150',
+            'template_fields.deceased_age' => 'nullable|string|max:20',
+            'template_fields.deceased_address' => 'nullable|string|max:255',
+            'template_fields.date_of_death' => 'nullable|date',
+            'template_fields.time_of_death' => 'nullable|string|max:50',
+            'template_fields.place_of_death' => 'nullable|string|max:255',
+            'template_fields.relationship_to_deceased' => 'nullable|string|max:100',
+            'template_fields.requested_by' => 'nullable|string|max:150',
             'details' => 'nullable|array',
         ] + CertificateRequests::rulesFor($missing), [
             'purpose.required' => 'Say what the certificate is for.',
             'details.*.required' => 'This certificate needs it, and your record does not have it yet.',
         ]);
 
-        [$serviceRequest, $certificate, $filled] = DB::transaction(function () use ($resident, $missing, $data, $base, $online) {
+        if ($type === 'Certification of Death') {
+            $tf = $data['template_fields'] ?? [];
+            $deceasedId = $tf['deceased_resident_id'] ?? null;
+            if (! $deceasedId) {
+                return $this->error('Please select the deceased resident.', 422, ['template_fields.deceased_resident_id' => ['Please search and select the deceased resident.']]);
+            }
+            if ((int) $deceasedId === (int) $resident->id) {
+                return $this->error('You cannot request a Certification of Death for yourself.', 422, ['template_fields.deceased_resident_id' => ['You cannot request a Certification of Death for yourself.']]);
+            }
+            if (empty($tf['date_of_death'])) {
+                return $this->error('Date of death is required.', 422, ['template_fields.date_of_death' => ['Date of death is required.']]);
+            }
+            if ($tf['date_of_death'] > ManilaTime::today()) {
+                return $this->error('Date of death cannot be in the future.', 422, ['template_fields.date_of_death' => ['Date of death cannot be in the future.']]);
+            }
+            if (empty($tf['time_of_death']) || trim($tf['time_of_death']) === '') {
+                return $this->error('Time of death is required.', 422, ['template_fields.time_of_death' => ['Time of death is required.']]);
+            }
+            if (empty($tf['place_of_death']) || trim($tf['place_of_death']) === '') {
+                return $this->error('Place of death is required.', 422, ['template_fields.place_of_death' => ['Place of death is required.']]);
+            }
+            if (empty($tf['relationship_to_deceased']) || trim($tf['relationship_to_deceased']) === '') {
+                return $this->error('Relationship to the deceased is required.', 422, ['template_fields.relationship_to_deceased' => ['Relationship to the deceased is required.']]);
+            }
+        }
+
+        $templateFields = $data['template_fields'] ?? [];
+        if ($type === 'Certification of Death') {
+            $templateFields['requested_by'] = $resident->full_name;
+            $templateFields['requester_resident_id'] = $resident->id;
+            $templateFields['requester_source'] = 'resident_id_card';
+        }
+
+        [$serviceRequest, $certificate, $filled] = DB::transaction(function () use ($resident, $missing, $data, $base, $online, $templateFields) {
             $filled = CertificateRequests::fillBlanks($resident, $missing, $data['details'] ?? []);
 
             $serviceRequest = ServiceRequest::create([
@@ -133,7 +234,7 @@ class CertificateRequestController extends BaseController
                 'purpose' => $online->asksPurpose($base['service_type']) ? ($data['purpose'] ?? null) : null,
             ]);
 
-            return [$serviceRequest, $online->raise($serviceRequest, $data['template_fields'] ?? []), $filled];
+            return [$serviceRequest, $online->raise($serviceRequest, $templateFields), $filled];
         });
 
         Notification::notifyFrontDesk(

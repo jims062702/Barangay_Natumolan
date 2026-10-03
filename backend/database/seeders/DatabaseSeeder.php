@@ -28,35 +28,30 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->seedStaff();
-        $residents = $this->seedResidentsAndHouseholds();
-        $this->seedFamilies($residents);
-        $this->seedPortalAccounts($residents);
         $this->seedServiceGuides();
         $this->seedAnnouncements();
-        $this->seedRequestsAndCertificates($residents);
-        $this->seedLupon($residents);
-        $this->seedHealth($residents);
-        $this->seedPopulationEvents($residents);
-        $this->seedVawcPlaceholder();
         $this->call(SkSeeder::class);
+        $this->call(ZoneSeeder::class);
+        $this->call(BarangayCouncilSeeder::class);
     }
 
     private function seedStaff(): void
     {
         $rows = [
-            ['Hon. Ricardo M. Balagtas', 'pb@natumolan.local', 'Punong Barangay', 'Main Office'],
-            ['Liezel A. Fernandez', 'secretary@natumolan.local', 'Secretary', 'Main Office'],
-            ['Marco T. Villarin', 'clerk@natumolan.local', 'Clerk', 'Main Office'],
-            ['Maria Lourdes P. Santos', 'vawc@natumolan.local', 'VAWC Officer', 'VAWC'],
-            ['Ernesto D. Villanueva', 'lupon@natumolan.local', 'Lupon Secretary', 'Lupon'],
-            ['Allan T. Mercado', 'population@natumolan.local', 'Population Worker', 'Population'],
-            ['Angelica R. Cruz', 'health@natumolan.local', 'Health Personnel', 'Health Station'],
+            ['Hon. Rafael P. Vidal', 'pb@natumolan.local', 'Punong Barangay', 'Main Office'],
+            ['Grace G. Galola', 'secretary@natumolan.local', 'Secretary', 'Main Office'],
+            ['June A. Cavan', 'clerk@natumolan.local', 'Clerk', 'Main Office'],
+            ['Charmil G. Manto', 'clerk2@natumolan.local', 'Clerk', 'Main Office'],
+            ['Gina Caayaman', 'vawc@natumolan.local', 'VAWC Officer', 'VAWC'],
+            ['Maria Faye C. Ordiz', 'lupon@natumolan.local', 'Lupon Secretary', 'Lupon'],
+            ['Abbess Kristel P. Pacaldo', 'population@natumolan.local', 'Population Worker', 'Population'],
+            ['Rosa F. Moreno', 'health@natumolan.local', 'Health Personnel', 'Health Station'],
             ['Hon. Kyla Marie D. Torres', 'sk@natumolan.local', 'SK Chairperson', 'SK'],
             ['System Administrator', 'admin@natumolan.local', 'Admin', 'Admin'],
         ];
 
         foreach ($rows as [$name, $email, $role, $office]) {
-            $this->staff[$role] = User::create([
+            $user = User::create([
                 'name' => $name,
                 'email' => $email,
                 'password' => 'password',
@@ -66,6 +61,10 @@ class DatabaseSeeder extends Seeder
                 // Staff accounts are issued by hand to a verified person.
                 'activated_at' => now(),
             ]);
+
+            if (!isset($this->staff[$role])) {
+                $this->staff[$role] = $user;
+            }
         }
     }
 
@@ -294,9 +293,9 @@ class DatabaseSeeder extends Seeder
 
         $rows = [
             ['3rd Quarter Barangay Assembly 2026', 'All residents are invited to the quarterly Barangay Assembly. The council will present accomplishment reports, budget utilization, and upcoming projects.', 'Event', 'Barangay Covered Court', '2026-08-15 09:00:00'],
-            ['Free Medical & Dental Mission', 'Free check-ups, dental extraction, BP monitoring, and free medicines for all residents. First come, first served.', 'Health', 'Barangay Health Station', '2026-08-29 07:00:00'],
+            ['Free Medical & Dental Mission', 'Free check-ups, dental extraction, BP monitoring, and free medicines for all residents. First come, first served.', 'Program', 'Barangay Health Station', '2026-08-29 07:00:00'],
             ['Coastal & River Clean-Up Drive', 'Join our volunteers and officials in keeping our waterways clean. Gloves, sacks, and refreshments provided.', 'Advisory', 'Natumolan Riverside, Zone 3', '2026-09-12 06:00:00'],
-            ['SK Youth Leadership Summit', 'Whole-day summit on leadership and civic engagement for youth aged 15–30. Free registration and meals.', 'Youth', 'Barangay Multi-Purpose Hall', '2026-09-26 08:00:00'],
+            ['SK Youth Leadership Summit', 'Whole-day summit on leadership and civic engagement for youth aged 15–30. Free registration and meals.', 'Activity', 'Barangay Multi-Purpose Hall', '2026-09-26 08:00:00'],
         ];
 
         foreach ($rows as $i => [$title, $body, $category, $location, $eventAt]) {
@@ -531,7 +530,6 @@ class DatabaseSeeder extends Seeder
             'mother_id' => $residents[10]->id,
             'pregnancy_registration_date' => now()->subMonths(4)->toDateString(),
             'expected_delivery_date' => now()->addMonths(5)->toDateString(),
-            'prenatal_visits_count' => 3,
             'risk_indicators' => 'None noted',
             'maternal_immunization_received' => true,
             'status' => 'Active',
@@ -539,6 +537,7 @@ class DatabaseSeeder extends Seeder
 
         ChildRecord::create([
             'child_id' => $residents[3]->id,
+            'record_date' => now()->subMonths(1)->toDateString(),
             'birth_date' => $residents[3]->birthdate->toDateString(),
             'birth_weight' => 3.1,
             'current_weight' => 15.8,

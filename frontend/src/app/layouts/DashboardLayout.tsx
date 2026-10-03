@@ -11,6 +11,7 @@ import UpdateBanner from "../../shared/offline/UpdateBanner";
 import OfflineReadiness from "../../shared/offline/OfflineReadiness";
 import { menuFor } from "../../shared/navigation/menu";
 import { useAutoRefresh, REFRESH } from "../../shared/hooks/useAutoRefresh";
+import { usePulse } from "../../shared/hooks/usePulse";
 import { useOfflineData } from "../../shared/offline/useOfflineData";
 import ErrorBoundary from "../ErrorBoundary";
 import ChatWidget from "../../features/chat/components/ChatWidget";
@@ -51,6 +52,8 @@ export default function DashboardLayout() {
   const [badges, setBadges] = useState<Record<string, number>>({});
   const [badgeTick, setBadgeTick] = useState(0);
   useAutoRefresh(() => setBadgeTick((t) => t + 1), REFRESH.staff);
+  usePulse("lupon_cases", () => setBadgeTick((t) => t + 1));
+  usePulse("service_requests", () => setBadgeTick((t) => t + 1));
 
   useEffect(() => {
     void dashboardApi.badges()

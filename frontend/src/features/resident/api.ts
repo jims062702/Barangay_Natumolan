@@ -27,6 +27,8 @@ export const residentApi = {
     api.delete(`/residents/${residentId}/family/${relativeId}`, ...args),
   linkRelative: (residentId: PathParam, ...args: BodyArgs) =>
     api.post(`/residents/${residentId}/family/link`, ...args),
+  relationship: (residentId: PathParam, otherId: PathParam, ...args: QueryArgs) =>
+    api.get(`/residents/${residentId}/relationship/${otherId}`, ...args),
   endGuardianship: (residentId: PathParam, guardianshipId: PathParam, ...args: BodyArgs) =>
     api.post(`/residents/${residentId}/guardianships/${guardianshipId}/end`, ...args),
   /* The Barangay Resident ID the Population Office prints. A new one revokes the old. */

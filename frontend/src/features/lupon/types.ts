@@ -6,6 +6,17 @@ import type { Resident, User } from "../../shared/types";
 
 export interface LuponCase {
   id: number;
+  docket_number?: number;
+  hearing_stage?: string;
+  current_stage_label?: string;
+  next_hearing_info?: {
+    stage: string;
+    title: string;
+    schedule: string;
+    day_time: string;
+    summons_status: string;
+    hearing_id: number | null;
+  } | null;
   case_number: string;
   case_title: string;
   case_classification: string;
@@ -81,17 +92,24 @@ export interface LuponComplaint {
 
 export interface LuponHearing {
   id: number;
+  lupon_case_id?: number;
   hearing_type: string;
+  hearing_sequence?: number;
+  hearing_title?: string;
+  hearing_stage_label?: string;
+  complainant_summons_status?: "Issued" | "Prepared" | "Pending";
+  respondent_summons_status?: "Issued" | "Prepared" | "Pending";
+  summons_status_summary?: string;
+  formatted_schedule?: string | null;
   scheduled_at: string;
   /**
-   * When the appointment is EXPECTED to be over: ninety minutes on.
-   *
-   * A default for laying out the day, not a deadline. Nothing ends,
-   * cancels or completes a sitting when it passes, and it is never
-   * printed on a summons — a party who read an end time on the paper and
-   * left at that hour would have walked out of their own case.
+   * When the appointment is EXPECTED to be over: 2 hours (120 minutes) on.
    */
   scheduled_end_at?: string | null;
+  /** Formatted end time (e.g. 10:00 AM) */
+  scheduled_end_at_formatted?: string | null;
+  /** Formatted schedule time range (e.g. 8:00 AM – 10:00 AM) */
+  schedule_time_range?: string | null;
   /** The appointment runs past the hour the hall closes: pick another. */
   past_closing?: boolean;
   /** When it ACTUALLY ran, which is not when it was set to. */
@@ -107,6 +125,7 @@ export interface LuponHearing {
    */
   delayed_minutes?: number;
   status: string;
+  dynamic_status?: "Upcoming" | "Today" | "On-going" | "Completed" | "Cancelled";
   summons_issued: boolean;
   /** When the Secretary printed it — the moment the parties were told. */
   summons_printed_at?: string | null;
@@ -116,6 +135,7 @@ export interface LuponHearing {
   respondent_present?: boolean | null;
   attendance_notes?: string | null;
   proceedings_notes?: string | null;
+  minutes?: string | null;
   outcome?: string | null;
   recorder?: Partial<User> | null;
   /**

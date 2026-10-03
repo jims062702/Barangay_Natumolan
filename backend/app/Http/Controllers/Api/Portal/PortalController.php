@@ -15,4 +15,10 @@ abstract class PortalController extends BaseController
     {
         return auth()->user()->resident_id;
     }
+
+    /** The resident record for the signed-in portal account. */
+    protected function resident()
+    {
+        return auth()->user()->resident;
+    }
 }

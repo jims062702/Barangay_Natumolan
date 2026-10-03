@@ -45,6 +45,8 @@ export const publicApi = {
     api.post("/certificate-request/check", ...args),
   sendCertificateRequest: (...args: BodyArgs) =>
     api.post("/certificate-request", ...args),
+  searchDeceased: (...args: BodyArgs) =>
+    api.post("/certificate-request/deceased-search", ...args),
   /* A VAWC report sent online — residents only, by their Resident ID. */
   sendVawcReport: (...args: BodyArgs) =>
     api.post("/vawc/report", ...args),

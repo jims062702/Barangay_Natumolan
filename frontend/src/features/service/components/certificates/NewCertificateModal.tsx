@@ -1,9 +1,10 @@
-import { FiPlus, FiTrash2 } from "react-icons/fi";
+import { FiAlertTriangle, FiPlus, FiTrash2 } from "react-icons/fi";
 import DraftNotice from "../../../../shared/ui/DraftNotice";
 import Modal from "../../../../shared/ui/Modal";
 import FormField, { inputClasses } from "../../../../shared/ui/FormField";
 import ChoiceWithOther from "../../../../shared/ui/ChoiceWithOther";
 import ResidentPicker from "../../../resident/components/ResidentPicker";
+import { DeathCertificateWalkinFields } from "./DeathCertificateWalkinFields";
 import type { CertificateDeskState } from "../../hooks/useCertificateDesk";
 import type { FilingItem } from "../../hooks/useCertificateFiling";
 import { MAX_IN_TRANSACTION } from "../../lib/certificateFees";
@@ -24,10 +25,18 @@ export function NewCertificateModal({ ctx }: { ctx: CertificateDeskState }) {
     saving, createDraft, addItem, grandTotal,
   } = ctx;
 
+  const hasDeathCert = items.some((i) => i.certType === "Certification of Death");
+  const isRequesterDeceased = certResident && certResident.life_status === "Deceased";
+
   return (
     <Modal open={createOpen} onClose={closeCreate} title="New Certificate" size="xl">
       <form onSubmit={create} className="space-y-4">
-        <FormField label="Resident" required plain>
+        <FormField
+          label={hasDeathCert ? "Requested by (Requester)" : "Resident"}
+          hint={hasDeathCert ? "The person filing the request on behalf of the deceased" : undefined}
+          required
+          plain
+        >
           {/* Constituents on the register only: a barangay certificate says
               something about somebody who lives here, and the server
               refuses anybody else. Somebody not listed yet is registered
@@ -39,6 +48,15 @@ export function NewCertificateModal({ ctx }: { ctx: CertificateDeskState }) {
             notFound="A certificate is issued only to a resident on the barangay's register. Please coordinate with the Population Office to register the resident first."
           />
         </FormField>
+
+        {isRequesterDeceased && (
+          <div className="flex items-center gap-2 rounded-xl border border-danger/40 bg-danger/10 p-3 text-xs text-danger">
+            <FiAlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <p>
+              <strong>Cannot proceed:</strong> This resident is recorded as <strong>Deceased</strong> and cannot be the requester for a certificate.
+            </p>
+          </div>
+        )}
 
         {certResident && (
           <div className="rounded-xl border border-gray bg-secondary p-3">
@@ -214,7 +232,11 @@ function CertificateItem({ ctx, item, index }: { ctx: CertificateDeskState; item
         </p>
       )}
 
-      {fieldBox(item, beforePurpose(item.certType), "What this form asks for")}
+      {item.certType === "Certification of Death" ? (
+        <DeathCertificateWalkinFields ctx={ctx} item={item} requester={ctx.certResident} />
+      ) : (
+        fieldBox(item, beforePurpose(item.certType), "What this form asks for")
+      )}
 
       {/*
         A list where the ordinance prices by purpose, a free line where it

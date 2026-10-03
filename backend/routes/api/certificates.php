@@ -32,6 +32,8 @@ Route::middleware(['office:Main Office,PB', 'deny_role:Secretary'])->group(funct
     Route::apiResource('certificates', CertificateController::class)
         ->only(['index', 'store', 'show', 'update']);
     Route::post('certificates/{certificate}/accept', [CertificateWorkflowController::class, 'accept']);
+    Route::post('certificates/{certificate}/confirm-death', [CertificateWorkflowController::class, 'confirmDeath']);
+    Route::post('certificates/{certificate}/reject', [CertificateWorkflowController::class, 'reject']);
     /* The counter photograph, before it is printed. */
     Route::post('certificates/{certificate}/photo', [CertificatePhotoController::class, 'upload']);
     /* The same photograph sent as data, from a device that took it with

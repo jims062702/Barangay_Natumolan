@@ -27,6 +27,18 @@ final class OnlineCertificate
      */
     private const RESIDENT_FIELDS = [
         'Business Barangay Clearance' => ['business_name', 'business_kind'],
+        'Certification of Death' => [
+            'deceased_resident_id',
+            'deceased_name',
+            'deceased_age',
+            'deceased_address',
+            'date_of_death',
+            'time_of_death',
+            'place_of_death',
+            'relationship_to_deceased',
+            'requested_by',
+            'requester_source',
+        ],
     ];
 
     /** The certificate an online request raises, if it raises one. */
@@ -60,9 +72,9 @@ final class OnlineCertificate
 
         $allowed = array_filter(
             array_intersect_key($fields, array_flip(self::RESIDENT_FIELDS[$type] ?? [])),
-            fn ($value) => is_string($value) && trim($value) !== ''
+            fn ($value) => is_string($value) ? trim($value) !== '' : ($value !== null && $value !== '')
         );
-        $allowed = array_map('trim', $allowed);
+        $allowed = array_map(fn ($value) => is_string($value) ? trim($value) : $value, $allowed);
 
         return Certificate::raiseFor($serviceRequest, $type, [
             'purpose' => CertificateCatalogue::asksPurpose($type) ? ($serviceRequest->purpose ?: $type) : null,

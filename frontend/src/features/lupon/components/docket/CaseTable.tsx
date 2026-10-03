@@ -19,6 +19,14 @@ export function CaseTable({ ctx }: { ctx: LuponDocketState }) {
       <DataTable
         columns={[
           {
+            header: "Case Docket",
+            render: (c: LuponCase) => (
+              <span className="font-semibold text-primary" title={`Case Docket #${c.docket_number ?? "—"}`}>
+                #{c.docket_number ?? "—"}
+              </span>
+            ),
+          },
+          {
             header: "Case Number",
             /*
              * A case filed with no line has no id to open yet: the server has
@@ -105,7 +113,38 @@ export function CaseTable({ ctx }: { ctx: LuponDocketState }) {
               );
             },
           },
-          { header: "Stage", render: (c: LuponCase) => <StatusBadge status={c.current_stage} /> },
+          {
+            header: "Stage",
+            render: (c: LuponCase) => {
+              const stageLabel = c.current_stage_label || (
+                ["For Lupon Summons", "Conciliation"].includes(c.current_stage)
+                  ? "Lupon"
+                  : ["Filed", "For Summons", "Mediation"].includes(c.current_stage)
+                    ? "Punong Barangay"
+                    : c.current_stage
+              );
+              return (
+                <div className="flex flex-col gap-1 items-start">
+                  <span className="font-semibold text-xs text-dark">{stageLabel}</span>
+                  <StatusBadge status={c.hearing_stage || c.current_stage} />
+                </div>
+              );
+            },
+          },
+          {
+            header: "Next Hearing",
+            render: (c: LuponCase) => {
+              if (!c.next_hearing_info || c.next_hearing_info.schedule === "—") {
+                return <span className="text-xs text-gray-400">—</span>;
+              }
+              return (
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-semibold text-xs text-primary">{c.next_hearing_info.title}</span>
+                  <span className="text-[11px] text-gray-600 font-mono">{c.next_hearing_info.day_time}</span>
+                </div>
+              );
+            },
+          },
           {
             header: "Next step",
             render: (c: LuponCase) => {
@@ -124,7 +163,6 @@ export function CaseTable({ ctx }: { ctx: LuponDocketState }) {
         ]}
         rows={rows}
         rowKey={(c) => c.id}
-        numbered
         total={total}
         searchable
         /* Asked of the server, so a case on another page is still found —
@@ -134,7 +172,7 @@ export function CaseTable({ ctx }: { ctx: LuponDocketState }) {
           setPage(1);
         }}
         searchValue={search}
-        searchPlaceholder="Search by Case Number, Nature of the Case, Complainant or Respondent…"
+        searchPlaceholder="Search by Case Docket #, Case Number, Nature of the Case, Complainant or Respondent…"
         filters={[{ label: "Stage", getValue: (c) => c.current_stage }]}
         loading={loading}
         page={page}

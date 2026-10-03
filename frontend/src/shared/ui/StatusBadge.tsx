@@ -25,6 +25,9 @@ const STATUS_TONES: Record<string, string> = {
   // the badge used to carry "No-show", which matched nothing, so a hearing
   // nobody attended drew no colour at all.
   Scheduled: "bg-primary/10 text-primary",
+  Upcoming: "bg-purple-100 text-purple-700 border border-purple-200",
+  Today: "bg-amber-100 text-amber-800 border border-amber-300 font-bold",
+  "On-going": "bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold",
   "No Show": "bg-danger/10 text-danger",
   // Cases
   Active: "bg-primary/10 text-primary",
@@ -32,6 +35,14 @@ const STATUS_TONES: Record<string, string> = {
   Filed: "bg-warning/10 text-warning",
   Mediation: "bg-primary/10 text-primary",
   Conciliation: "bg-primary/10 text-primary",
+  "Hearing with Punong Barangay": "bg-primary/10 text-primary",
+  "Hearing with Lupon": "bg-primary/10 text-primary",
+  "For Summons (Punong Barangay)": "bg-warning/10 text-warning",
+  "For Summons (Lupon)": "bg-warning/10 text-warning",
+  "Amicable Settlement": "bg-success/10 text-success",
+  "Repudiated Settlement": "bg-danger/10 text-danger",
+  "Certified to File Action": "bg-danger/10 text-danger",
+  "Closed (Unpaid)": "bg-gray text-gray-500",
   Settled: "bg-success/10 text-success",
   Dismissed: "bg-gray text-gray-500",
   Referred: "bg-danger/10 text-danger",

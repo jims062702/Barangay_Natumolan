@@ -74,30 +74,34 @@ class SummonsController extends BaseController
                          THEN 'Conciliation' ELSE 'Mediation' END)";
     }
 
-    public function awaiting()
+    public function awaiting(Request $request)
     {
-        $live = fn ($q) => $q->whereIn('current_stage', array_keys(self::TYPE_FOR_STAGE));
+        $office = $request->user()?->office;
+        $allowedStages = match ($office) {
+            'Lupon' => ['For Lupon Summons', 'Conciliation'],
+            'Main Office' => ['For Summons', 'Mediation'],
+            default => array_keys(self::TYPE_FOR_STAGE),
+        };
+
+        $live = fn ($q) => $q->whereIn('current_stage', $allowedStages);
 
         /* The figure the desk's badge and tile both report: work, not rows. */
         $unprinted = CaseFile::where($live)->whereRaw($this->printedCount() . ' = 0')->count();
 
-        $cases = CaseFile::with([
-            'complainant:id,first_name,middle_name,last_name',
-            'respondents:id,first_name,middle_name,last_name',
-            'hearings:id,lupon_case_id,hearing_type,summons_issued,summons_printed_at',
-        ])
+        $cases = CaseFile::select('lupon_cases.*')
+            ->selectRaw('(SELECT COUNT(*) FROM lupon_cases all_c WHERE all_c.date_filed > lupon_cases.date_filed OR (all_c.date_filed = lupon_cases.date_filed AND all_c.id >= lupon_cases.id)) AS docket_number')
+            ->with([
+                'complainant:id,first_name,middle_name,last_name',
+                'respondents:id,first_name,middle_name,last_name',
+                'hearings:id,lupon_case_id,hearing_type,summons_issued,summons_printed_at,scheduled_at',
+            ])
             ->where($live)
             /*
-             * UNPRINTED FIRST, oldest first within each.
-             *
-             * A case whose papers are still to be printed is work; one that
-             * has them is the record of it. With the register holding both,
-             * ordering by date alone buried today's job under three months
-             * of finished ones on page two.
+             * UNPRINTED FIRST, reverse chronological within each (newest case = #1).
              */
             ->orderByRaw($this->printedCount() . ' ASC')
-            ->orderBy('date_filed')
-            ->orderBy('id')
+            ->orderBy('date_filed', 'desc')
+            ->orderBy('id', 'desc')
             ->paginate(20);
 
         $cases->getCollection()->transform(function (CaseFile $case) {
@@ -189,6 +193,85 @@ class SummonsController extends BaseController
      * says so — the summons is reprinted from the case's own forms screen,
      * which does not touch the calendar.
      */
+    /**
+     * Automatic hearing schedule generation and Summon creation.
+     * If no hearing exists, automatically creates first hearing (8:00 AM – 10:00 AM, or next available slot).
+     * If hearing already exists, reuses existing hearing without duplicating.
+     * If previous completed hearings exist, creates next available hearing slot with 15-minute buffer.
+     */
+    public function generateSummon(Request $request, CaseFile $case, HearingCalendar $calendar, PartyNotice $parties)
+    {
+        $type = $this->mayPrint($case);
+        if (! is_string($type)) {
+            return $type;
+        }
+
+        $result = $calendar->getOrCreateHearing($case, $type, Carbon::now(ManilaTime::ZONE), false);
+        $hearing = $result['hearing'];
+        $reused = $result['reused'];
+        $scheduleMessage = $result['message'];
+
+        $told = false;
+        if ($hearing->summons_issued) {
+            $told = $parties->recordOpened($case->fresh(), $hearing);
+        }
+
+        ChangeLog::bump('lupon_cases');
+
+        $userMessage = $reused
+            ? $scheduleMessage
+            : ('Summon generated successfully. ' . $scheduleMessage);
+
+        return $this->success(
+            [
+                'case' => $case->fresh()->load('hearings'),
+                'hearing' => $hearing->fresh()->load(CaseFile::WITH_PARTIES),
+                'reused' => $reused,
+                'schedule_message' => $scheduleMessage,
+                'schedule_time_range' => $hearing->schedule_time_range,
+            ],
+            $userMessage
+        );
+    }
+
+    /**
+     * Explicitly schedules the next hearing for a case when previous hearings have concluded.
+     */
+    public function scheduleNextHearing(CaseFile $case, HearingCalendar $calendar)
+    {
+        if ($case->isClosed()) {
+            return $this->error('This case is closed; nothing more is scheduled on it.', 422);
+        }
+
+        $type = ($case->current_stage === 'Conciliation' || $case->current_stage === 'For Lupon Summons')
+            ? 'Conciliation'
+            : 'Mediation';
+
+        // Check if there is already an active scheduled hearing
+        $existing = $case->hearings()
+            ->where('hearing_type', $type)
+            ->where('status', 'Scheduled')
+            ->first();
+
+        if ($existing) {
+            $timeRange = $existing->schedule_time_range ?: $existing->scheduled_at->format('g:i A');
+            return $this->error("A hearing is already scheduled for this case: {$timeRange}.", 422);
+        }
+
+        $result = $calendar->getOrCreateHearing($case, $type, Carbon::now(ManilaTime::ZONE), false);
+        ChangeLog::bump('lupon_cases');
+
+        return $this->success(
+            [
+                'case' => $case->fresh()->load('hearings'),
+                'hearing' => $result['hearing']->fresh()->load(CaseFile::WITH_PARTIES),
+                'reused' => $result['reused'],
+                'message' => $result['message'],
+            ],
+            $result['message']
+        );
+    }
+
     public function issue(Request $request, CaseFile $case, HearingCalendar $calendar, PartyNotice $parties)
     {
         $type = $this->mayPrint($case);
@@ -216,30 +299,21 @@ class SummonsController extends BaseController
         }
 
         /*
-         * `summonsOnFirst` marks the first of the three, and only the first:
-         * one case, one summons. The respondent is called to answer the
-         * complaint, not to each sitting separately.
+         * Schedule the 3 hearings and mark summons as printed on the first hearing.
          */
         $hearings = $calendar->schedule($case, $type, Carbon::now(ManilaTime::ZONE), true);
 
         $case->update(['current_stage' => $mediation ? 'Mediation' : 'Conciliation']);
 
-        $first = collect($hearings)->sortBy('scheduled_at')->first();
-
-        /*
-         * THE DAY IT WAS PRINTED, not merely that it was.
-         *
-         * `schedule(…, true)` marks the first sitting's `summons_issued`,
-         * and this used to stop there because the flag was already set —
-         * leaving `summons_printed_at` null on a case that had just been
-         * printed. The register reads that column to answer "have the
-         * notice and the summons gone out?", so a freshly printed case sat
-         * in the list saying "Not yet printed".
-         */
-        if ($first && ! $first->summons_printed_at) {
-            $first->update(['summons_issued' => true, 'summons_printed_at' => ManilaTime::now()]);
-            $first->refresh();
+        $now = ManilaTime::now();
+        foreach ($hearings as $h) {
+            if (! $h->summons_printed_at) {
+                $h->update(['summons_issued' => true, 'summons_printed_at' => $now]);
+            }
         }
+
+        $first = collect($hearings)->sortBy('scheduled_at')->first();
+        $first?->refresh();
 
         $told = $parties->recordOpened($case->fresh(), $first);
 

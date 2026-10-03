@@ -228,8 +228,8 @@ export default function OnlineComplaints() {
                   <RowAction
                     label={
                       row.status === "For Office Verification"
-                        ? "Read it, and accept or refuse"
-                        : "Read it"
+                        ? "Review / Verify Case"
+                        : "View Details"
                     }
                     icon={FiEye}
                     tone="primary"

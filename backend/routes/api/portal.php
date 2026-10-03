@@ -38,6 +38,7 @@ Route::prefix('portal')->middleware(['office:ResidentRole', 'resident_still_here
     Route::get('certificates', [CertificateController::class, 'index']);
     // What a certificate needs and costs, so the request form can say so.
     Route::get('certificate-services', [CertificateController::class, 'services']);
+    Route::get('death-certificate/deceased-search', [CertificateController::class, 'searchDeceased']);
     /*
      | Their own health record — READ ONLY, and only their own.
      |
@@ -50,7 +51,7 @@ Route::prefix('portal')->middleware(['office:ResidentRole', 'resident_still_here
     Route::get('profile', [ProfileController::class, 'show']);
     /* Their Barangay Resident ID — viewed, downloaded, printed; never edited. */
     Route::get('resident-card', [ResidentCardController::class, 'show']);
-    Route::post('resident-card/check', [ResidentCardController::class, 'check'])->middleware('throttle:30,1');
+    Route::post('resident-card/check', [ResidentCardController::class, 'check'])->middleware('throttle:120,1,portal-resident-card-check');
     /*
      * The one field on their own record a resident may change. Everything
      * else in the registry belongs to the Population Office.
@@ -88,16 +89,12 @@ Route::prefix('portal')->middleware(['office:ResidentRole', 'resident_still_here
     | fee is still paid there, and only the Lupon pressing Accept raises a
     | case. What it buys is that the office has read the complaint before the
     | resident is standing at the counter.
-    |
-    | Throttled even though this is a signed-in resident: five complaints in
-    | an hour is not a person with five disputes, and the Lupon's queue is
-    | not where that should be discovered.
     */
     Route::get('complaints', [ComplaintController::class, 'index']);
     Route::post('complaints', [ComplaintController::class, 'store'])
-        ->middleware('throttle:5,60');
+        ->middleware('throttle:60,1,portal-complaints');
 
     /* Their VAWC reports to the VAW Desk — sent, and followed. */
     Route::get('vawc-reports', [VawcReportController::class, 'index']);
-    Route::post('vawc-reports', [VawcReportController::class, 'store'])->middleware('throttle:10,60');
+    Route::post('vawc-reports', [VawcReportController::class, 'store'])->middleware('throttle:60,1,portal-vawc-report');
 });

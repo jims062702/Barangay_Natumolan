@@ -56,9 +56,11 @@ class CaseController extends BaseController
          * every case matching the name regardless of the chosen stage.
          */
         if ($request->filled('search')) {
-            $term = '%' . trim($request->search) . '%';
+            $rawTerm = trim($request->search);
+            $cleanTerm = ltrim($rawTerm, '#');
+            $term = '%' . $rawTerm . '%';
 
-            $query->where(function ($q) use ($term) {
+            $query->where(function ($q) use ($term, $cleanTerm) {
                 $q->where('case_number', 'like', $term)
                     ->orWhere('case_title', 'like', $term)
                     /* The Nature of the Case — the docket's column (a case's title follows it). */
@@ -70,6 +72,11 @@ class CaseController extends BaseController
                     ->orWhereHas('respondents', fn ($r) => $r
                         ->where('first_name', 'like', $term)
                         ->orWhere('last_name', 'like', $term));
+
+                if (is_numeric($cleanTerm)) {
+                    $docketNum = (int) $cleanTerm;
+                    $q->orWhereRaw('(SELECT COUNT(*) FROM lupon_cases all_c WHERE all_c.date_filed > lupon_cases.date_filed OR (all_c.date_filed = lupon_cases.date_filed AND all_c.id >= lupon_cases.id)) = ?', [$docketNum]);
+                }
             });
         }
 
@@ -97,10 +104,11 @@ class CaseController extends BaseController
         $window = DateWindow::fromRequest($request);
         $window?->applyTo($query, 'date_filed', dateOnly: true);
 
-        // Newest case first, and always in case-number sequence: numbers are
-        // issued in order, so id order is case-number order. Ordering by
-        // date_filed alone left cases filed on the same day unsorted.
-        $cases = $query->orderByDesc('id')->paginate(20);
+        $query->select('lupon_cases.*')
+            ->selectRaw('(SELECT COUNT(*) FROM lupon_cases all_c WHERE all_c.date_filed > lupon_cases.date_filed OR (all_c.date_filed = lupon_cases.date_filed AND all_c.id >= lupon_cases.id)) AS docket_number');
+
+        // Case Docket numbering displayed in REVERSE chronological order (newest/latest case = #1)
+        $cases = $query->orderBy('date_filed', 'desc')->orderBy('id', 'desc')->paginate(20);
 
         $payload = $cases->toArray();
         $payload['window'] = $window?->toArray();
@@ -226,7 +234,7 @@ class CaseController extends BaseController
             'complainant:id,resident_number,first_name,middle_name,last_name,suffix,zone_purok,address,contact_number,household_id',
             'complainant.household:id,household_number,street_address',
             'respondents:id,first_name,last_name,zone_purok,contact_number',
-            'hearings' => fn ($q) => $q->orderBy('scheduled_at', 'desc'),
+            'hearings' => fn ($q) => $q->orderBy('scheduled_at', 'asc'),
             'settlement',
             /* The fees on the case. The Lupon reads these to know whether the
                Clerk has been paid — the summons is blocked until it has. */

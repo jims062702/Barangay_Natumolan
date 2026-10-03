@@ -275,6 +275,49 @@ export function useCertificateFiling(ctx: CertificateRowsState) {
   const create = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!certResident || items.length === 0) return;
+
+    if (certResident.life_status === "Deceased") {
+      toast("The selected requester is recorded as deceased and cannot file a certificate.", "error");
+      return;
+    }
+
+    for (const item of items) {
+      if (item.certType === "Certification of Death") {
+        if (!item.fields.deceased_resident_id) {
+          toast("Please search and select the deceased resident.", "error");
+          return;
+        }
+        if (Number(item.fields.deceased_resident_id) === certResident.id) {
+          toast("The deceased resident cannot be the same person as the requester.", "error");
+          return;
+        }
+        if (!item.fields.relationship_to_deceased?.trim()) {
+          toast("Please enter the relationship to the deceased.", "error");
+          return;
+        }
+        if (!item.fields.deceased_age?.trim()) {
+          toast("Please enter the age of the deceased.", "error");
+          return;
+        }
+        if (!item.fields.deceased_address?.trim()) {
+          toast("Please enter the address of the deceased.", "error");
+          return;
+        }
+        if (!item.fields.date_of_death?.trim()) {
+          toast("Please enter the date of death.", "error");
+          return;
+        }
+        if (!item.fields.time_of_death?.trim()) {
+          toast("Please enter the time of death.", "error");
+          return;
+        }
+        if (!item.fields.place_of_death?.trim()) {
+          toast("Please enter the place of death.", "error");
+          return;
+        }
+      }
+    }
+
     const count = items.length;
     if (!(await confirmAction({
       title: count === 1 ? "File this certificate?" : `File these ${count} certificates?`,

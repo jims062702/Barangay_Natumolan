@@ -27,7 +27,7 @@ import type { LuponCase } from "../../types";
  * desk is worth as much as being able to work your own.
  */
 export function ForSummonsTable({ ctx }: { ctx: HearingCalendarState }) {
-  const { cases, total, loading, page, lastPage, setPage, issueSummons, mayIssue, openCaseFile } = ctx;
+  const { cases, total, loading, page, lastPage, setPage, issueSummons, mayIssue, openCaseFile, generatingSummonId } = ctx;
 
   const printed = (c: LuponCase) => !!c.papers_printed_at;
 
@@ -115,34 +115,40 @@ export function ForSummonsTable({ ctx }: { ctx: HearingCalendarState }) {
            */
           {
             header: "Actions",
-            render: (c: LuponCase) =>
-              mayIssue(c) ? (
+            render: (c: LuponCase) => {
+              if (!mayIssue(c)) {
+                return <span className="text-xs text-gray-400">With the other desk</span>;
+              }
+
+              const isGenerating = generatingSummonId === c.id;
+
+              return (
                 <RowActions>
                   <RowAction
-                    label={printed(c)
-                      ? "Print the notice and summons again"
-                      : "Print the notice of hearing and the summons"}
+                    label={
+                      isGenerating
+                        ? "Loading document…"
+                        : printed(c)
+                          ? "Print the notice and summons again"
+                          : "Print the notice of hearing and the summons"
+                    }
                     icon={FiPrinter}
-                    /* Only the unprinted rows are work; the printed ones
-                       are the record, and a row of primary buttons makes
-                       neither stand out. */
                     tone={printed(c) ? undefined : "primary"}
+                    disabled={generatingSummonId !== null}
                     onClick={() => issueSummons(c)}
                   />
                 </RowActions>
-              ) : (
-                <span className="text-xs text-gray-400">With the other desk</span>
-              ),
+              );
+            },
           },
         ]}
         rows={cases}
         rowKey={(c) => c.id}
-        numbered
         total={total}
         searchable
         searchPlaceholder="Search by Case Number, Nature of the Case, Complainant or Respondent…"
         getSearchText={(c) =>
-          `${c.case_number} ${c.case_title} ${c.case_classification ?? ""} ${c.complainant_display_name ?? ""} ${c.respondent_display_names ?? ""}`
+          `${c.case_number} ${c.case_title ?? ""} ${c.case_classification ?? ""} ${c.complainant_display_name ?? ""} ${c.respondent_display_names ?? ""}`
         }
         loading={loading}
         page={page}

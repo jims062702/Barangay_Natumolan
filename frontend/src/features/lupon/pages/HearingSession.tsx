@@ -10,10 +10,12 @@ import { errorMessage } from "../../../shared/lib/api";
 import { announceWrite } from "../../../shared/lib/announceWrite";
 import { confirmAction } from "../../../shared/lib/confirm";
 import { toast } from "../../../shared/lib/toast";
-import { SESSION_OUTCOMES } from "../lib/hearings";
+import { SESSION_OUTCOMES, worksSitting } from "../lib/hearings";
 import { luponApi } from "../api";
 import type { LuponHearing } from "../types";
 import RouteSkeleton from "../../../shared/ui/RouteSkeleton";
+import { useAuth } from "../../../shared/auth/AuthContext";
+import { useModalDraft } from "../../../shared/lib/useModalDraft";
 
 /**
  * The sitting itself — its own screen, not a dialog over the calendar.
@@ -26,6 +28,7 @@ import RouteSkeleton from "../../../shared/ui/RouteSkeleton";
 export default function HearingSession() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [hearing, setHearing] = useState<LuponHearing | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,16 +54,50 @@ export default function HearingSession() {
   const [startedAt, setStartedAt] = useState("");
   const [endedAt, setEndedAt] = useState("");
 
+  const canEdit = hearing ? worksSitting(user, hearing) : false;
+
   useEffect(() => {
     luponApi
       .hearing(id)
-      .then((r) => setHearing(r.data.data))
+      .then((r) => {
+        const h = r.data.data;
+        setHearing(h);
+        if (h) {
+          setComplainantPresent(h.complainant_present ?? true);
+          setRespondentPresent(h.respondent_present ?? true);
+          setMinutes(h.proceedings_notes || h.minutes || "");
+          setOutcome(h.outcome || "Unsettled");
+          setStartedAt(clock24(h.started_at));
+          setEndedAt(clock24(h.ended_at));
+          if (h.lupon_case?.settlement?.terms) {
+            setAgreement(h.lupon_case.settlement.terms);
+          }
+        }
+      })
       .catch((err) => {
         toast(errorMessage(err), "error");
         navigate("/lupon/hearings");
       })
       .finally(() => setLoading(false));
   }, [id, navigate]);
+
+  const draftKey = hearing ? `lupon-session-minutes:${hearing.id}` : null;
+  const draft = useModalDraft(
+    draftKey,
+    canEdit,
+    { complainantPresent, respondentPresent, minutes, outcome, agreement, startedAt, endedAt },
+    (restored) => {
+      if (restored) {
+        if (restored.complainantPresent !== undefined) setComplainantPresent(restored.complainantPresent);
+        if (restored.respondentPresent !== undefined) setRespondentPresent(restored.respondentPresent);
+        if (restored.minutes !== undefined) setMinutes(restored.minutes);
+        if (restored.outcome !== undefined) setOutcome(restored.outcome);
+        if (restored.agreement !== undefined) setAgreement(restored.agreement);
+        if (restored.startedAt !== undefined) setStartedAt(restored.startedAt);
+        if (restored.endedAt !== undefined) setEndedAt(restored.endedAt);
+      }
+    }
+  );
 
   /* The sitting's own skeleton until it is in; a sitting that cannot be
      opened goes back to the calendar with the reason (above). */
@@ -71,42 +108,62 @@ export default function HearingSession() {
   const luponCase = hearing.lupon_case;
   const chosen = SESSION_OUTCOMES.find((o) => o.value === outcome);
   const agreed = outcome === "Agreement";
-  /* Held already, or stood down: read-only from here. */
+  /* Held already, or stood down: past status. */
   const closed = hearing.status !== "Scheduled";
   /* The third of the three — recording it moves the case on by itself. */
   const last = hearing.last_of_stage === true;
 
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!chosen) return;
+    const isUpdateOnly = hearing.status !== "Scheduled";
+    if (!chosen && !isUpdateOnly) return;
 
     if (!(await confirmAction({
-      title: "Record this sitting?",
-      text: agreed
-        ? "The agreement becomes the settlement, the case closes, and the remaining sittings are stood down."
-        /* The office should know before pressing whether this is the one
-           that ends the stage — "the case stays where it is" would be a
-           lie on the third sitting. */
-        : last
-          ? hearing.hearing_type === "Conciliation"
-            ? "This is the last of the three sittings with the Lupon. Nothing further is booked, and the Lupon may certify the case to file action."
-            : "This is the last of the three sittings with the Punong Barangay, so the case goes to the Lupon — they print the summons, and that books three Thursdays."
-          : "The sitting is recorded as held. The next sitting stands.",
-      confirmText: "Yes, record it",
+      title: isUpdateOnly ? "Update hearing minutes?" : "Record this sitting?",
+      text: isUpdateOnly
+        ? "The minutes and attendance record will be saved for this hearing."
+        : agreed
+          ? "The agreement becomes the settlement, the case closes, and the remaining sittings are stood down."
+          /* The office should know before pressing whether this is the one
+             that ends the stage — "the case stays where it is" would be a
+             lie on the third sitting. */
+          : last
+            ? hearing.hearing_type === "Conciliation"
+              ? "This is the last of the three sittings with the Lupon. Nothing further is booked, and the Lupon may certify the case to file action."
+              : "This is the last of the three sittings with the Punong Barangay, so the case goes to the Lupon — they print the summons, and that books three Thursdays."
+            : "The sitting is recorded as held. The next sitting stands.",
+      confirmText: isUpdateOnly ? "Yes, update minutes" : "Yes, record it",
     }))) return;
 
     setSaving(true);
     try {
-      const saved = await luponApi.recordSession(hearing.id, {
-        minutes,
-        outcome,
-        agreement: agreed ? agreement : null,
-        complainant_present: complainantPresent,
-        respondent_present: respondentPresent,
-        started_at: startedAt || null,
-        ended_at: endedAt || null,
-      });
-      announceWrite(saved, "The sitting was recorded.");
+      if (isUpdateOnly) {
+        const saved = await luponApi.saveMinutes(hearing.id, {
+          minutes,
+          outcome: outcome || hearing.outcome,
+          agreement: agreed ? agreement : null,
+          complainant_present: complainantPresent,
+          respondent_present: respondentPresent,
+          started_at: startedAt || null,
+          ended_at: endedAt || null,
+        });
+        draft.clear();
+        announceWrite(saved, "Hearing minutes updated.");
+        toast("Hearing minutes updated successfully.", "success");
+      } else {
+        const saved = await luponApi.recordSession(hearing.id, {
+          minutes,
+          outcome,
+          agreement: agreed ? agreement : null,
+          complainant_present: complainantPresent,
+          respondent_present: respondentPresent,
+          started_at: startedAt || null,
+          ended_at: endedAt || null,
+        });
+        draft.clear();
+        announceWrite(saved, "The sitting was recorded.");
+        toast("The sitting was recorded.", "success");
+      }
       navigate("/lupon/hearings");
     } catch (err) {
       toast(errorMessage(err), "error");
@@ -132,7 +189,15 @@ export default function HearingSession() {
 
       {closed && (
         <div className="mb-4 rounded-xl border border-gray bg-secondary px-4 py-3 text-sm text-gray-600">
-          This sitting is already {hearing.status.toLowerCase()}. Its record is below and cannot be changed here.
+          {canEdit ? (
+            <span>
+              This sitting is already {hearing.status.toLowerCase()}. You may review or update the official minutes and proceedings below.
+            </span>
+          ) : (
+            <span>
+              This sitting is already {hearing.status.toLowerCase()}. Its record is below and cannot be changed here.
+            </span>
+          )}
         </div>
       )}
 
@@ -169,14 +234,15 @@ export default function HearingSession() {
 
         <Card title="Minutes of this sitting">
           <form onSubmit={save} className="space-y-4">
-            <fieldset disabled={closed || saving} className="space-y-4">
+            <fieldset disabled={(!canEdit && closed) || saving} className="space-y-4">
               <div className="grid gap-2 rounded-xl bg-secondary px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Who appeared</p>
                 <label className="flex cursor-pointer items-center gap-2 text-sm text-dark">
                   <input
                     type="checkbox"
-                    checked={closed ? !!hearing.complainant_present : complainantPresent}
+                    checked={complainantPresent}
                     onChange={(e) => setComplainantPresent(e.target.checked)}
+                    disabled={!canEdit}
                     className="h-4 w-4 cursor-pointer accent-primary"
                   />
                   Complainant appeared
@@ -184,8 +250,9 @@ export default function HearingSession() {
                 <label className="flex cursor-pointer items-center gap-2 text-sm text-dark">
                   <input
                     type="checkbox"
-                    checked={closed ? !!hearing.respondent_present : respondentPresent}
+                    checked={respondentPresent}
                     onChange={(e) => setRespondentPresent(e.target.checked)}
+                    disabled={!canEdit}
                     className="h-4 w-4 cursor-pointer accent-primary"
                   />
                   Respondent appeared
@@ -209,9 +276,9 @@ export default function HearingSession() {
                 >
                   <input
                     type="time"
-                    value={closed ? clock24(hearing.started_at) : startedAt}
+                    value={startedAt}
                     onChange={(e) => setStartedAt(e.target.value)}
-                    disabled={closed}
+                    disabled={!canEdit}
                     className={inputClasses}
                   />
                 </FormField>
@@ -221,9 +288,9 @@ export default function HearingSession() {
                 >
                   <input
                     type="time"
-                    value={closed ? clock24(hearing.ended_at) : endedAt}
+                    value={endedAt}
                     onChange={(e) => setEndedAt(e.target.value)}
-                    disabled={closed}
+                    disabled={!canEdit}
                     className={inputClasses}
                   />
                 </FormField>
@@ -235,13 +302,14 @@ export default function HearingSession() {
                 disputes, and the Secretary is here to write them.
               */}
               <FormField
-                label="What happened"
+                label="What happened / Minutes"
                 required
                 hint="What was said, what was offered, what was agreed."
               >
                 <textarea
-                  value={closed ? (hearing.proceedings_notes ?? "") : minutes}
+                  value={minutes}
                   onChange={(e) => setMinutes(e.target.value)}
+                  disabled={!canEdit}
                   required
                   rows={10}
                   className={`${inputClasses} resize-y`}
@@ -251,13 +319,14 @@ export default function HearingSession() {
 
               <FormField label="How the sitting ended" required>
                 <select
-                  value={closed ? "" : outcome}
+                  value={outcome}
                   onChange={(e) => setOutcome(e.target.value)}
+                  disabled={!canEdit}
                   required
                   className={inputClasses}
                 >
                   <option value="" disabled>
-                    {closed ? hearing.outcome || "—" : "Choose…"}
+                    Choose…
                   </option>
                   {SESSION_OUTCOMES.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -268,13 +337,13 @@ export default function HearingSession() {
               </FormField>
 
               {/* What that ending does to the case, before it is done. */}
-              {chosen && !closed && (
+              {chosen && (
                 <p className="rounded-xl bg-secondary px-4 py-3 text-xs leading-relaxed text-gray-600">
                   {chosen.hint}
                 </p>
               )}
 
-              {agreed && !closed && (
+              {agreed && (
                 <FormField
                   label="What the parties agreed to"
                   required
@@ -283,6 +352,7 @@ export default function HearingSession() {
                   <textarea
                     value={agreement}
                     onChange={(e) => setAgreement(e.target.value)}
+                    disabled={!canEdit}
                     required
                     rows={6}
                     className={`${inputClasses} resize-y`}
@@ -292,13 +362,17 @@ export default function HearingSession() {
               )}
             </fieldset>
 
-            {!closed && (
+            {canEdit && (
               <button
                 type="submit"
                 disabled={saving}
                 className="w-full cursor-pointer rounded-full bg-primary py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {saving ? "Recording…" : "Record the sitting"}
+                {saving
+                  ? "Saving…"
+                  : closed
+                    ? "Update hearing minutes"
+                    : "Record the sitting"}
               </button>
             )}
           </form>

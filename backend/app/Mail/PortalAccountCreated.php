@@ -4,13 +4,14 @@ namespace App\Mail;
 
 use App\Models\Resident\Resident;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
 /** Sent the moment a resident is registered and their portal login is issued. */
-class PortalAccountCreated extends Mailable
+class PortalAccountCreated extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

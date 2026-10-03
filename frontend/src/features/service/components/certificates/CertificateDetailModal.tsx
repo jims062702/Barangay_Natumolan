@@ -237,6 +237,97 @@ export function CertificateDetailModal({ ctx }: { ctx: CertificateDeskState }) {
             ))}
           </dl>
 
+          {/* Specialized Verification Card for Certification of Death */}
+          {detail.certificate_type === "Certification of Death" && (
+            <div className="rounded-2xl border border-primary/30 bg-primary/[0.03] p-4 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-primary/20 pb-3">
+                <div>
+                  <h3 className="text-sm font-bold text-dark">Certification of Death — Verification Review</h3>
+                  <p className="text-xs text-gray-500">
+                    Review deceased identity, death claim, and relationship before confirming official records.
+                  </p>
+                </div>
+                {detail.template_fields?.death_confirmed ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-success/15 px-3 py-1 text-xs font-semibold text-success">
+                    ✓ Death Confirmed in Population Register
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-warning/20 px-3 py-1 text-xs font-semibold text-warning-dark">
+                    ⚠ Pending Death Confirmation
+                  </span>
+                )}
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 text-sm">
+                <div className="rounded-xl border border-gray/70 bg-white px-3.5 py-2.5">
+                  <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">Requested by</dt>
+                  <dd className="mt-0.5 font-semibold text-dark">
+                    {detail.template_fields?.requested_by || holderName(detail)}
+                  </dd>
+                </div>
+                <div className="rounded-xl border border-gray/70 bg-white px-3.5 py-2.5">
+                  <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">Requester Source</dt>
+                  <dd className="mt-0.5 font-semibold text-dark">
+                    {detail.template_fields?.requester_source === "portal_account"
+                      ? "Resident Portal Account"
+                      : detail.template_fields?.requester_source === "resident_id_card"
+                      ? "Uploaded Barangay Resident ID"
+                      : "Walk-in (Counter)"}
+                  </dd>
+                </div>
+                <div className="rounded-xl border border-gray/70 bg-white px-3.5 py-2.5">
+                  <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">Relationship to Deceased</dt>
+                  <dd className="mt-0.5 font-semibold text-dark">
+                    {detail.template_fields?.relationship_to_deceased || "—"}
+                  </dd>
+                </div>
+                <div className="rounded-xl border border-gray/70 bg-white px-3.5 py-2.5">
+                  <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">Name of Deceased</dt>
+                  <dd className="mt-0.5 font-semibold text-dark">
+                    {detail.template_fields?.deceased_name || "—"}
+                  </dd>
+                </div>
+                <div className="rounded-xl border border-gray/70 bg-white px-3.5 py-2.5">
+                  <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">Age of Deceased</dt>
+                  <dd className="mt-0.5 font-semibold text-dark">
+                    {detail.template_fields?.deceased_age ? `${detail.template_fields.deceased_age} years old` : "—"}
+                  </dd>
+                </div>
+                <div className="rounded-xl border border-gray/70 bg-white px-3.5 py-2.5">
+                  <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">Address of Deceased</dt>
+                  <dd className="mt-0.5 font-semibold text-dark">
+                    {detail.template_fields?.deceased_address || "—"}
+                  </dd>
+                </div>
+                <div className="rounded-xl border border-gray/70 bg-white px-3.5 py-2.5">
+                  <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">Date of Death</dt>
+                  <dd className="mt-0.5 font-semibold text-dark">
+                    {detail.template_fields?.date_of_death || "—"}
+                  </dd>
+                </div>
+                <div className="rounded-xl border border-gray/70 bg-white px-3.5 py-2.5">
+                  <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">Time of Death</dt>
+                  <dd className="mt-0.5 font-semibold text-dark">
+                    {detail.template_fields?.time_of_death || "—"}
+                  </dd>
+                </div>
+                <div className="rounded-xl border border-gray/70 bg-white px-3.5 py-2.5 sm:col-span-2">
+                  <dt className="text-xs font-medium uppercase tracking-wide text-gray-400">Place of Death</dt>
+                  <dd className="mt-0.5 font-semibold text-dark">
+                    {detail.template_fields?.place_of_death || "—"}
+                  </dd>
+                </div>
+              </div>
+
+              {detail.template_fields?.requester_source === "resident_id_card" && (
+                <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-primary-dark">
+                  <span className="font-semibold">Resident ID Verification:</span>
+                  <span>Requester verified identity with Barangay Resident ID.</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Until it prints: after that, the paper and the record must agree. */}
           {["Pending", "Processing"].includes(detail.status) && !editingDetail && (
             <PrintDetails key={detail.id} detail={detail} ctx={ctx} />

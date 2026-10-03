@@ -30,7 +30,11 @@ class ResidentCardController extends PortalController
                 . 'Please visit the Population Office.', 422);
         }
 
-        $card = $cards->ensure($resident, ResidentCard::VIA_PORTAL, auth()->user());
+        $card = $cards->current($resident);
+
+        if (! $card) {
+            return $this->success(null, 'No Barangay Resident ID has been issued yet.');
+        }
 
         return $this->success(ResidentCards::cardData($card->load('resident')), 'Your Barangay Resident ID');
     }

@@ -42,6 +42,11 @@ class AppServiceProvider extends ServiceProvider
         $this->watchForChanges();
         $this->expireIdleTokens();
         $this->limitPasswordResets();
+
+        \Illuminate\Support\Facades\Event::listen(
+            \Illuminate\Queue\Events\JobQueued::class,
+            static fn () => \App\Services\Queue\BackgroundWorker::dispatch()
+        );
     }
 
     /**
@@ -213,6 +218,7 @@ class AppServiceProvider extends ServiceProvider
                 \App\Models\Lupon\Hearing::class,
                 \App\Models\Lupon\Settlement::class,
                 \App\Models\Lupon\Complaint::class,
+                \App\Models\Lupon\OnlineComplaint::class,
             ],
             'sessions' => [
                 \App\Models\Council\Session::class,

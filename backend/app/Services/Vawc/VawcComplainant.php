@@ -26,6 +26,10 @@ final class VawcComplainant
     /** Why this Resident ID cannot be used for a VAWC Online Complaint — to the person filing. */
     public static function onlineRefusal(Resident $resident): ?string
     {
+        if ($resident->isDeceased()) {
+            return $resident->full_name . ' is recorded as deceased, so no new VAWC complaint can be initiated on their record.';
+        }
+
         if (self::isWoman($resident)) {
             return null;
         }

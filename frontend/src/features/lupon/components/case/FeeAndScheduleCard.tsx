@@ -155,7 +155,7 @@ export function FeeAndScheduleCard({ ctx, caseData }: {
    */
 
   return (
-    <Card title="Fee & hearing schedule">
+    <Card title="Fee & Summons">
       <div className="flex flex-col gap-3 text-sm">
 
         {/* 1 — the filing fee */}

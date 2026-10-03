@@ -90,6 +90,12 @@ export const luponApi = {
     api.get(`/lupon/cases/${caseId}/summons-plan`, ...args),
   issueSummons: (caseId: PathParam | undefined, ...args: BodyArgs) =>
     api.post(`/lupon/cases/${caseId}/summons`, ...args),
+  generateSummon: (caseId: PathParam | undefined, ...args: BodyArgs) =>
+    api.post(`/lupon/cases/${caseId}/generate-summon`, ...args),
+  scheduleNextHearing: (caseId: PathParam | undefined, ...args: BodyArgs) =>
+    api.post(`/lupon/cases/${caseId}/schedule-next`, ...args),
+  saveMinutes: (hearingId: PathParam, ...args: BodyArgs) =>
+    api.post(`/lupon/hearings/${hearingId}/minutes`, ...args),
   /* The hearing room's other two lists: withdrawn cases, and CFA cases. */
   hearingCases: (...args: QueryArgs) =>
     api.get("/lupon/hearing-cases", ...args),

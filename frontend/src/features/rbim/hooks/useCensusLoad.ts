@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { usePageLoad } from "../../../shared/ui/PageLoad";
+import { useAuth } from "../../../shared/auth/AuthContext";
 import type { Resident } from "../../../shared/types";
 import { rbimApi } from "../api";
 import { HOME, BLANK_MEMBER } from "../lib/constants";
-import type { CensusAnswersState } from "./useCensusAnswers";
+import { todayDateString, type CensusAnswersState } from "./useCensusAnswers";
 
 /**
  * Loading the code lists and, when a census is opened, the census itself.
  */
 export function useCensusLoad(ctx: CensusAnswersState) {
+  const { user } = useAuth();
   const {
     adoptedId, editing, id, pristine, setCensusNo, setCodes, setForm, setLoading, setMatches, setMembers,
     setNotOnSheet, setStatus, snapshot,
@@ -54,6 +56,10 @@ export function useCensusLoad(ctx: CensusAnswersState) {
           province: data.province || HOME.province,
           city_municipality: data.city_municipality || HOME.city_municipality,
           barangay: data.barangay || HOME.barangay,
+          date_encoded: (data.date_encoded as string)?.slice(0, 10) || todayDateString(),
+          encoder_name: data.encoder_name || user?.name || "",
+          supervisor_name: data.supervisor_name || user?.name || "",
+          consent_name: data.consent_name || data.respondent_name || "",
         });
         setStatus(data.status);
         setCensusNo(data.census_no);

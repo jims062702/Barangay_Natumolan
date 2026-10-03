@@ -9,6 +9,7 @@ import { WithdrawModal } from "../components/hearings/WithdrawModal";
 import { CaseFileModal } from "../components/hearings/CaseFileModal";
 import { ResultModal } from "../components/hearings/ResultModal";
 import { KpFormsModal } from "../components/hearings/KpFormsModal";
+import { MinutesModal } from "../components/hearings/MinutesModal";
 import { type View } from "../lib/hearings";
 import { PageLoading } from "../../../shared/ui/PageLoad";
 
@@ -168,6 +169,15 @@ export default function Hearings({ section = "today" }: { section?: View }) {
 
       {/* Prescribed KP forms, the summons among them. */}
       <KpFormsModal ctx={ctx} />
+
+      {/* Hearing Minutes: view or record/edit proceedings and outcome */}
+      <MinutesModal
+        hearing={ctx.minutesFor}
+        isOpen={ctx.minutesFor !== null}
+        initialMode={ctx.minutesMode}
+        onClose={ctx.closeMinutes}
+        onSaved={() => ctx.load(true)}
+      />
     </div>
   );
 }

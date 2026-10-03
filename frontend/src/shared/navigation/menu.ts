@@ -10,7 +10,6 @@ import {
   FiCalendar,
   FiClipboard,
   FiClock,
-  FiEye,
   FiFileText,
   FiFilePlus,
   FiFolder,
@@ -169,15 +168,21 @@ export function menuFor(user: User): MenuSection[] {
     { label: "CFA Cases", to: "/lupon/hearings/cfa", icon: FiFileText },
   ];
 
-  /* The Lupon's own set, plus the Punong Barangay's month to watch. */
+  /* The Lupon's own conciliation hearings calendar (Thursdays). */
   const luponHearingRoom: MenuItem[] = [
     ...hearingRoom,
-    { label: "Punong Barangay Hearings", to: "/lupon/hearings/calendar", icon: FiEye },
+    { label: "Lupon Hearings Calendar", to: "/lupon/hearings/calendar", icon: FiCalendar },
+  ];
+
+  /* The Secretary's set with Punong Barangay Hearings Calendar (Tuesdays). */
+  const secretaryHearingRoom: MenuItem[] = [
+    ...hearingRoom,
+    { label: "Punong Barangay Hearings Calendar", to: "/lupon/hearings/calendar", icon: FiCalendar },
   ];
 
   const secretariat: MenuItem[] = [
     { label: "Barangay Sessions", to: "/sessions", icon: FiBookOpen },
-    { label: "Hearing & Mediation", to: "/lupon/hearings", icon: FiCalendar, children: hearingRoom },
+    { label: "Hearing & Mediation", to: "/lupon/hearings", icon: FiCalendar, children: secretaryHearingRoom },
     /* Every office in one return — Lupon, VAWC, Health, Population and the
        Clerk's certificates. The Secretary was copying figures off separate
        screens onto paper, which is where a transcription error becomes a
@@ -244,7 +249,7 @@ export function menuFor(user: User): MenuSection[] {
              * hall sits, at what hour, who is coming, and the case behind
              * each one to read before walking into the room.
              */
-            { label: "Hearing Schedule", to: "/lupon/hearings/calendar", icon: FiCalendar },
+            { label: "Punong Barangay Hearings Calendar", to: "/lupon/hearings/calendar", icon: FiCalendar },
             { label: "Settlements", to: "/lupon/settlements", icon: FiFileText },
             /*
              * No "Reports & Archives" here. Consolidated Reports below is
@@ -315,7 +320,7 @@ export function menuFor(user: User): MenuSection[] {
            */
           { label: "Online Complaints", to: "/lupon/online-complaints", icon: FiInbox },
           { label: "Case Docket", to: "/lupon/cases", icon: FiBookOpen },
-          { label: "Hearings & KP Forms", to: "/lupon/hearings", icon: FiCalendar, children: luponHearingRoom },
+          { label: "Hearings schedule", to: "/lupon/hearings", icon: FiCalendar, children: luponHearingRoom },
           { label: "Settlements", to: "/lupon/settlements", icon: FiFileText },
           { label: "Reports & Archives", to: "/lupon/reports", icon: FiBarChart2 },
         ],

@@ -136,19 +136,26 @@ class LifeStatusController extends BaseController
                 'is_active' => true,
             ])->save();
 
-            /*
-             * Correcting a death does NOT quietly undo what it caused: the
-             * marriage was ended and a login was switched off, and silently
-             * reversing those would be guessing at what the office wants.
-             */
-            $notes[] = 'Their record is active again. Check their marriage and portal login '
-                . 'if those were changed when the death was recorded.';
+            // Re-enable their portal login if they have an account
+            $account = User::where('resident_id', $resident->id)->first();
+            if ($account && ! $account->is_active) {
+                $account->forceFill(['is_active' => true])->save();
+                $notes[] = 'Their portal login (' . $account->email . ') was re-enabled.';
+            }
+
+            // Remove any pending death event that was recorded when marked deceased
+            Event::where('resident_id', $resident->id)
+                ->where('event_type', 'Death')
+                ->where('verification_status', 'Pending')
+                ->delete();
+
+            $notes[] = 'Their record is active again.';
         }
         });
 
         LandingCache::clearStats(); // the population figure has moved
 
-        $resident->load('sectors');
+        $resident->load(['sectors', 'account:id,email,resident_id,is_active,activated_at']);
 
         return $this->success(
             $resident,

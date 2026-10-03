@@ -64,6 +64,17 @@ export function useHearingCalendar(view: View) {
   const [forms, setForms] = useState<KpFormPayload | null>(null);
   /* Papers printed and not yet confirmed — see afterPrint. */
   const [awaitingPrint, setAwaitingPrint] = useState<AwaitingPrint | null>(null);
+  /* Case ID currently generating summon */
+  const [generatingSummonId, setGeneratingSummonId] = useState<number | null>(null);
+
+  /* Minutes modal state: view or edit minutes for any hearing */
+  const [minutesFor, setMinutesFor] = useState<LuponHearing | null>(null);
+  const [minutesMode, setMinutesMode] = useState<"view" | "edit">("view");
+
+  /* Sitting hour editor state */
+  const [timeEditFor, setTimeEditFor] = useState<LuponHearing | null>(null);
+  const openEditTime = (hearing: LuponHearing) => setTimeEditFor(hearing);
+  const closeEditTime = () => setTimeEditFor(null);
 
   const sittings = isSittingView(view);
 
@@ -133,48 +144,109 @@ export function useHearingCalendar(view: View) {
    * asks nothing, because there is nothing left to record.
    */
   const printSummons = async (hearing: LuponHearing) => {
-    setAwaitingPrint(hearing.summons_issued ? null : { kind: "hearing", hearing });
+    // Only ask for print confirmation if the summons was not yet issued.
+    // A reprint of papers already out asks nothing, because there is nothing left to record.
+    if (!hearing.summons_issued) {
+      setAwaitingPrint({ kind: "hearing", hearing });
+    } else {
+      setAwaitingPrint(null);
+    }
     await openForms(hearing);
   };
 
   /**
-   * A case that has been forwarded to this desk: the papers, then the days.
-   *
-   * THE PAPERS ARE PRINTED FROM THE PLAN — the three sittings printing would
-   * book (three Tuesdays with the Punong Barangay for the Secretary, three
-   * Thursdays for the Lupon) — and the sittings are booked only once the
-   * office says the papers came out. So there is never a sitting on the
-   * books that nobody has been told about, nor a "Printed" with no paper.
-   *
-   * Two papers come out of the one press: the Notice of Hearing for the
-   * complainant, the Summons for the respondent.
+   * Prepares the summons and notice of hearing documents for printing.
+   * If papers were already printed, opens forms for the existing hearing (reprint).
+   * If papers are not yet printed, retrieves planned hearing dates via summonsPlan
+   * and opens forms with a virtual preview hearing — ZERO hearings are written to
+   * the database until printing is confirmed successful in afterPrint.
    */
   const issueSummons = async (caseFile: LuponCase) => {
-    /*
-     * Already printed: this is a reprint of a paper that exists, so it
-     * opens the forms and touches nothing. The calendar was booked by the
-     * first press and must not be booked again.
-     */
+    // If case already has printed summons (reprint), open existing hearing
     if (caseFile.papers_printed_at) {
-      setAwaitingPrint(null);
-      openForms({
+      const existingHearing = caseFile.hearings?.find((h) => h.summons_issued) ?? caseFile.hearings?.[0];
+      if (existingHearing) {
+        await printSummons({
+          ...existingHearing,
+          lupon_case: caseFile,
+          lupon_case_id: existingHearing.lupon_case_id ?? caseFile.id,
+        });
+        return;
+      }
+
+      const fallbackHearing: LuponHearing = {
         id: caseFile.papers_hearing_id ?? 0,
-        hearing_type: caseFile.papers_for ?? "Mediation",
+        lupon_case_id: caseFile.id,
+        hearing_type: caseFile.papers_for || (deskForStage(caseFile.current_stage) === "Lupon" ? "Conciliation" : "Mediation"),
+        scheduled_at: caseFile.date_filed,
+        status: "Scheduled",
+        summons_issued: true,
         lupon_case: caseFile,
-      } as LuponHearing);
+      };
+      await printSummons(fallbackHearing);
       return;
     }
 
+    if (generatingSummonId !== null) return;
+    setGeneratingSummonId(caseFile.id);
+
     try {
-      const plan = await luponApi.summonsPlan(caseFile.id);
-      const first = (plan.data.data?.hearings ?? [])[0] as { hearing_type: string; scheduled_at: string; status: string } | undefined;
-      if (!first) {
-        toast("No sitting could be planned for this case.", "error");
+      const planRes = await luponApi.summonsPlan(caseFile.id);
+      const plannedHearings = (planRes.data?.data?.hearings ?? []) as Array<{
+        hearing_type: string;
+        scheduled_at: string;
+        status: string;
+      }>;
+
+      if (!plannedHearings.length) {
+        toast("No available hearing schedule slot found.", "error");
         return;
       }
-      setAwaitingPrint({ kind: "case", caseFile, firstAt: first.scheduled_at });
-      /* The papers are drawn from the sitting they will book — not booked yet. */
-      await openForms({ ...first, id: 0, lupon_case: caseFile } as unknown as LuponHearing);
+
+      const firstPlanned = plannedHearings[0];
+      const stageDesk = deskForStage(caseFile.current_stage);
+      const hearingType = firstPlanned.hearing_type || (stageDesk === "Lupon" ? "Conciliation" : "Mediation");
+
+      // Virtual hearing for document preview only - NOT yet booked in database!
+      const virtualHearing: LuponHearing = {
+        id: 0,
+        lupon_case_id: caseFile.id,
+        hearing_type: hearingType,
+        scheduled_at: firstPlanned.scheduled_at,
+        status: "Scheduled",
+        summons_issued: false,
+        lupon_case: caseFile,
+      };
+
+      setAwaitingPrint({
+        kind: "case",
+        caseFile,
+        firstAt: firstPlanned.scheduled_at,
+      });
+
+      await openForms(virtualHearing);
+    } catch (err) {
+      toast(errorMessage(err), "error");
+    } finally {
+      setGeneratingSummonId(null);
+    }
+  };
+
+  /** Open minutes modal in either view or edit mode */
+  const openMinutes = (hearing: LuponHearing, mode: "view" | "edit" = "view") => {
+    setMinutesFor(hearing);
+    setMinutesMode(mode);
+  };
+
+  const closeMinutes = () => {
+    setMinutesFor(null);
+  };
+
+  const scheduleNextHearing = async (caseId: number) => {
+    try {
+      const res = await luponApi.scheduleNextHearing(caseId);
+      toast(res.data?.message || "Next hearing scheduled successfully.", "success");
+      load();
     } catch (err) {
       toast(errorMessage(err), "error");
     }
@@ -183,48 +255,39 @@ export function useHearingCalendar(view: View) {
   /**
    * The print dialog has closed: did the papers come out?
    *
-   * Asked, never assumed — the browser cannot tell a printed page from a
-   * cancelled dialog. Yes records it (and, for a new case, books the
-   * sittings the papers name); no changes nothing.
+   * Restores print confirmation like Clerk:
+   * "Was the document successfully printed?"
+   * Buttons: "No, Not Yet Printed" and "Yes, Mark as Printed".
+   * Only yes updates the database to printed and books the 3 hearing schedules.
    */
   const afterPrint = async () => {
     const pending = awaitingPrint;
     if (!pending) return;
 
-    const printed = await confirmAction({
-      title: "Did the papers print correctly?",
-      text: pending.kind === "case"
-        ? "Confirm only once the notice of hearing and the summons are in your hand. The three sittings are then booked, "
-          + "the case is marked Printed, and both parties are told the schedule."
-        : "Confirm only once the papers are in your hand. The summons is then marked Printed, and the parties are told the schedule.",
-      confirmText: "Yes, it printed",
-      cancelText: "No, not printed",
+    const confirmed = await confirmAction({
+      title: "Was the document successfully printed?",
+      text: "Confirm only once the document has been successfully printed. If not yet printed, the status will remain not yet printed.",
+      confirmText: "Yes, Mark as Printed",
+      cancelText: "No, Not Yet Printed",
     });
 
-    if (!printed) {
-      toast("Nothing was changed. Press Print again when you are ready.", "info");
+    if (!confirmed) {
+      toast("Document remains Not Yet Printed. You can print again when ready.", "info");
       return;
     }
 
     try {
-      const saved = pending.kind === "case"
-        ? await luponApi.issueSummons(pending.caseFile.id, { expect_first: pending.firstAt })
-        : await luponApi.summonsPrinted(pending.hearing.id);
-      announceWrite(saved, "Summons printed.");
-      setAwaitingPrint(null);
-      /* The papers now stand for the sitting that was booked — a reprint from here asks nothing. */
       if (pending.kind === "case") {
-        const first = saved.data.data?.hearings?.[0];
-        /* Read again: the case now holds the sitting, so its papers are the case's own. */
-        if (first) await openForms({ ...first, lupon_case: pending.caseFile } as LuponHearing);
+        const saved = await luponApi.issueSummons(pending.caseFile.id, { expect_first: pending.firstAt });
+        announceWrite(saved, "Document marked as Printed and hearing schedules booked.");
+      } else if (pending.kind === "hearing") {
+        const saved = await luponApi.summonsPrinted(pending.hearing.id);
+        announceWrite(saved, "Document marked as Printed.");
       }
+      setAwaitingPrint(null);
       load();
     } catch (err) {
       toast(errorMessage(err), "error");
-      /* The hour moved while it printed: the papers are drawn again for the new one. */
-      if (pending.kind === "case" && (err as { response?: { status?: number } }).response?.status === 409) {
-        await issueSummons(pending.caseFile);
-      }
     }
   };
 
@@ -248,26 +311,8 @@ export function useHearingCalendar(view: View) {
      * and a system that moved it would tell them one thing and the hall
      * another.
      */
-    const setStartTime = async (hearing: LuponHearing) => {
-      const at = hearing.scheduled_at.slice(11, 16);
-      const picked = window.prompt(
-        "What hour should this sitting begin? Same day, 24-hour clock (e.g. 13:15).",
-        at,
-      );
-      if (!picked || picked === at) return;
-
-      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(picked.trim())) {
-        toast("Write the hour as HH:MM, for example 13:15.", "error");
-        return;
-      }
-
-      try {
-        const saved = await luponApi.setStartTime(hearing.id, { start_time: picked.trim() });
-        announceWrite(saved, "The sitting's hour was changed.");
-        load();
-      } catch (err) {
-        toast(errorMessage(err), "error");
-      }
+    const setStartTime = (hearing: LuponHearing) => {
+      openEditTime(hearing);
     };
 
   /** The parties are in the room: the sitting gets its own screen. */
@@ -333,10 +378,16 @@ export function useHearingCalendar(view: View) {
   };
 
   const openForms = async (hearing: LuponHearing) => {
+    const caseId = hearing.lupon_case?.id ?? hearing.lupon_case_id;
+    if (!caseId) {
+      toast("Case information is missing for this hearing.", "error");
+      return;
+    }
+
     setFormsFor(hearing);
     setForms(null);
     try {
-      const response = await luponApi.kpForms(hearing.lupon_case?.id);
+      const response = await luponApi.kpForms(caseId);
       setForms(response.data.data);
     } catch (err) {
       toast(errorMessage(err), "error");
@@ -352,12 +403,14 @@ export function useHearingCalendar(view: View) {
   return {
     pageLoad,
     view, sittings, rows, cases, page, setPage, lastPage, total, loading, load,
-    user, issueSummons, mayIssue, unprinted,
+    user, issueSummons, mayIssue, unprinted, generatingSummonId,
     resultFor, setResultFor,
     caseFor, setCaseFor, openCaseFile,
     withdrawFor, setWithdrawFor, withdrawReason, setWithdrawReason, openWithdraw, saveWithdraw, withdrawDraft,
     formsFor, setFormsFor, forms, setForms, openForms, awaitingPrint, afterPrint, closeForms,
     printSummons, startSession, setStartTime,
+    timeEditFor, setTimeEditFor, openEditTime, closeEditTime,
+    minutesFor, setMinutesFor, minutesMode, setMinutesMode, openMinutes, closeMinutes, scheduleNextHearing,
     scheduled, awaitingSummons, completed, cancelled,
   };
 }

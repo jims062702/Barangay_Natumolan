@@ -68,6 +68,13 @@ class AuthController extends BaseController
 
         RateLimiter::clear($failures);
 
+        if ($user->resident && $user->resident->isDeceased()) {
+            return $this->error(
+                'Your resident account has been deactivated because the resident record is marked as deceased. Please contact the Barangay Office if you believe this is incorrect.',
+                403
+            );
+        }
+
         if (!$user->is_active) {
             return $this->error('User account is inactive', 403);
         }

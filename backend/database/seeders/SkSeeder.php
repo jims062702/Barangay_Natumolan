@@ -32,16 +32,16 @@ class SkSeeder extends Seeder
             $term = '2023 – 2026';
 
             $barangay = [
-                ['Punong Barangay', 'Hon. Ricardo M. Balagtas'],
-                ['Barangay Kagawad', 'Hon. Maria Lourdes P. Santos'],
-                ['Barangay Kagawad', 'Hon. Ernesto D. Villanueva'],
-                ['Barangay Kagawad', 'Hon. Josefina T. Ramos'],
-                ['Barangay Kagawad', 'Hon. Antonio C. Mabini'],
-                ['Barangay Kagawad', 'Hon. Rowena S. Dagohoy'],
-                ['Barangay Kagawad', 'Hon. Felipe G. Lacson'],
-                ['Barangay Kagawad', 'Hon. Cristina B. Ocampo'],
-                ['Barangay Secretary', 'Ms. Liezel A. Fernandez'],
-                ['Barangay Treasurer', 'Mr. Nestor J. Padilla'],
+                ['Punong Barangay', 'Hon. Rafael P. Vidal'],
+                ['Barangay Kagawad', 'Hon. Angelie Quin M. Agustero'],
+                ['Barangay Kagawad', 'Hon. Josephine S. Daradar'],
+                ['Barangay Kagawad', 'Hon. Rosendo A. Manto'],
+                ['Barangay Kagawad', 'Hon. Novelito A. Palapo'],
+                ['Barangay Kagawad', 'Hon. Lamberto S. Neri'],
+                ['Barangay Kagawad', 'Hon. Jocelyn A. Lim'],
+                ['Barangay Kagawad', 'Hon. Marivic B. Ajon'],
+                ['Barangay Secretary', 'Grace G. Galola'],
+                ['Barangay Treasurer', 'Donna Lyn R. Quilang'],
             ];
 
             $sk = [

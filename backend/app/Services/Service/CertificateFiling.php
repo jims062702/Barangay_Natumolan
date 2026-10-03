@@ -6,7 +6,9 @@ use App\Models\Account\Notification;
 use App\Models\Resident\Resident;
 use App\Models\Service\Certificate;
 use App\Models\Service\ServiceRequest;
+use App\Services\Resident\DeathConfirmationService;
 use App\Services\Service\CertificateCatalogue;
+use App\Support\ManilaTime;
 
 /**
  * A certificate filed at the counter — or by a counter device that had no line.
@@ -56,6 +58,13 @@ final class CertificateFiling
             $validated['purpose'] = null;
         }
 
+        if ($applicant->isDeceased()) {
+            throw new CertificateFilingRefused(
+                $applicant->full_name . ' is recorded as deceased, so they cannot be the requester for a certificate.',
+                422
+            );
+        }
+
         if ($applicant->isNonResident()) {
             throw new CertificateFilingRefused(
                 $applicant->full_name . ' is recorded as living OUTSIDE Barangay Natumolan, so no '
@@ -64,6 +73,18 @@ final class CertificateFiling
                     . 'Population Office must convert their record first.',
                 422
             );
+        }
+
+        if ($validated['certificate_type'] === 'Certification of Death') {
+            $tf = $validated['template_fields'] ?? [];
+            $deceasedId = $tf['deceased_resident_id'] ?? null;
+            if ($deceasedId && (int) $deceasedId === (int) $applicant->id) {
+                throw new CertificateFilingRefused('The deceased resident cannot be the same person as the requester.', 422);
+            }
+            $tf['requested_by'] = $applicant->full_name;
+            $tf['requester_resident_id'] = $applicant->id;
+            $tf['requester_source'] = 'walk_in';
+            $validated['template_fields'] = $tf;
         }
 
         // Walk-in: no prior request → create one automatically so the
@@ -200,6 +221,24 @@ final class CertificateFiling
             collect($validated)->except(['offline_status', 'printed_at', 'released_at', 'photo_data'])->all()
         );
         $certificate->load('resident:id,first_name,last_name');
+
+        if ($certificate->certificate_type === 'Certification of Death') {
+            $tf = $certificate->template_fields ?? [];
+            $deceasedId = $tf['deceased_resident_id'] ?? null;
+            if ($deceasedId) {
+                $deceased = Resident::find($deceasedId);
+                if ($deceased) {
+                    $dateOfDeath = $tf['date_of_death'] ?? ManilaTime::today();
+                    app(DeathConfirmationService::class)->confirmDeath(
+                        $deceased,
+                        $dateOfDeath,
+                        'Certified deceased via walk-in Certification of Death (' . $certificate->certificate_number . ') upon request of ' . $applicant->full_name . '.',
+                        auth()->id(),
+                        $certificate
+                    );
+                }
+            }
+        }
 
         /*
          * A walk-in served with no line does not stop at "filed".

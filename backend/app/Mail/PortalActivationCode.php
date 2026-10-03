@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use App\Models\Account\User;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -13,7 +14,7 @@ use Illuminate\Queue\SerializesModels;
  * The one-time code that activates a portal account. Carries the plain code,
  * which exists only for the length of this send — the row stores a hash.
  */
-class PortalActivationCode extends Mailable
+class PortalActivationCode extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

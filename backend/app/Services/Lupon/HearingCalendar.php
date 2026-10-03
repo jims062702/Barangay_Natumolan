@@ -63,21 +63,82 @@ class HearingCalendar
      */
     public const OPENS_AT = 8;
 
-    public const CLOSES_AT = 17;
+    public const CLOSES_AT = 19;
 
-    public const MINUTES_PER_SITTING = 90;
+    /** Duration of each hearing: 2 hours (120 minutes) */
+    public const DURATION_MINUTES = 120;
 
-    public const MINUTES_BETWEEN = 15;
+    public const MINUTES_PER_SITTING = 120;
+
+    /** Buffer between hearings: 15 minutes */
+    public const BUFFER_MINUTES = 15;
 
     /**
-     * Books the three sessions of one stage, if they are not booked already.
+     * Standard Daily Hearing Slots (7 slots: 2 hours each with 15-minute buffers)
+     * Slot 1: 08:00 AM – 10:00 AM
+     * Slot 2: 10:15 AM – 12:15 PM
+     * Slot 3: 12:30 PM – 02:30 PM
+     * Slot 4: 02:45 PM – 04:45 PM
+     * Slot 5: 05:00 PM – 07:00 PM
+     * Slot 6: 07:15 PM – 09:15 PM
+     * Slot 7: 09:30 PM – 11:30 PM
+     */
+    public const DAILY_SLOTS = [
+        ['start' => '08:00', 'end' => '10:00'],
+        ['start' => '10:15', 'end' => '12:15'],
+        ['start' => '12:30', 'end' => '14:30'],
+        ['start' => '14:45', 'end' => '16:45'],
+        ['start' => '17:00', 'end' => '19:00'],
+        ['start' => '19:15', 'end' => '21:15'],
+        ['start' => '21:30', 'end' => '23:30'],
+    ];
+
+    /** Maximum allowed scheduled cases per hearing day (7 cases per Tuesday for PB, 7 per Thursday for Lupon) */
+    public const MAX_DAILY_CASES = 7;
+
+    /**
+     * Ensures hearings are scheduled for the case at the given stage (up to 3 weekly hearings):
+     * Punong Barangay (Tuesdays) or Lupon (Thursdays).
+     * Strictly ONE hearing per case per week.
+     * Enforces MAX_DAILY_CASES = 7 active cases per day.
      *
-     * Idempotent on purpose: it runs when the summons is issued and again
-     * when mediation fails, and being called twice must not put six hearings
-     * on one case. A stage that already has scheduled sessions is left as it
-     * is and the existing ones are returned.
+     * @return array{hearing: Hearing, hearings: Hearing[], reused: bool, message: string}
+     */
+    public function getOrCreateHearing(
+        CaseFile $case,
+        string $type,
+        ?Carbon $after = null,
+        bool $markSummonsPrinted = false
+    ): array {
+        $existing = $case->hearings()
+            ->where('hearing_type', $type)
+            ->where('status', 'Scheduled')
+            ->orderBy('scheduled_at')
+            ->get();
+
+        $reused = $existing->isNotEmpty();
+        $hearings = $this->schedule($case, $type, $after, $markSummonsPrinted);
+        $first = collect($hearings)->sortBy('scheduled_at')->first();
+
+        $timeRange = $first->schedule_time_range
+            ?: ($first->scheduled_at->format('g:i A') . ' – ' . $first->scheduled_at->copy()->addMinutes(self::DURATION_MINUTES)->format('g:i A'));
+        $dayName = $first->scheduled_at->format('l, F j, Y');
+        $label = $type === 'Mediation' ? 'Punong Barangay' : 'Lupon';
+
+        return [
+            'hearing' => $first,
+            'hearings' => $hearings,
+            'reused' => $reused,
+            'message' => $reused
+                ? "Existing {$type} hearing schedule used: {$timeRange}."
+                : "{$label} hearings scheduled starting {$dayName} at {$timeRange}.",
+        ];
+    }
+
+    /**
+     * Schedules the hearing sessions for the case (up to 3 weekly sessions).
      *
-     * @return Hearing[] the sessions, in date order
+     * @return Hearing[] the sessions
      */
     public function schedule(
         CaseFile $case,
@@ -85,86 +146,153 @@ class HearingCalendar
         ?Carbon $after = null,
         bool $summonsOnFirst = false
     ): array {
+        // 1. If active scheduled hearings already exist, reuse them
         $existing = $case->hearings()
             ->where('hearing_type', $type)
-            ->whereIn('status', ['Scheduled', 'Completed'])
+            ->where('status', 'Scheduled')
             ->orderBy('scheduled_at')
             ->get();
 
         if ($existing->isNotEmpty()) {
+            if ($summonsOnFirst) {
+                foreach ($existing as $h) {
+                    if (! $h->summons_issued) {
+                        $h->update([
+                            'summons_issued' => true,
+                            'summons_printed_at' => ManilaTime::now(),
+                        ]);
+                    }
+                }
+            }
             return $existing->all();
         }
 
-        $weekday = $type === 'Mediation' ? self::MEDIATION_DAY : self::CONCILIATION_DAY;
-        $from = $after ? $after->copy() : Carbon::now(ManilaTime::ZONE);
+        // 2. Stage eligibility check: Lupon Conciliation requires 3 completed PB mediation hearings or being at Lupon stage
+        if ($type === 'Conciliation') {
+            $completedMediationCount = $case->hearings()
+                ->where('hearing_type', 'Mediation')
+                ->where('status', 'Completed')
+                ->count();
 
-        $made = [];
-
-        foreach ($this->dates($from, $weekday) as $index => $date) {
-            $made[] = $case->hearings()->create([
-                'hearing_type' => $type,
-                /* Its own hour on that day, after whatever is already
-                   booked — see slotOn(). */
-                'scheduled_at' => $this->slotOn($date, $type),
-                'status' => 'Scheduled',
-                /*
-                 * Only the FIRST session carries the summons.
-                 *
-                 * One case, one summons: the respondent is called to answer
-                 * the complaint, not to each sitting separately. Marking all
-                 * three would have the office serving the same paper weekly.
-                 */
-                'summons_issued' => $index === 0 && $summonsOnFirst,
-            ]);
+            $isEligible = $completedMediationCount >= 3 || in_array($case->current_stage, ['For Lupon Summons', 'Conciliation', 'CFA'], true);
+            if (! $isEligible) {
+                throw new \InvalidArgumentException('A case must complete 3 Punong Barangay mediation hearings before Lupon hearing can be scheduled.');
+            }
+        } elseif ($type === 'Mediation' && in_array($case->current_stage, ['For Lupon Summons', 'Conciliation', 'CFA', 'Settled'], true)) {
+            throw new \InvalidArgumentException('Case has already moved past Punong Barangay stage.');
         }
 
-        return $made;
+        // 3. Check how many completed hearings exist for this stage
+        $completedCount = $case->hearings()
+            ->where('hearing_type', $type)
+            ->where('status', 'Completed')
+            ->count();
+
+        if ($completedCount >= self::SESSIONS) {
+            throw new \InvalidArgumentException("Case has already completed all {$completedCount} {$type} hearings.");
+        }
+
+        $sessionsToSchedule = self::SESSIONS - $completedCount;
+        $weekday = $type === 'Mediation' ? self::MEDIATION_DAY : self::CONCILIATION_DAY;
+
+        if ($completedCount === 0) {
+            if ($type === 'Conciliation') {
+                $lastPbHearing = $case->hearings()
+                    ->where('hearing_type', 'Mediation')
+                    ->where('status', 'Completed')
+                    ->latest('scheduled_at')
+                    ->first();
+                $from = $after ? $after->copy() : ($lastPbHearing ? $lastPbHearing->scheduled_at->copy() : ManilaTime::now());
+            } else {
+                $from = $after ? $after->copy() : Carbon::parse($case->date_filed ?: ManilaTime::today());
+            }
+            $firstDay = $this->firstDay($from, $weekday);
+        } else {
+            // For remaining hearings, must be strictly after previous completed hearing
+            $lastCompleted = $case->hearings()
+                ->where('hearing_type', $type)
+                ->where('status', 'Completed')
+                ->latest('scheduled_at')
+                ->first();
+            $from = $lastCompleted ? $lastCompleted->scheduled_at->copy()->addDay() : ($after ? $after->copy() : ManilaTime::now());
+            $firstDay = $from->copy()->startOfDay()->next($weekday);
+        }
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($case, $type, $firstDay, $sessionsToSchedule, $summonsOnFirst) {
+            $slots = $this->findBlockSlots($firstDay, $type, $sessionsToSchedule);
+            $created = [];
+            $now = ManilaTime::now();
+
+            foreach ($slots as $slot) {
+                $created[] = $case->hearings()->create([
+                    'lupon_case_id' => $case->id,
+                    'hearing_type' => $type,
+                    'scheduled_at' => $slot,
+                    'status' => 'Scheduled',
+                    'summons_issued' => $summonsOnFirst,
+                    'summons_printed_at' => $summonsOnFirst ? $now : null,
+                    'recorded_by' => auth()->id(),
+                ]);
+            }
+
+            if (in_array($case->current_stage, ['Filed', 'For Summons'], true) && $type === 'Mediation' && $summonsOnFirst) {
+                $case->update(['current_stage' => 'Mediation']);
+            } elseif ($case->current_stage === 'For Lupon Summons' && $type === 'Conciliation' && $summonsOnFirst) {
+                $case->update(['current_stage' => 'Conciliation']);
+            }
+
+            return $created;
+        });
     }
 
     /**
-     * What printing the summons NOW would book — the same days and hours
-     * schedule() would, without booking anything.
+     * What printing the summons NOW would book — returns planned dates and hours for the sessions.
      *
-     * The papers are printed from this, and the sittings are booked only
-     * once the office says the papers came out (SummonsController::issue,
-     * which checks the first sitting is still the one printed). A stage that
-     * already has its sittings answers with those.
-     *
-     * @return Carbon[] in date order
+     * @return Carbon[]
      */
     public function plan(CaseFile $case, string $type, ?Carbon $after = null): array
     {
         $existing = $case->hearings()
             ->where('hearing_type', $type)
-            ->whereIn('status', ['Scheduled', 'Completed'])
+            ->where('status', 'Scheduled')
             ->orderBy('scheduled_at')
             ->get();
 
         if ($existing->isNotEmpty()) {
-            return $existing->map(fn (Hearing $h) => $h->scheduled_at->copy())->all();
+            return $existing->pluck('scheduled_at')->all();
         }
 
         $weekday = $type === 'Mediation' ? self::MEDIATION_DAY : self::CONCILIATION_DAY;
+        $completedCount = $case->hearings()
+            ->where('hearing_type', $type)
+            ->where('status', 'Completed')
+            ->count();
 
-        return array_map(
-            fn (Carbon $date) => $this->slotOn($date, $type),
-            $this->dates($after ? $after->copy() : Carbon::now(ManilaTime::ZONE), $weekday)
-        );
-    }
+        $sessionsToPlan = max(1, self::SESSIONS - $completedCount);
 
-    /**
-     * The three sitting days, a week apart.
-     *
-     * @return Carbon[]
-     */
-    public function dates(Carbon $from, int $weekday): array
-    {
-        $first = $this->firstDay($from, $weekday);
+        if ($completedCount === 0) {
+            if ($type === 'Conciliation') {
+                $lastPbHearing = $case->hearings()
+                    ->where('hearing_type', 'Mediation')
+                    ->where('status', 'Completed')
+                    ->latest('scheduled_at')
+                    ->first();
+                $from = $after ? $after->copy() : ($lastPbHearing ? $lastPbHearing->scheduled_at->copy() : ManilaTime::now());
+            } else {
+                $from = $after ? $after->copy() : Carbon::parse($case->date_filed ?: ManilaTime::today());
+            }
+            $firstDay = $this->firstDay($from, $weekday);
+        } else {
+            $lastCompleted = $case->hearings()
+                ->where('hearing_type', $type)
+                ->where('status', 'Completed')
+                ->latest('scheduled_at')
+                ->first();
+            $from = $lastCompleted ? $lastCompleted->scheduled_at->copy()->addDay() : ($after ? $after->copy() : ManilaTime::now());
+            $firstDay = $from->copy()->startOfDay()->next($weekday);
+        }
 
-        return array_map(
-            fn (int $week) => $first->copy()->addWeeks($week),
-            range(0, self::SESSIONS - 1)
-        );
+        return $this->findBlockSlots($firstDay, $type, $sessionsToPlan);
     }
 
     /**
@@ -188,41 +316,179 @@ class HearingCalendar
             return $day->startOfWeek(Carbon::MONDAY)->addWeek()->addDays(($weekday - Carbon::MONDAY + 7) % 7);
         }
 
+        if ($weekday === self::CONCILIATION_DAY) {
+            $thursdayThisWeek = $day->copy()->startOfWeek(Carbon::MONDAY)->addDays(3);
+            if ($day->lt($thursdayThisWeek)) {
+                return $thursdayThisWeek;
+            }
+        }
+
         return $day->next($weekday);
     }
 
     /**
-     * The next free hour on that day. Always THAT day.
-     *
-     * The hall holds one sitting at a time, so the day is read before a
-     * sitting is put on it: whatever is already booked decides which slot
-     * this one gets. Past closing the arithmetic simply carries on — the
-     * office is told (see `pastClosing`) and moves the start time to an
-     * hour that suits them, which is a smaller thing to ask than moving a
-     * family's hearing to another week.
-     *
-     * Counted per TYPE: the Punong Barangay sits on Tuesdays and the Lupon
-     * on Thursdays, so they never share a day — but if a special sitting
-     * ever put them on one, they are two different rooms and two different
-     * queues, and one must not push the other down the clock.
+     * The next free hour on that day.
      */
-    public function slotOn(Carbon $day, string $type): Carbon
+    public function slotOn(Carbon $day, string $type, ?int $excludeHearingId = null): Carbon
     {
-        $taken = Hearing::whereDate('scheduled_at', $day->toDateString())
+        return $this->nextAvailableSlotOn($day, $type, $excludeHearingId);
+    }
+
+    /**
+     * Finds the next available valid hearing slot on or after the given day for a single session.
+     */
+    public function nextAvailableSlotOn(Carbon $day, string $type, ?int $excludeHearingId = null): Carbon
+    {
+        $slots = $this->findBlockSlots($day, $type, 1, $excludeHearingId);
+        return $slots[0];
+    }
+
+    /**
+     * Finds available hearing slots across a contiguous multi-week block (e.g. 3 consecutive weeks).
+     * Enforces MAX_DAILY_CASES = 7 active cases per day.
+     * Searches standard DAILY_SLOTS in chronological order.
+     * Evaluates all weeks in the block: if any week is full or collides, advances candidate start day.
+     *
+     * @return Carbon[]
+     */
+    public function findBlockSlots(Carbon $firstDay, string $type, int $sessionCount = self::SESSIONS, ?int $excludeHearingId = null): array
+    {
+        $candidateDay = $firstDay->copy()->startOfDay();
+
+        for ($weekOffset = 0; $weekOffset < 52; $weekOffset++) {
+            $blockFull = false;
+            $weeksHearings = [];
+
+            for ($s = 0; $s < $sessionCount; $s++) {
+                $dayForSession = $candidateDay->copy()->addWeeks($s);
+                $existing = Hearing::whereDate('scheduled_at', $dayForSession->toDateString())
+                    ->where('hearing_type', $type)
+                    ->where('status', 'Scheduled')
+                    ->when($excludeHearingId, fn ($q) => $q->where('id', '!=', $excludeHearingId))
+                    ->orderBy('scheduled_at', 'asc')
+                    ->get();
+
+                if ($existing->count() >= self::MAX_DAILY_CASES) {
+                    $blockFull = true;
+                    break;
+                }
+
+                $weeksHearings[$s] = $existing;
+            }
+
+            if ($blockFull) {
+                $candidateDay->addWeek();
+                continue;
+            }
+
+            foreach (self::DAILY_SLOTS as $slot) {
+                [$sh, $sm] = explode(':', $slot['start']);
+                [$eh, $em] = explode(':', $slot['end']);
+
+                $slotAvailable = true;
+
+                for ($s = 0; $s < $sessionCount; $s++) {
+                    $dayForSession = $candidateDay->copy()->addWeeks($s);
+                    $slotStart = $dayForSession->copy()->setTime((int) $sh, (int) $sm, 0);
+                    $slotEnd = $dayForSession->copy()->setTime((int) $eh, (int) $em, 0);
+
+                    if ($slotStart->isPast()) {
+                        $slotAvailable = false;
+                        break;
+                    }
+
+                    foreach ($weeksHearings[$s] as $existing) {
+                        $rawTime = $existing->scheduled_at instanceof Carbon
+                            ? $existing->scheduled_at->format('Y-m-d H:i:s')
+                            : Carbon::parse($existing->scheduled_at)->format('Y-m-d H:i:s');
+                        $exStart = Carbon::parse($rawTime, ManilaTime::ZONE);
+                        $exEnd = $exStart->copy()->addMinutes(self::DURATION_MINUTES);
+
+                        if ($slotStart->lt($exEnd) && $slotEnd->gt($exStart)) {
+                            $slotAvailable = false;
+                            break 2;
+                        }
+                    }
+                }
+
+                if ($slotAvailable) {
+                    $slots = [];
+                    for ($s = 0; $s < $sessionCount; $s++) {
+                        $slots[] = $candidateDay->copy()->addWeeks($s)->setTime((int) $sh, (int) $sm, 0);
+                    }
+                    return $slots;
+                }
+            }
+
+            $candidateDay->addWeek();
+        }
+
+        $slots = [];
+        for ($s = 0; $s < $sessionCount; $s++) {
+            $slots[] = $candidateDay->copy()->addWeeks($s)->setTime(self::OPENS_AT, 0, 0);
+        }
+        return $slots;
+    }
+
+    /**
+     * Returns capacity statistics for a given day (e.g. 5/7 cases scheduled, is_full = false).
+     *
+     * @return array{date: string, count: int, max: int, is_full: bool}
+     */
+    public function getCapacity(string|Carbon $date, string $type): array
+    {
+        $dateStr = $date instanceof Carbon ? $date->toDateString() : substr((string) $date, 0, 10);
+        $count = Hearing::whereDate('scheduled_at', $dateStr)
             ->where('hearing_type', $type)
-            ->whereIn('status', ['Scheduled', 'Completed'])
+            ->where('status', 'Scheduled')
             ->count();
 
-        return $day->copy()->startOfDay()->setTime(self::OPENS_AT, 0)
-            ->addMinutes($taken * (self::MINUTES_PER_SITTING + self::MINUTES_BETWEEN));
+        return [
+            'date' => $dateStr,
+            'count' => $count,
+            'max' => self::MAX_DAILY_CASES,
+            'is_full' => $count >= self::MAX_DAILY_CASES,
+        ];
+    }
+
+    /**
+     * Returns capacity statistics for all hearing days (Tuesdays or Thursdays) in a given month.
+     *
+     * @return array<string, array{date: string, count: int, max: int, is_full: bool}>
+     */
+    public function monthCapacities(string $yearMonth, string $type): array
+    {
+        $counts = Hearing::where('hearing_type', $type)
+            ->where('status', 'Scheduled')
+            ->whereRaw("DATE_FORMAT(scheduled_at, '%Y-%m') = ?", [$yearMonth])
+            ->selectRaw('DATE(scheduled_at) as hearing_date, COUNT(*) as scheduled_count')
+            ->groupBy('hearing_date')
+            ->pluck('scheduled_count', 'hearing_date')
+            ->toArray();
+
+        $result = [];
+        $weekday = $type === 'Mediation' ? self::MEDIATION_DAY : self::CONCILIATION_DAY;
+        $start = Carbon::parse($yearMonth . '-01', ManilaTime::ZONE)->startOfMonth();
+        $end = $start->copy()->endOfMonth();
+
+        for ($d = $start->copy(); $d->lte($end); $d->addDay()) {
+            if ($d->dayOfWeek === $weekday) {
+                $dateStr = $d->toDateString();
+                $c = (int) ($counts[$dateStr] ?? 0);
+                $result[$dateStr] = [
+                    'date' => $dateStr,
+                    'count' => $c,
+                    'max' => self::MAX_DAILY_CASES,
+                    'is_full' => $c >= self::MAX_DAILY_CASES,
+                ];
+            }
+        }
+
+        return $result;
     }
 
     /**
      * When a sitting that starts then is EXPECTED to be over.
-     *
-     * Expected, not required. A hearing may run past it and nothing in the
-     * system stops it: the parties are in the room and the dispute takes
-     * what it takes.
      */
     public static function endsAt(Carbon $start): Carbon
     {
@@ -238,10 +504,6 @@ class HearingCalendar
 
     /**
      * Stands down the sittings a case no longer needs.
-     *
-     * Cancelled rather than removed — see the note at the top. Only future
-     * ones: a session that was actually held is part of the record whatever
-     * happened afterwards.
      */
     public function standDown(CaseFile $case, string $reason, ?string $type = null): int
     {

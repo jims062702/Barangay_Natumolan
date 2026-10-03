@@ -4,6 +4,7 @@ import Modal from "../../../../shared/ui/Modal";
 import FormPreview, { type FormPreviewHandle } from "../../../../shared/print/FormPreview";
 import { SignatoryFields, useSignatories } from "../../../../shared/print/SignatoryFields";
 import { withoutHon } from "../../../../shared/print/formKit";
+import { formatWallClock } from "../../../../shared/lib/datetime";
 import { asDate } from "../../lib/hearings";
 import { kpFormsHtml } from "../../lib/kpForms";
 import type { HearingCalendarState } from "../../hooks/useHearingCalendar";
@@ -91,7 +92,7 @@ export function KpFormsModal({ ctx }: { ctx: HearingCalendarState }) {
       open={formsFor !== null}
       onClose={closeForms}
       wide
-      title={`KP Forms — ${formsFor?.lupon_case?.case_number ?? ""}`}
+      title={`KP Forms — ${formsFor?.lupon_case?.case_number ?? forms?.case?.case_number ?? ""}`}
     >
       {!forms ? (
         <p className="py-10 text-center text-sm text-gray-400">Loading case facts…</p>
@@ -120,7 +121,7 @@ export function KpFormsModal({ ctx }: { ctx: HearingCalendarState }) {
                     Not booked yet. The papers name the first sitting —{" "}
                     <strong className="text-dark">
                       {formsFor?.scheduled_at
-                        ? new Date(`${formsFor.scheduled_at.slice(0, 19)}`).toLocaleString("en-PH", { dateStyle: "full", timeStyle: "short" })
+                        ? formatWallClock(formsFor.scheduled_at, { dateStyle: "full", timeStyle: "short" })
                         : "—"}
                     </strong>
                     . After printing you will be asked whether they came out: only then are the sittings booked, the

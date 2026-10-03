@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers\Api\Portal;
 
+use App\Models\Resident\Resident;
 use App\Models\Service\Certificate;
 use App\Models\Service\Guide;
+use App\Services\Resident\DeathConfirmationService;
 use App\Services\Service\CertificateCatalogue;
+use Illuminate\Http\Request;
 
 /** The resident's certificates, and what each kind needs and costs. */
 class CertificateController extends PortalController
@@ -18,6 +21,57 @@ class CertificateController extends PortalController
                 ->paginate(15),
             'Your certificates retrieved'
         );
+    }
+
+    /**
+     * Search residents to find the deceased resident for Certification of Death.
+     */
+    public function searchDeceased(Request $request, DeathConfirmationService $deathService)
+    {
+        $term = trim((string) $request->input('q', ''));
+        $current = $this->resident();
+
+        $query = Resident::query()
+            ->where('id', '!=', $this->residentId())
+            ->where('record_type', '!=', Resident::NON_RESIDENT);
+
+        if ($term !== '') {
+            $query->nameSearch($term);
+        } else {
+            // Suggest family members when search is blank
+            $familyIds = collect();
+            if ($current) {
+                $familyIds = $current->parents()->pluck('residents.id')
+                    ->merge($current->children()->pluck('residents.id'))
+                    ->merge($current->spouse_id ? [$current->spouse_id] : [])
+                    ->merge($current->siblings()->pluck('id'))
+                    ->unique();
+            }
+            if ($familyIds->isNotEmpty()) {
+                $query->whereIn('id', $familyIds);
+            }
+        }
+
+        $results = $query->limit(20)->get()->map(function (Resident $r) use ($current, $deathService) {
+            $age = $r->birthdate ? $r->birthdate->age : null;
+            $relationship = $current ? $deathService->getRelationship($current, $r) : null;
+            $address = $r->address ?: ($r->zone_purok ? 'Zone ' . $r->zone_purok . ', Barangay Natumolan' : 'Barangay Natumolan');
+
+            return [
+                'id' => $r->id,
+                'full_name' => $r->full_name,
+                'resident_number' => $r->resident_number,
+                'birthdate' => $r->birthdate?->toDateString(),
+                'age' => $age,
+                'address' => $address,
+                'zone_purok' => $r->zone_purok,
+                'life_status' => $r->life_status,
+                'is_deceased' => $r->isDeceased(),
+                'relationship' => $relationship,
+            ];
+        });
+
+        return $this->success($results, 'Matching residents');
     }
 
     /**

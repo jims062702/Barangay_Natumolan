@@ -12,6 +12,8 @@ export const populationApi = {
     api.get("/zones", ...args),
   resendActivation: (userId: PathParam, ...args: BodyArgs) =>
     api.post(`/population/accounts/${userId}/resend-activation`, ...args),
+  toggleAccountStatus: (userId: PathParam, ...args: BodyArgs) =>
+    api.put(`/population/accounts/${userId}/toggle-status`, ...args),
   analytics: (...args: QueryArgs) =>
     api.get("/population/analytics", ...args),
   events: (...args: QueryArgs) =>
@@ -30,6 +32,8 @@ export const populationApi = {
     api.get("/population/reports/sectoral", ...args),
   createResidentAccount: (residentId: PathParam | undefined, ...args: BodyArgs) =>
     api.post(`/population/residents/${residentId}/create-account`, ...args),
+  checkAccountEmail: (residentId: PathParam | undefined, email: string) =>
+    api.get(`/population/residents/${residentId}/check-account-email`, { params: { email } }),
   sectorList: (sector: PathParam, ...args: QueryArgs) =>
     api.get(`/population/sectors/${sector}`, ...args),
   verifyResident: (...args: QueryArgs) =>

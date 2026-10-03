@@ -5,6 +5,7 @@ import FormField, { inputClasses } from "../../../../shared/ui/FormField";
 import ChoiceWithOther from "../../../../shared/ui/ChoiceWithOther";
 import { peso } from "../../lib/money";
 import { MAX_IN_TRANSACTION, type PortalRequestsState, type RequestItem } from "../../hooks/usePortalRequests";
+import { DeathCertificatePortalFields } from "./DeathCertificatePortalFields";
 
 /**
  * Asking the barangay for certificates from home — one, or several at once.
@@ -162,6 +163,10 @@ function RequestedCertificate({ ctx, item, index }: { ctx: PortalRequestsState; 
             <p className="mt-3 text-xs text-gray-500">Office hours: {chosen.schedule}</p>
           )}
         </div>
+      )}
+
+      {item.serviceType === "Certification of Death" && (
+        <DeathCertificatePortalFields item={item} patchItem={patchItem} />
       )}
 
       {chosen?.fee_from === "business" && (

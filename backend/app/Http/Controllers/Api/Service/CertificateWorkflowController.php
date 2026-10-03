@@ -4,26 +4,49 @@ namespace App\Http\Controllers\Api\Service;
 
 use App\Http\Controllers\Api\BaseController;
 use App\Models\Account\Notification;
+use App\Models\Resident\Resident;
 use App\Models\Service\Certificate;
 use App\Models\Service\ServiceRequest;
+use App\Services\Resident\DeathConfirmationService;
 use App\Services\Service\CertificateWorkflow;
+use App\Support\ManilaTime;
+use Illuminate\Http\Request;
 
 /** The clerk's presses on a certificate: start, print, release. */
 class CertificateWorkflowController extends BaseController
 {
-    public function __construct(private readonly CertificateWorkflow $workflow)
-    {
+    public function __construct(
+        private readonly CertificateWorkflow $workflow,
+        private readonly DeathConfirmationService $deathService,
+    ) {
     }
 
     /**
      * The clerk takes an online request off the queue and starts work on it.
-     * This is the only thing that has to happen for a resident's request to
-     * start moving — there is no approval waiting behind it.
+     * For Certification of Death, this also verifies and confirms the death of the resident.
      */
     public function accept(Certificate $certificate)
     {
         if ($certificate->status !== 'Pending') {
             return $this->error('Only pending requests can be started', 400);
+        }
+
+        if ($certificate->certificate_type === 'Certification of Death') {
+            $tf = $certificate->template_fields ?? [];
+            $deceasedId = $tf['deceased_resident_id'] ?? null;
+            if ($deceasedId) {
+                $deceased = Resident::find($deceasedId);
+                if ($deceased) {
+                    $dateOfDeath = $tf['date_of_death'] ?? ManilaTime::today();
+                    $this->deathService->confirmDeath(
+                        $deceased,
+                        $dateOfDeath,
+                        'Certified deceased via online Certification of Death (' . $certificate->certificate_number . ') upon request of ' . ($certificate->resident?->full_name ?? 'resident') . '.',
+                        auth()->id(),
+                        $certificate
+                    );
+                }
+            }
         }
 
         $certificate->update([
@@ -47,6 +70,88 @@ class CertificateWorkflowController extends BaseController
         );
 
         return $this->success($certificate->load(Certificate::COUNTER_RELATIONS), 'Request accepted — now being processed');
+    }
+
+    /**
+     * Explicitly verify and confirm death for a Certification of Death.
+     */
+    public function confirmDeath(Certificate $certificate)
+    {
+        if ($certificate->certificate_type !== 'Certification of Death') {
+            return $this->error('Only Certification of Death can have death confirmed.', 400);
+        }
+
+        $tf = $certificate->template_fields ?? [];
+        $deceasedId = $tf['deceased_resident_id'] ?? null;
+        if (! $deceasedId) {
+            return $this->error('No deceased resident linked to this certificate.', 422);
+        }
+
+        $deceased = Resident::findOrFail($deceasedId);
+        $dateOfDeath = $tf['date_of_death'] ?? ManilaTime::today();
+
+        $this->deathService->confirmDeath(
+            $deceased,
+            $dateOfDeath,
+            'Certified deceased via Certification of Death (' . $certificate->certificate_number . ') upon request of ' . ($certificate->resident?->full_name ?? 'resident') . '.',
+            auth()->id(),
+            $certificate
+        );
+
+        if ($certificate->status === 'Pending') {
+            $certificate->update([
+                'status' => 'Processing',
+                'processed_by' => auth()->id(),
+                'processed_at' => now(),
+            ]);
+
+            ServiceRequest::where('id', $certificate->service_request_id)
+                ->update(['status' => 'In Progress', 'assigned_to' => auth()->id()]);
+        }
+
+        Notification::notifyResident(
+            $certificate->resident_id,
+            'death_confirmed',
+            'Death Certification verified — ' . $certificate->certificate_number,
+            'Your Certification of Death request for ' . $deceased->full_name . ' has been verified and confirmed. The certificate is now being prepared.',
+            'certificate',
+            $certificate->id
+        );
+
+        return $this->success($certificate->load(Certificate::COUNTER_RELATIONS), 'Death verified and confirmed — resident status updated to Deceased');
+    }
+
+    /**
+     * Reject an online certificate request with a reason (does NOT mark resident deceased).
+     */
+    public function reject(Request $request, Certificate $certificate)
+    {
+        if (! in_array($certificate->status, ['Pending', 'Processing'], true)) {
+            return $this->error('Only pending or processing requests can be rejected.', 400);
+        }
+
+        $data = $request->validate([
+            'reason' => 'required|string|max:255',
+        ], ['reason.required' => 'Please provide a reason for rejecting the request.']);
+
+        $certificate->update([
+            'status' => 'Cancelled',
+            'cancel_reason' => $data['reason'],
+        ]);
+
+        ServiceRequest::where('id', $certificate->service_request_id)
+            ->update(['status' => 'Cancelled']);
+
+        Notification::notifyResident(
+            $certificate->resident_id,
+            'certificate_rejected',
+            'Certificate request rejected — ' . $certificate->certificate_number,
+            'Your request for ' . $certificate->certificate_type . ' could not be processed. Reason: ' . $data['reason'],
+            'certificate',
+            $certificate->id
+        );
+
+        return $this->success($certificate->load(Certificate::COUNTER_RELATIONS), 'Request rejected. The resident has been notified.');
     }
 
     /**

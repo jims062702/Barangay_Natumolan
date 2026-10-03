@@ -20,6 +20,10 @@ export const serviceApi = {
     api.post(`/certificates/${certificateId}/mark-printed`, ...args),
   uploadCertificatePhoto: (certificateId: PathParam, ...args: BodyArgs) =>
     api.post(`/certificates/${certificateId}/photo`, ...args),
+  confirmDeath: (certificateId: PathParam, ...args: BodyArgs) =>
+    api.post(`/certificates/${certificateId}/confirm-death`, ...args),
+  rejectCertificate: (certificateId: PathParam, ...args: BodyArgs) =>
+    api.post(`/certificates/${certificateId}/reject`, ...args),
   certificateReport: (...args: QueryArgs) =>
     api.get("/certificates/report", ...args),
   /* The First-Time Jobseeker Monthly Summary of Availees/Beneficiaries. */

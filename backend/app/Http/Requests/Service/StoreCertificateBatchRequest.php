@@ -37,12 +37,43 @@ class StoreCertificateBatchRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $v) {
+            $requesterId = $this->input('resident_id');
+
             foreach ((array) $this->input('items', []) as $i => $item) {
                 $type = (string) ($item['certificate_type'] ?? '');
 
                 if ($type !== '' && CertificateCatalogue::asksPurpose($type)
                     && trim((string) ($item['purpose'] ?? '')) === '') {
                     $v->errors()->add("items.$i.purpose", 'Certificate ' . ($i + 1) . " ($type): enter the purpose — it is printed on it.");
+                }
+
+                if ($type === 'Certification of Death') {
+                    $tf = $item['template_fields'] ?? [];
+                    $deceasedId = $tf['deceased_resident_id'] ?? null;
+
+                    if (! $deceasedId) {
+                        $v->errors()->add("items.$i.template_fields.deceased_resident_id", 'Certificate ' . ($i + 1) . ': Please search and select the deceased resident.');
+                    } elseif ($requesterId && (int) $deceasedId === (int) $requesterId) {
+                        $v->errors()->add("items.$i.template_fields.deceased_resident_id", 'Certificate ' . ($i + 1) . ': The deceased resident cannot be the same person as the requester.');
+                    }
+
+                    if (empty($tf['date_of_death'])) {
+                        $v->errors()->add("items.$i.template_fields.date_of_death", 'Certificate ' . ($i + 1) . ': Date of death is required.');
+                    } elseif ($tf['date_of_death'] > \App\Support\ManilaTime::today()) {
+                        $v->errors()->add("items.$i.template_fields.date_of_death", 'Certificate ' . ($i + 1) . ': Date of death cannot be in the future.');
+                    }
+
+                    if (empty($tf['time_of_death']) || trim($tf['time_of_death']) === '') {
+                        $v->errors()->add("items.$i.template_fields.time_of_death", 'Certificate ' . ($i + 1) . ': Time of death is required.');
+                    }
+
+                    if (empty($tf['place_of_death']) || trim($tf['place_of_death']) === '') {
+                        $v->errors()->add("items.$i.template_fields.place_of_death", 'Certificate ' . ($i + 1) . ': Place of death is required.');
+                    }
+
+                    if (empty($tf['relationship_to_deceased']) || trim($tf['relationship_to_deceased']) === '') {
+                        $v->errors()->add("items.$i.template_fields.relationship_to_deceased", 'Certificate ' . ($i + 1) . ': Relationship to the deceased is required.');
+                    }
                 }
             }
         });

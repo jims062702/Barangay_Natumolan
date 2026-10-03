@@ -46,7 +46,8 @@ class BadgeController extends BaseController
 
         $isAdmin = $office === 'Admin';
         $frontDesk = $isAdmin || in_array($office, ['Main Office'], true);
-        $lupon = $isAdmin || $office === 'Lupon' || $role === 'Punong Barangay';
+        $isSecretary = $isAdmin || in_array($role, ['Secretary', 'Punong Barangay'], true) || ($office === 'Main Office' && $role !== 'Clerk');
+        $isLupon = $isAdmin || $office === 'Lupon' || $role === 'Lupon Secretary';
 
         $badges = [];
 
@@ -174,26 +175,85 @@ class BadgeController extends BaseController
                 + (int) Conversation::where('status', 'Active')->sum('unread_for_agent');
         }
 
-        if ($lupon) {
+        if ($isLupon) {
             // A case still moving through the KP process.
             $badges['/lupon/cases'] = Lupon\CaseFile::whereNotIn(
                 'current_stage',
                 Lupon\CaseFile::CLOSED_STAGES
             )->count();
 
-            /*
-             * TODAY'S SITTINGS, not every sitting ever booked.
-             *
-             * The menu entry opens Today's Hearing, so the number beside it
-             * has to be the number of rows on that screen. Counting every
-             * Scheduled sitting put a red 8 next to a list that read "No
-             * hearings set for today" — a badge that is never right is a
-             * badge the office stops looking at.
-             */
+            // Online complaints waiting for Lupon verification
+            $badges['/lupon/online-complaints'] = Lupon\OnlineComplaint::where(
+                'status',
+                Lupon\OnlineComplaint::FOR_VERIFICATION
+            )->count();
+        }
+
+        if ($isSecretary || $isLupon) {
+            $today = ManilaTime::today();
+
+            $hearingTypes = [];
+            if ($isAdmin) {
+                $hearingTypes = ['Mediation', 'Conciliation'];
+            } elseif ($isSecretary) {
+                $hearingTypes = ['Mediation'];
+            } elseif ($isLupon) {
+                $hearingTypes = ['Conciliation'];
+            }
+
+            // Today's Hearing: sittings scheduled for today
             $badges['/lupon/hearings'] = DB::table('lupon_hearings')
-                ->where('status', 'Scheduled')
-                ->whereDate('scheduled_at', ManilaTime::today())
+                ->join('lupon_cases', 'lupon_hearings.lupon_case_id', '=', 'lupon_cases.id')
+                ->whereIn('lupon_hearings.hearing_type', $hearingTypes)
+                ->where('lupon_hearings.status', 'Scheduled')
+                ->whereDate('lupon_hearings.scheduled_at', $today)
+                ->whereNotIn('lupon_cases.current_stage', ['Filed', 'For Summons'])
                 ->count();
+
+            // Upcoming Hearing: cases with upcoming scheduled hearings
+            $badges['/lupon/hearings/upcoming'] = DB::table('lupon_hearings')
+                ->join('lupon_cases', 'lupon_hearings.lupon_case_id', '=', 'lupon_cases.id')
+                ->whereIn('lupon_hearings.hearing_type', $hearingTypes)
+                ->whereNotIn('lupon_cases.current_stage', ['Filed', 'For Summons'])
+                ->whereDate('lupon_hearings.scheduled_at', '>', $today)
+                ->whereRaw('lupon_hearings.id = (
+                    SELECT h2.id FROM lupon_hearings h2
+                    WHERE h2.lupon_case_id = lupon_hearings.lupon_case_id
+                      AND DATE(h2.scheduled_at) > ?
+                    ORDER BY (CASE WHEN h2.status = \'Cancelled\' THEN 1 ELSE 0 END) ASC, h2.scheduled_at ASC, h2.id ASC
+                    LIMIT 1
+                )', [$today])
+                ->count();
+
+            // Past Hearings: sittings that already ran before today
+            $badges['/lupon/hearings/past'] = DB::table('lupon_hearings')
+                ->join('lupon_cases', 'lupon_hearings.lupon_case_id', '=', 'lupon_cases.id')
+                ->whereIn('lupon_hearings.hearing_type', $hearingTypes)
+                ->whereNotIn('lupon_cases.current_stage', ['Filed', 'For Summons'])
+                ->whereDate('lupon_hearings.scheduled_at', '<', $today)
+                ->count();
+
+            // Cancelled (Withdrawn) cases
+            $cancelledQuery = Lupon\CaseFile::where('current_stage', 'Withdrawn');
+            if (! $isAdmin) {
+                if ($isSecretary) {
+                    $cancelledQuery->whereDoesntHave('hearings', fn ($q) => $q->where('hearing_type', 'Conciliation'));
+                } elseif ($isLupon) {
+                    $cancelledQuery->whereHas('hearings', fn ($q) => $q->where('hearing_type', 'Conciliation'));
+                }
+            }
+            $badges['/lupon/hearings/cancelled'] = $cancelledQuery->count();
+
+            // CFA Cases
+            $cfaQuery = Lupon\CaseFile::where('current_stage', 'CFA');
+            if (! $isAdmin) {
+                if ($isSecretary) {
+                    $cfaQuery->whereDoesntHave('hearings', fn ($q) => $q->where('hearing_type', 'Conciliation'));
+                } elseif ($isLupon) {
+                    $cfaQuery->whereHas('hearings', fn ($q) => $q->where('hearing_type', 'Conciliation'));
+                }
+            }
+            $badges['/lupon/hearings/cfa'] = $cfaQuery->count();
         }
 
         /*

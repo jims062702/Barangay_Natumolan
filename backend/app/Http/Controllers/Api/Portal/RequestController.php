@@ -87,8 +87,15 @@ class RequestController extends PortalController
                     'purpose' => $certificates->asksPurpose($item['service_type']) ? ($item['purpose'] ?? null) : null,
                 ]);
 
+                $fields = $item['template_fields'] ?? [];
+                if ($item['service_type'] === 'Certification of Death') {
+                    $fields['requested_by'] = $this->resident()?->full_name;
+                    $fields['requester_resident_id'] = $this->residentId();
+                    $fields['requester_source'] = 'portal_account';
+                }
+
                 $requests[] = $serviceRequest;
-                $raised[] = $certificates->raise($serviceRequest, $item['template_fields'] ?? []);
+                $raised[] = $certificates->raise($serviceRequest, $fields);
             }
 
             return [$requests, $raised];

@@ -84,14 +84,7 @@ class LookupController extends BaseController
                 'email' => $email,
                 'available' => false,
                 'reason' => 'resident',
-                'resident' => [
-                    'id' => $resident->id,
-                    'resident_number' => $resident->resident_number,
-                    'name' => $resident->full_name,
-                ],
-            ], 'Already on the register under ' . $resident->full_name
-                . ' (' . $resident->resident_number . '). If that is this same person, '
-                . 'match the line to them. If not, this household member needs their own address.');
+            ], 'This email is already in use by another resident.');
         }
 
         /*
@@ -106,22 +99,14 @@ class LookupController extends BaseController
             ->where('email', $email)
             ->when($request->filled('census_id'),
                 fn ($q) => $q->where('rbim_census_id', '!=', (int) $request->input('census_id')))
-            ->with('census:id,census_no')
-            ->first();
+            ->exists();
 
         if ($onCensus) {
             return $this->success([
                 'email' => $email,
                 'available' => false,
                 'reason' => 'census',
-                'census' => [
-                    'id' => $onCensus->census->id ?? null,
-                    'census_no' => $onCensus->census->census_no ?? null,
-                    'name' => $onCensus->full_name,
-                ],
-            ], 'Another census form (' . ($onCensus->census->census_no ?? 'no number')
-                . ') already collected this address for ' . $onCensus->full_name
-                . '. Only one of the two can keep it.');
+            ], 'This email is already in use on another census form.');
         }
 
         return $this->success([
