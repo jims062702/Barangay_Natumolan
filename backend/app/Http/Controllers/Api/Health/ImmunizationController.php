@@ -37,8 +37,84 @@ class ImmunizationController extends BaseController
             $query->where('child_id', $request->child_id);
         }
 
+        $records = $query->orderByDesc('vaccination_date')->orderByDesc('id')->get();
+
+        // Also include profiles if they have booster / others / screening or no records
+        $profileQuery = ImmunizationProfile::with(['resident:' . self::PERSON_COLUMNS]);
+        if ($request->filled('child_id')) {
+            $profileQuery->where('resident_id', $request->child_id);
+        }
+        $profiles = $profileQuery->get();
+
+        $extraRecords = collect();
+        foreach ($profiles as $prof) {
+            if (!$prof->resident) {
+                continue;
+            }
+
+            $residentRecords = $records->where('child_id', $prof->resident_id);
+
+            // If profile has booster and resident has no COVID booster record
+            if ($prof->booster && !$residentRecords->contains('vaccine_name', 'COVID booster')) {
+                $item = new ImmunizationRecord([
+                    'id' => 'profile-booster-' . $prof->id,
+                    'child_id' => $prof->resident_id,
+                    'vaccine_name' => 'Booster (' . $prof->booster . ')',
+                    'vaccination_date' => $prof->updated_at?->toDateString() ?? now()->toDateString(),
+                    'status' => 'Completed',
+                    'notes' => $prof->booster,
+                ]);
+                $item->setRelation('child', $prof->resident);
+                $extraRecords->push($item);
+            }
+
+            // If profile has newborn screening and resident has no screening record
+            if ($prof->newborn_screening_date && !$residentRecords->contains('vaccine_name', 'Newborn Screening')) {
+                $item = new ImmunizationRecord([
+                    'id' => 'profile-screening-' . $prof->id,
+                    'child_id' => $prof->resident_id,
+                    'vaccine_name' => 'Newborn Screening',
+                    'vaccination_date' => $prof->newborn_screening_date->toDateString(),
+                    'status' => 'Completed',
+                ]);
+                $item->setRelation('child', $prof->resident);
+                $extraRecords->push($item);
+            }
+
+            // If resident has an immunization profile and zero dose records at all
+            if ($residentRecords->isEmpty() && !$prof->booster && !$prof->newborn_screening_date) {
+                $item = new ImmunizationRecord([
+                    'id' => 'profile-card-' . $prof->id,
+                    'child_id' => $prof->resident_id,
+                    'vaccine_name' => $prof->others ? 'Other: ' . $prof->others : 'Immunization Card Record',
+                    'vaccination_date' => $prof->updated_at?->toDateString() ?? now()->toDateString(),
+                    'status' => 'Completed',
+                    'notes' => $prof->others,
+                ]);
+                $item->setRelation('child', $prof->resident);
+                $extraRecords->push($item);
+            }
+        }
+
+        $all = $records->concat($extraRecords)
+            ->sortByDesc(fn ($r) => $r->vaccination_date ? (is_string($r->vaccination_date) ? $r->vaccination_date : $r->vaccination_date->toDateString()) : '')
+            ->values();
+
+        $page = (int) $request->input('page', 1);
+        $perPage = 20;
+        $total = $all->count();
+        $items = $all->forPage($page, $perPage)->values();
+
+        $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
+            $items,
+            $total,
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
         return $this->success(
-            $query->orderByDesc('vaccination_date')->orderByDesc('id')->paginate(20),
+            $paginator,
             'Immunization records retrieved'
         );
     }
@@ -218,6 +294,20 @@ class ImmunizationController extends BaseController
                 ['resident_id' => $resident->id],
                 collect($validated)->except('doses')->all() + ['recorded_by' => auth()->id()],
             );
+
+            // If booster was entered in profile and not explicitly passed in doses['COVID booster']
+            $boosterText = trim($validated['booster'] ?? '');
+            if ($boosterText !== '' && empty($doses['COVID booster'])) {
+                $boosterRow = ImmunizationRecord::firstOrNew([
+                    'child_id' => $resident->id,
+                    'vaccine_name' => 'COVID booster',
+                ]);
+                $boosterRow->vaccination_date = $boosterRow->vaccination_date ?? now()->toDateString();
+                $boosterRow->status = 'Completed';
+                $boosterRow->administered_by ??= auth()->id();
+                $boosterRow->notes = $boosterText;
+                $boosterRow->save();
+            }
 
             foreach ($doses as $vaccine => $date) {
                 if ($date) {

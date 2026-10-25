@@ -6,6 +6,7 @@ import {
   ID_TYPES,
   MAX_EVIDENCE,
 } from "../../../../shared/lib/complaintFiling";
+import { ID_TYPE_RULES, validateIdNumber } from "../../../../shared/lib/idValidation";
 
 /**
  * The valid ID, which is required, and the evidence, which is not.
@@ -92,12 +93,31 @@ export function IdentityProof({
           </select>
         </FormField>
 
-        <FormField label="ID number" hint="Optional. Skip it if the card has none you can read.">
+        <FormField
+          label="ID number"
+          hint={
+            value.idType && ID_TYPE_RULES[value.idType]
+              ? ID_TYPE_RULES[value.idType].hint
+              : "Optional. Skip it if the card has none you can read."
+          }
+          error={value.idNumber ? validateIdNumber(value.idType, value.idNumber).error : undefined}
+        >
           <input
             value={value.idNumber}
             onChange={(e) => set("idNumber", e.target.value)}
+            placeholder={
+              value.idType && ID_TYPE_RULES[value.idType]
+                ? ID_TYPE_RULES[value.idType].placeholder
+                : "Enter ID number"
+            }
             className={inputClasses}
-            maxLength={80}
+            maxLength={
+              value.idType && ID_TYPE_RULES[value.idType]?.exactLength
+                ? ID_TYPE_RULES[value.idType].exactLength
+                : value.idType && ID_TYPE_RULES[value.idType]?.maxLength
+                ? ID_TYPE_RULES[value.idType].maxLength
+                : 80
+            }
             disabled={disabled}
           />
         </FormField>

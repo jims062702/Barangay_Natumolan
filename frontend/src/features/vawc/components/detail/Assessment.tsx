@@ -47,7 +47,6 @@ export function AssessmentCard({ caseData, onEdit, active, className = "" }: {
               ["Assessment date", formatDay(a.assessment_date)],
               ["Persons present", <Chips key="p" items={a.persons_present} />],
               ["Services / assistance provided", <Chips key="s" items={a.services_provided} />],
-              ["Next follow-up", a.next_followup_date ? formatDay(a.next_followup_date) : "Not set"],
             ]}
           />
           <div className="grid gap-3 md:grid-cols-3">
@@ -73,7 +72,6 @@ const blank = () => ({
   observations: "",
   services_provided: [] as string[],
   action_plan: "",
-  next_followup_date: "",
   informed_of_rights: false,
   protection_order_offered: false,
   referral_made: false,
@@ -87,7 +85,6 @@ const fromSaved = (a: VawcAssessment) => ({
   observations: a.observations ?? "",
   services_provided: a.services_provided ?? [],
   action_plan: a.action_plan ?? "",
-  next_followup_date: a.next_followup_date ?? "",
   informed_of_rights: a.informed_of_rights,
   protection_order_offered: a.protection_order_offered,
   referral_made: a.referral_made,
@@ -135,7 +132,6 @@ export function AssessmentModal({ caseData, open, onClose, onSaved }: {
         statement: form.statement.trim() || null,
         observations: form.observations.trim() || null,
         action_plan: form.action_plan.trim() || null,
-        next_followup_date: form.next_followup_date || null,
       }),
       () => { draft.clear(); onClose(); onSaved(); },
       "Case assessment saved.",
@@ -161,7 +157,7 @@ export function AssessmentModal({ caseData, open, onClose, onSaved }: {
         <p className="text-xs leading-relaxed text-gray-500">
           Document the victim-survivor's concerns, assessment findings, services provided, and next steps.
         </p>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="max-w-xs">
           <FormField label="Assessment date" required>
             <input
               type="date"
@@ -169,15 +165,6 @@ export function AssessmentModal({ caseData, open, onClose, onSaved }: {
               max={manilaToday()}
               onChange={(e) => set("assessment_date", e.target.value)}
               required
-              className={inputClasses}
-            />
-          </FormField>
-          <FormField label="Next follow-up date">
-            <input
-              type="date"
-              value={form.next_followup_date}
-              min={form.assessment_date}
-              onChange={(e) => set("next_followup_date", e.target.value)}
               className={inputClasses}
             />
           </FormField>

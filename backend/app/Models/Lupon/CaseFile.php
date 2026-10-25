@@ -283,6 +283,20 @@ class CaseFile extends Model
      */
     public function getNextHearingInfoAttribute(): ?array
     {
+        if ($this->current_stage === 'CFA') {
+            $dateText = $this->date_resolved
+                ? 'Already Filed CFA · ' . $this->date_resolved->format('M j, Y')
+                : 'Already Filed CFA';
+            return [
+                'stage' => 'CFA',
+                'title' => 'CFA Issued',
+                'schedule' => 'Already Filed CFA',
+                'day_time' => $dateText,
+                'summons_status' => 'None',
+                'hearing_id' => null,
+            ];
+        }
+
         if ($this->isClosed()) {
             return [
                 'stage' => $this->current_stage_label,
@@ -307,14 +321,13 @@ class CaseFile extends Model
         if ($activeHearing) {
             $seq = $activeHearing->hearing_sequence;
             $title = "{$stageName} Hearing #{$seq}";
-            $timeRange = $activeHearing->schedule_time_range ?: $activeHearing->scheduled_at->format('g:i A');
-            $dayName = $activeHearing->scheduled_at->format('l');
+            $formattedDate = $activeHearing->scheduled_at->format('l, F j, Y');
 
             return [
                 'stage' => $stageName,
                 'title' => $title,
-                'schedule' => "{$dayName}, {$timeRange}",
-                'day_time' => "{$dayName}, " . $activeHearing->scheduled_at->format('g:i A'),
+                'schedule' => $formattedDate,
+                'day_time' => $formattedDate,
                 'summons_status' => $activeHearing->summons_issued ? 'Issued' : 'Prepared',
                 'hearing_id' => $activeHearing->id,
             ];
@@ -324,6 +337,18 @@ class CaseFile extends Model
         $pastCount = $hearingsColl
             ? $hearingsColl->where('hearing_type', $type)->count()
             : $this->hearings()->where('hearing_type', $type)->count();
+
+        if ($type === 'Conciliation' && $pastCount >= 3) {
+            return [
+                'stage' => 'Lupon',
+                'title' => 'Eligible for CFA',
+                'schedule' => '3/3 Hearings Completed',
+                'day_time' => '3/3 Hearings Completed',
+                'summons_status' => 'None',
+                'hearing_id' => null,
+            ];
+        }
+
         $seq = $pastCount + 1;
         $title = "{$stageName} Hearing #{$seq}";
 
@@ -448,7 +473,7 @@ class CaseFile extends Model
         $month = substr($dateFiled, 0, 7);
 
         $highest = DB::table('lupon_cases')
-            ->where('case_number', 'like', $month . '-__-%')
+            ->where('case_number', 'like', $month . '-%')
             ->selectRaw("MAX(CAST(SUBSTRING_INDEX(case_number, '-', -1) AS UNSIGNED)) AS highest")
             ->value('highest');
 

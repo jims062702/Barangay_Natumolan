@@ -7,6 +7,7 @@ import { populationApi } from "../../../population/api";
 import { toast } from "../../../../shared/lib/toast";
 import { errorMessage } from "../../../../shared/lib/api";
 import { confirmAction } from "../../../../shared/lib/confirm";
+import { ageFrom } from "../../../../shared/lib/birthdate";
 
 /**
  * The resident's portal account: whether it exists, and whether it is in use.
@@ -23,8 +24,15 @@ export function PortalAccountCard({ ctx, account, activated, resident }: {
   const { resendActivation, setAccountEmail, setAccountOpen, load } = ctx;
   const [toggling, setToggling] = useState(false);
 
+  const age = ageFrom(resident.birthdate);
+  const isMinor = age !== null && age < 18;
+
   const toggleStatus = async () => {
     if (!account) return;
+    if (isMinor && !account.is_active) {
+      toast("Hindi maaaring i-enable ang portal account ng residenteng 17 anyos pababa.", "error");
+      return;
+    }
     const confirmed = await confirmAction({
       title: `${account.is_active ? "Disable" : "Enable"} portal sign-in?`,
       text: account.is_active
@@ -52,6 +60,11 @@ export function PortalAccountCard({ ctx, account, activated, resident }: {
       <Card title="Resident portal account">
         {account ? (
           <div className="space-y-3">
+            {isMinor && (
+              <div className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs leading-relaxed text-dark">
+                <span className="font-semibold text-warning-dark">Bawal buksan (17 anyos pababa):</span> Ang residenteng ito ay {age !== null ? `${age} anyos` : "menor de edad"} pa lamang. Naka-restrict ang pag-open o pag-log in sa resident portal hanggang sa sumapit sa 18 taong gulang.
+              </div>
+            )}
             <Row label="Login email" value={account.email} />
             <div className="flex items-center justify-between border-b border-gray/60 py-2.5 text-sm last:border-0">
               <span className="text-gray-500">Sign-in enabled</span>
@@ -61,7 +74,7 @@ export function PortalAccountCard({ ctx, account, activated, resident }: {
                 </span>
                 <button
                   type="button"
-                  disabled={toggling}
+                  disabled={toggling || (isMinor && !account.is_active)}
                   onClick={toggleStatus}
                   className={`inline-flex cursor-pointer items-center rounded-full px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50 ${
                     account.is_active
@@ -81,14 +94,14 @@ export function PortalAccountCard({ ctx, account, activated, resident }: {
                   : "Not yet — waiting for them to enter the emailed code"
               }
             />
-            {!activated && (
+            {!activated && !isMinor && (
               <p className="rounded-xl bg-warning/10 px-4 py-2.5 text-xs leading-relaxed text-dark">
                 They have not signed in yet. A 6-digit code is emailed to them
                 the first time they try; resend it below if it did not arrive.
               </p>
             )}
             <div className="flex flex-wrap gap-2 pt-1">
-              {!activated && (
+              {!activated && !isMinor && (
                 <button
                   type="button"
                   onClick={resendActivation}
@@ -97,6 +110,20 @@ export function PortalAccountCard({ ctx, account, activated, resident }: {
                   Resend activation code
                 </button>
               )}
+            </div>
+          </div>
+        ) : isMinor ? (
+          <div className="space-y-3">
+            <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm text-dark">
+              <div className="flex items-center gap-2 font-semibold text-warning-dark">
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-warning" />
+                Hindi Maaaring Gawan ng Portal Account (17 Anyos Pababa)
+              </div>
+              <p className="mt-1.5 text-xs text-gray-600 leading-relaxed">
+                Ang residenteng ito ay <strong>{age !== null ? `${age} anyos` : "menor de edad"}</strong> pa lamang.
+                Ayon sa patakaran, ang resident portal account ay para lamang sa mga may edad <strong>18 pataas</strong>.
+                Kusang magiging kwalipikado at mabubuksan ang kanilang account pagtuntong nila ng kanilang ika-18 kaarawan.
+              </p>
             </div>
           </div>
         ) : (

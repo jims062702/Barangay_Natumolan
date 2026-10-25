@@ -13,7 +13,7 @@ import {
 } from "../../lib/caseOptions";
 import { vawcApi } from "../../api";
 import type { VawcCase, VawcProtectionOrder } from "../../types";
-import { CardButton, saveToCase, SubmitButton } from "./parts";
+import { saveToCase, SubmitButton } from "./parts";
 
 /** Where the BPO stands today, as the follow-up form's first guess. */
 function protectionStatusFrom(orders: VawcProtectionOrder[]): string {
@@ -28,10 +28,10 @@ function protectionStatusFrom(orders: VawcProtectionOrder[]): string {
 }
 
 /** Follow-ups & monitoring. */
-export function FollowupsCard({ caseData, onRecord, active, className = "" }: {
+export function FollowupsCard({ caseData, className = "" }: {
   caseData: VawcCase;
-  onRecord: () => void;
-  active: boolean;
+  onRecord?: () => void;
+  active?: boolean;
   className?: string;
 }) {
   /* The latest first: it is what the victim-survivor's situation is now. */
@@ -43,7 +43,6 @@ export function FollowupsCard({ caseData, onRecord, active, className = "" }: {
     <Card
       title="Follow-ups & monitoring"
       className={className}
-      action={active && <CardButton onClick={onRecord}>Record follow-up</CardButton>}
     >
       {followups.length === 0 ? (
         <p className="py-4 text-center text-sm text-gray-400">No follow-ups yet.</p>

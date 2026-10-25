@@ -40,32 +40,19 @@ export function daysLeft(iso: string, now = new Date()): number {
   return Math.round((due - today) / 86_400_000);
 }
 
-export function feeStanding(c: FeeFields, now = new Date()): FeeStanding | null {
+export function feeStanding(c: FeeFields): FeeStanding | null {
   if (c.current_stage === CLOSED_UNPAID) {
     return {
       tone: "danger",
       label: CLOSED_UNPAID,
-      detail: c.payment_due_at
-        ? `The filing fee was not paid by ${dueDay(c.payment_due_at)} (${FEE_DAYS} calendar days).`
-        : `The filing fee was not paid within ${FEE_DAYS} calendar days.`,
+      detail: "The filing fee was not paid.",
     };
   }
   if (c.payment_status === "Paid") return { tone: "success", label: "Paid", detail: "Filing fee paid." };
   if (c.payment_status === "Overdue") return { tone: "danger", label: "Overdue", detail: "The filing fee was not paid in time." };
-  if (c.payment_status !== "Unpaid") return null;
-  if (!c.payment_due_at) return { tone: "warning", label: "Unpaid", detail: "Filing fee not yet paid." };
+  if (c.payment_status === "Unpaid") return { tone: "warning", label: "Unpaid", detail: "Filing fee not yet paid." };
 
-  const left = daysLeft(c.payment_due_at, now);
-  const when = dueDay(c.payment_due_at);
-  if (left < 0 || Date.parse(c.payment_due_at) < now.getTime()) {
-    return { tone: "danger", label: "Overdue", detail: `Was due by ${when}. The case closes unpaid.` };
-  }
-
-  return {
-    tone: left <= 1 ? "danger" : "warning",
-    label: "Unpaid",
-    detail: `Pay by ${when} (end of day) · ${left === 0 ? "due today" : left === 1 ? "1 day left" : `${left} days left`}`,
-  };
+  return null;
 }
 
 export const TONE_CLASSES: Record<FeeStanding["tone"], string> = {

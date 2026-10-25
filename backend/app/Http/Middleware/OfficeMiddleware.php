@@ -31,7 +31,10 @@ class OfficeMiddleware
             if ($entry === 'PB' && $user->role === 'Punong Barangay') {
                 return $next($request);
             }
-            if ($entry === 'AdminRole' && $user->role === 'Admin') {
+            if (($entry === 'Secretary' || $entry === 'SecretaryRole') && $user->role === 'Secretary') {
+                return $next($request);
+            }
+            if (($entry === 'Admin' || $entry === 'AdminRole') && $user->role === 'Admin') {
                 return $next($request);
             }
             if ($entry === 'ResidentRole' && $user->role === 'Resident' && $user->resident_id) {

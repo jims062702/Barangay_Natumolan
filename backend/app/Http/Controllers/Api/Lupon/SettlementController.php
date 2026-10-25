@@ -67,12 +67,37 @@ class SettlementController extends BaseController
             'recorded_by' => auth()->id(),
         ]);
 
-        $case->update([
-            'current_stage' => 'Settled',
-            'date_resolved' => $validated['date_agreed'],
-            /* The terms are why it closed; the register carries them. */
-            'closure_reason' => 'Settled on ' . $validated['date_agreed'] . ': ' . $validated['terms'],
-        ]);
+        $hearings = $case->hearings()->orderBy('hearing_number')->get();
+        // A hearing has happened if any sitting was actually completed / held
+        $hasHeldHearing = $hearings->contains(fn ($h) => $h->status === 'Completed' || $h->ended_at !== null);
+
+        if ($hasHeldHearing) {
+            // Meron ng hearing na nangyari -> Settled
+            $case->update([
+                'current_stage' => 'Settled',
+                'date_resolved' => $validated['date_agreed'],
+                'closure_reason' => 'Settled on ' . $validated['date_agreed'] . ': ' . $validated['terms'],
+            ]);
+
+            // Cancel any remaining upcoming scheduled hearings
+            $case->hearings()->where('status', 'Scheduled')->update([
+                'status' => 'Cancelled',
+                'outcome' => 'Agreement',
+            ]);
+        } else {
+            // Wala pang hearing na nangyari -> Withdrawn
+            $case->update([
+                'current_stage' => 'Withdrawn',
+                'date_resolved' => $validated['date_agreed'],
+                'closure_reason' => 'Withdrawn (Amicable settlement reached prior to hearing): ' . $validated['terms'],
+            ]);
+
+            // If any hearings were scheduled, stand them down as cancelled / withdrawn
+            $case->hearings()->where('status', 'Scheduled')->update([
+                'status' => 'Cancelled',
+                'outcome' => 'Withdrawn',
+            ]);
+        }
 
         return $this->success($settlement, 'Settlement recorded — 10-day repudiation period started', 201);
     }

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { FiEdit2, FiEye } from "react-icons/fi";
+import { FiEdit2, FiEye, FiPlus, FiRepeat, FiUserPlus, FiX } from "react-icons/fi";
 import { personName } from "../../../shared/lib/names";
 import { errorMessage } from "../../../shared/lib/api";
 import { toast } from "../../../shared/lib/toast";
@@ -17,12 +17,11 @@ import FormField, { inputClasses } from "../../../shared/ui/FormField";
 import type { Household, Resident } from "../../../shared/types";
 import { ageFromBirthdate } from "../../resident/components/ResidentFormFields";
 import ResidentPicker from "../../resident/components/ResidentPicker";
+import ResidentMultiPicker from "../../resident/components/ResidentMultiPicker";
+import HouseholdPicker from "../../resident/components/HouseholdPicker";
 import { populationApi } from "../api";
 import { useZoneNames } from "../lib/useZones";
 import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
-
-
-// @frezieh palambing ko dol
 
 interface HouseholdFields {
   number: string;
@@ -36,35 +35,38 @@ export default function HouseholdList() {
   const [rows, setRows] = useState<Household[]>([]);
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
-  // So the footer can say WHICH rows are on screen, not only the page.
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  /* Its skeleton until the first answer — see PageLoad. */
   const pageLoad = usePageLoad();
 
-  // One modal for both add and edit — editingId null = adding.
+  // Modal for editing existing households
   const [modalOpen, setModalOpen] = useState(false);
   /** The household whose members are being read, if any. */
   const [viewing, setViewing] = useState<Household | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [number, setNumber] = useState("");
-  /* The barangay's own zones, kept by the Health Station. */
   const zones = useZoneNames();
   const [zone, setZone] = useState("");
   const [address, setAddress] = useState("");
   const [houseType, setHouseType] = useState("Concrete");
   const [head, setHead] = useState<Resident | null>(null);
-  /* The household as it was when the form opened: what a draft is typed against. */
   const [original, setOriginal] = useState<HouseholdFields | null>(null);
   const [saving, setSaving] = useState(false);
 
-  /*
-   * `silent` is for the background timer.
-   *
-   * A refresh nobody asked for must not blank the page somebody is
-   * reading; a first load or a filter change should still say it is
-   * working. Same fetch, and only the announcement differs.
-   */
+  // Transfer Resident Modal State (supports single or multiple residents + head assignment + inline household creation)
+  const [transferModalOpen, setTransferModalOpen] = useState(false);
+  const [transferResidents, setTransferResidents] = useState<Resident[]>([]);
+  const [assignedHeadId, setAssignedHeadId] = useState<number | null>(null);
+  const [destinationMode, setDestinationMode] = useState<"existing" | "new">("existing");
+  const [transferTargetHousehold, setTransferTargetHousehold] = useState<Household | null>(null);
+  const [newHouseholdNumber, setNewHouseholdNumber] = useState("");
+  const [newHouseholdZone, setNewHouseholdZone] = useState("");
+  const [newHouseholdAddress, setNewHouseholdAddress] = useState("");
+  const [newHouseholdType, setNewHouseholdType] = useState("Concrete");
+  const [transferReason, setTransferReason] = useState("");
+  const [transferSyncAddress, setTransferSyncAddress] = useState(true);
+  const [transferring, setTransferring] = useState(false);
+
   const load = (silent = false) => {
     if (!silent) setLoading(true);
     populationApi.households({ params: { page } })
@@ -83,17 +85,8 @@ export default function HouseholdList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
-  // Live updates without a manual refresh.
   useAutoRefresh(() => load(true), REFRESH.staff);
-
-  /*
-   * Somebody else's change, about a second after they make it.
-   *
-   * The timer above stays as a backstop: if the pulse cannot be
-   * reached the page is a few seconds stale rather than frozen.
-   */
   usePulse("households", () => load(true));
-
 
   const fill = (f: HouseholdFields) => {
     setNumber(f.number);
@@ -117,11 +110,132 @@ export default function HouseholdList() {
     setModalOpen(true);
   };
 
-  /*
-   * Unsaved edits, kept per household. The household's values when the form
-   * opened are the draft's version: if somebody saves the household in the
-   * meantime, the old typing is not laid over the newer record.
-   */
+  const openTransfer = (
+    residents?: Resident[] | Resident | null,
+    targetHousehold?: Household | null
+  ) => {
+    const list: Resident[] = Array.isArray(residents)
+      ? residents
+      : residents
+        ? [residents]
+        : [];
+
+    setTransferResidents(list);
+    setAssignedHeadId(list.length > 0 ? list[0].id : null);
+    setDestinationMode(targetHousehold ? "existing" : "existing");
+    setTransferTargetHousehold(targetHousehold ?? null);
+    setNewHouseholdNumber("");
+    setNewHouseholdZone("");
+    setNewHouseholdAddress("");
+    setNewHouseholdType("Concrete");
+    setTransferReason("");
+    setTransferSyncAddress(true);
+    setTransferModalOpen(true);
+  };
+
+  const handleTransferSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (transferResidents.length === 0) {
+      toast("Please select at least one resident to transfer.", "error");
+      return;
+    }
+
+    if (destinationMode === "existing") {
+      if (!transferTargetHousehold) {
+        toast("Please select a destination household.", "error");
+        return;
+      }
+      const allAlreadyThere = transferResidents.every(
+        (r) => r.household_id && r.household_id === transferTargetHousehold.id
+      );
+      if (allAlreadyThere) {
+        toast(`All selected residents are already in household ${transferTargetHousehold.household_number}.`, "error");
+        return;
+      }
+    } else {
+      if (!newHouseholdNumber.trim()) {
+        toast("Please enter a household number for the new household.", "error");
+        return;
+      }
+      if (!newHouseholdZone) {
+        toast("Please select a Zone / Purok for the new household.", "error");
+        return;
+      }
+      if (!newHouseholdAddress.trim()) {
+        toast("Please enter the street address for the new household.", "error");
+        return;
+      }
+      if (transferResidents.length > 0 && assignedHeadId === null) {
+        toast("Please assign one of the transferred residents as Household Head.", "error");
+        return;
+      }
+    }
+
+    const namesList = transferResidents.length <= 2
+      ? transferResidents.map((r) => personName(r)).join(" and ")
+      : `${personName(transferResidents[0])} and ${transferResidents.length - 1} other residents`;
+
+    const targetDesc = destinationMode === "new"
+      ? `new household ${newHouseholdNumber.trim()}`
+      : `household ${transferTargetHousehold!.household_number}`;
+
+    const headResident = transferResidents.find((r) => r.id === assignedHeadId);
+    const headNotice = headResident
+      ? ` (with ${personName(headResident)} as Household Head)`
+      : "";
+
+    if (
+      !(await confirmAction({
+        title: destinationMode === "new" ? "Create household & transfer?" : "Transfer residents?",
+        text: `Transfer ${namesList} to ${targetDesc}${headNotice}?`,
+        confirmText: destinationMode === "new" ? "Yes, create & transfer" : "Yes, transfer",
+      }))
+    ) {
+      return;
+    }
+
+    setTransferring(true);
+    try {
+      const payload: Record<string, unknown> = {
+        resident_ids: transferResidents.map((r) => r.id),
+        head_resident_id: assignedHeadId ?? undefined,
+        reason: transferReason.trim() || undefined,
+        sync_address: transferSyncAddress,
+      };
+
+      if (destinationMode === "new") {
+        payload.new_household = {
+          household_number: newHouseholdNumber.trim(),
+          zone_purok: newHouseholdZone,
+          street_address: newHouseholdAddress.trim(),
+          house_type: newHouseholdType,
+        };
+      } else {
+        payload.household_id = transferTargetHousehold!.id;
+      }
+
+      const res = await populationApi.transferResident(payload);
+      toast(res.data?.message || `${namesList} successfully transferred.`);
+      setTransferModalOpen(false);
+      load(true);
+
+      // Refresh viewing household if currently open
+      if (viewing) {
+        populationApi.households({ params: { page } })
+          .then((r) => {
+            const list = (r.data?.data?.data ?? []) as Household[];
+            const updated = list.find((h) => h.id === viewing.id);
+            if (updated) setViewing(updated);
+          })
+          .catch(() => undefined);
+      }
+    } catch (err) {
+      toast(errorMessage(err), "error");
+    } finally {
+      setTransferring(false);
+    }
+  };
+
   const draft = useModalDraft<HouseholdFields>(
     editingId ? `edit-household:${editingId}` : null,
     modalOpen,
@@ -145,7 +259,7 @@ export default function HouseholdList() {
     )
       return;
     setSaving(true);
-    const payload = {
+    const payload: Record<string, unknown> = {
       household_number: number,
       zone_purok: zone,
       street_address: address,
@@ -181,6 +295,15 @@ export default function HouseholdList() {
       <PageHeader
         title="Households"
         subtitle="Shared population registry — the Main Office verifies records against this list"
+        actions={
+          <button
+            type="button"
+            onClick={() => openTransfer()}
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-primary-dark"
+          >
+            <FiRepeat className="h-3.5 w-3.5" /> Transfer Resident
+          </button>
+        }
       />
 
       <Card>
@@ -204,11 +327,6 @@ export default function HouseholdList() {
                 ),
             },
             {
-              /*
-                A count, not a button. Opening the household is the eye in
-                Actions — one place to click, the same place on every row,
-                beside Edit.
-              */
               header: "Members",
               render: (h: Household) => {
                 const count = (h.residents ?? []).length;
@@ -267,13 +385,7 @@ export default function HouseholdList() {
         />
       </Card>
 
-      {/*
-        Who lives here.
-
-        The head is first and said to be the head, because "who owns this
-        house" is the question this registry is opened for. Everybody else
-        follows in the order the register holds them.
-      */}
+      {/* Who lives here modal */}
       <Modal
         open={viewing !== null}
         onClose={() => setViewing(null)}
@@ -282,29 +394,30 @@ export default function HouseholdList() {
       >
         {viewing && (
           <div>
-            <p className="mb-4 text-xs leading-relaxed text-gray-500">
-              {[viewing.street_address, viewing.zone_purok].filter(Boolean).join(" · ")
-                || "No address recorded"}
-            </p>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-secondary px-4 py-3">
+              <div>
+                <p className="text-xs font-semibold text-dark">
+                  {[viewing.street_address, viewing.zone_purok].filter(Boolean).join(" · ")
+                    || "No address recorded"}
+                </p>
+                <p className="text-[11px] text-gray-500 mt-0.5">
+                  Owner / Head: {viewing.head ? `${viewing.head.first_name} ${viewing.head.last_name}` : "No owner set"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => openTransfer([], viewing)}
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-primary/10 px-3.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
+              >
+                <FiUserPlus className="h-3.5 w-3.5" /> Move residents into this household
+              </button>
+            </div>
 
-            {/*
-              A name on its own answers nothing. Two Juan Dela Cruzes in one
-              household are the same row twice until something tells them
-              apart, and "who is the child here" is the question this list is
-              opened for — so sex, age and what they are to the head travel
-              with the name.
-            */}
-            {/*
-              Every member, the head first, each with their own Resident ID
-              standing and the action that fits it — see ResidentIdRoster.
-            */}
             <ResidentIdRoster
               heading="Members and their Resident IDs"
               people={[
                 ...[...(viewing.residents ?? [])]
                   .sort((a, b) => {
-                    // The head first, then the oldest down — a household reads
-                    // the way it is spoken about.
                     if (a.id === viewing.head?.id) return -1;
                     if (b.id === viewing.head?.id) return 1;
                     return String(a.birthdate ?? "").localeCompare(String(b.birthdate ?? ""));
@@ -321,19 +434,31 @@ export default function HouseholdList() {
                       highlight: isHead,
                     };
                   }),
-                /* A head recorded here but not living here is still somebody whose ID the office may manage. */
                 ...(viewing.head && !(viewing.residents ?? []).some((r) => r.id === viewing.head?.id)
                   ? [{ id: viewing.head.id, name: personName(viewing.head), detail: viewing.head.resident_number, badge: "Household Head", highlight: true }]
                   : []),
               ]}
+              renderExtraActions={(person) => (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const fullResident = (viewing.residents ?? []).find((r) => r.id === person.id)
+                      ?? (viewing.head?.id === person.id ? viewing.head : null);
+                    openTransfer(
+                      fullResident
+                        ? [{ ...fullResident, household: viewing }]
+                        : [({ id: person.id, first_name: person.name, last_name: "", household: viewing } as any)],
+                      null
+                    );
+                  }}
+                  title="Transfer to another household"
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-gray px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:border-primary hover:text-primary hover:bg-primary/5"
+                >
+                  <FiRepeat className="h-3 w-3 text-primary" /> Transfer
+                </button>
+              )}
             />
 
-            {/*
-              A head who is not among the members is somebody who moved out
-              without the register being told — or who is recorded as heading
-              two houses at once. Saying so is more use than quietly listing
-              one person fewer.
-            */}
             {viewing.head
               && !(viewing.residents ?? []).some((r) => r.id === viewing.head?.id) && (
               <p className="mt-3 rounded-xl bg-warning/10 px-3 py-2 text-xs leading-relaxed text-amber-700">
@@ -346,6 +471,7 @@ export default function HouseholdList() {
         )}
       </Modal>
 
+      {/* Edit Household Modal */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editingId ? "Edit Household" : "Register Household"}>
         <form onSubmit={save} className="space-y-4">
           <FormField label="Household number" required>
@@ -354,11 +480,6 @@ export default function HouseholdList() {
           <FormField label="Zone / Purok" required>
             <select value={zone} onChange={(e) => setZone(e.target.value)} required className={inputClasses}>
               <option value="">Select…</option>
-              {/*
-                The barangay's own list, kept by the Health Station. This was
-                "Purok 1" to "Purok 5" written out here — five choices for a
-                barangay with twenty-five zones, none of them named that.
-              */}
               {zones.map((z) => (
                 <option key={z} value={z}>{z}</option>
               ))}
@@ -386,11 +507,340 @@ export default function HouseholdList() {
             disabled={saving}
             className="w-full cursor-pointer rounded-full bg-primary py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark disabled:opacity-60"
           >
-            {saving ? "Saving…" : editingId ? "Save changes" : "Register"}
+            {saving ? "Saving…" : "Save changes"}
           </button>
         </form>
       </Modal>
 
+      {/* Transfer Resident Modal with Multi-Resident Selection, Head Assignment & Inline Household Creation */}
+      <Modal
+        open={transferModalOpen}
+        onClose={() => setTransferModalOpen(false)}
+        title="Transfer Resident to Another Household"
+        size="wide"
+      >
+        <form onSubmit={handleTransferSubmit} className="space-y-4">
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs leading-relaxed text-dark">
+            Transfer one or multiple residents to another household in the registry, or create a brand new household and designate who the Household Head will be.
+          </div>
+
+          {/* Residents Selection */}
+          <div className="space-y-3">
+            <FormField
+              label="Residents to transfer *"
+              hint="Search and select one or more residents to transfer together"
+              plain
+            >
+              <ResidentMultiPicker
+                value={transferResidents}
+                onChange={(updated) => {
+                  setTransferResidents(updated);
+                  if (updated.length > 0) {
+                    if (!assignedHeadId || !updated.some((r) => r.id === assignedHeadId)) {
+                      setAssignedHeadId(updated[0].id);
+                    }
+                  } else {
+                    setAssignedHeadId(null);
+                  }
+                }}
+                placeholder="Search resident name or resident number to add to transfer…"
+              />
+            </FormField>
+
+            {/* List of selected residents and Head Assignment */}
+            {transferResidents.length > 0 && (
+              <div className="rounded-2xl border border-gray/70 p-3.5 space-y-3 bg-secondary/30">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-dark">
+                    Selected Residents ({transferResidents.length}) & Household Head Assignment
+                  </span>
+                  {transferResidents.length > 1 && (
+                    <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold text-primary">
+                      Multiple Residents
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-[11px] text-gray-500">
+                  {transferResidents.length === 1
+                    ? "Check the option below if this resident will be the Household Head:"
+                    : "Select which resident will be assigned as the Household Head (Owner):"}
+                </p>
+
+                <div className="space-y-2">
+                  {transferResidents.map((r) => {
+                    const isHead = assignedHeadId === r.id;
+                    return (
+                      <label
+                        key={r.id}
+                        className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl border p-2.5 transition-all ${
+                          isHead
+                            ? "border-primary bg-primary/5 shadow-xs"
+                            : "border-gray/70 bg-white hover:border-gray"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <input
+                            type="radio"
+                            name="assigned_head_resident"
+                            checked={isHead}
+                            onChange={() => setAssignedHeadId(r.id)}
+                            className="h-4 w-4 accent-primary cursor-pointer shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-dark truncate">{personName(r)}</p>
+                            <p className="text-[11px] text-gray-500">
+                              {r.resident_number}
+                              {r.gender ? ` · ${r.gender}` : ""}
+                              {r.household?.household_number ? ` · Current: ${r.household.household_number}` : ""}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {isHead ? (
+                            <span className="rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                              ★ Household Head
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-medium text-gray-400">
+                              Click to make Head
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const filtered = transferResidents.filter((x) => x.id !== r.id);
+                              setTransferResidents(filtered);
+                              if (assignedHeadId === r.id) {
+                                setAssignedHeadId(filtered.length > 0 ? filtered[0].id : null);
+                              }
+                            }}
+                            className="p-1 text-gray-400 hover:text-danger cursor-pointer"
+                            title="Remove from transfer"
+                          >
+                            <FiX className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </label>
+                    );
+                  })}
+
+                  {/* Option to keep existing destination head if existing household has one */}
+                  {destinationMode === "existing" && transferTargetHousehold?.head && (
+                    <label
+                      className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl border p-2.5 transition-all ${
+                        assignedHeadId === null
+                          ? "border-primary bg-primary/5 shadow-xs"
+                          : "border-gray/70 bg-white hover:border-gray"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <input
+                          type="radio"
+                          name="assigned_head_resident"
+                          checked={assignedHeadId === null}
+                          onChange={() => setAssignedHeadId(null)}
+                          className="h-4 w-4 accent-primary cursor-pointer shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-dark">
+                            Keep Destination Household's Existing Head
+                          </p>
+                          <p className="text-[11px] text-gray-500">
+                            Current Head: {personName(transferTargetHousehold.head)} (transferred residents join as members)
+                          </p>
+                        </div>
+                      </div>
+                      {assignedHeadId === null && (
+                        <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold text-primary">
+                          Current Head Maintained
+                        </span>
+                      )}
+                    </label>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Destination Selection with Toggle between Existing and New */}
+          <div className="rounded-2xl border border-gray/70 p-3.5 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray/40 pb-2.5">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-dark">
+                  Destination Household *
+                </span>
+                <p className="text-[11px] text-gray-500">
+                  {destinationMode === "existing"
+                    ? "Move residents into an already registered household"
+                    : "Create a new household record and move residents directly into it"}
+                </p>
+              </div>
+              <div className="flex items-center gap-1 rounded-full bg-secondary p-1 border border-gray/40">
+                <button
+                  type="button"
+                  onClick={() => setDestinationMode("existing")}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer ${
+                    destinationMode === "existing"
+                      ? "bg-primary text-white shadow-xs"
+                      : "text-gray-600 hover:text-primary"
+                  }`}
+                >
+                  Select Existing
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDestinationMode("new")}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer ${
+                    destinationMode === "new"
+                      ? "bg-primary text-white shadow-xs"
+                      : "text-gray-600 hover:text-primary"
+                  }`}
+                >
+                  + Create New Household
+                </button>
+              </div>
+            </div>
+
+            {destinationMode === "existing" ? (
+              <div className="space-y-2 pt-1">
+                <HouseholdPicker
+                  value={transferTargetHousehold?.id ? String(transferTargetHousehold.id) : ""}
+                  selected={transferTargetHousehold}
+                  onSelect={setTransferTargetHousehold}
+                  onAddNew={() => setDestinationMode("new")}
+                  placeholder="Search existing household by number, purok, or owner…"
+                />
+
+                {transferTargetHousehold && (
+                  <div className="rounded-xl bg-secondary px-3.5 py-2.5 text-xs text-dark">
+                    <p className="font-semibold text-primary">Destination: {transferTargetHousehold.household_number}</p>
+                    <p className="text-gray-500 mt-0.5">
+                      {[transferTargetHousehold.street_address, transferTargetHousehold.zone_purok].filter(Boolean).join(" · ") || "No address on file"}
+                      {transferTargetHousehold.head ? ` · Owner: ${personName(transferTargetHousehold.head)}` : ""}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-xl bg-primary/5 p-3.5 space-y-3 border border-primary/20">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-primary">
+                  <FiPlus className="h-4 w-4" />
+                  <span>New Household Information</span>
+                </div>
+
+                <FormField label="Household Number" required hint="e.g. 18A019A or HH-2026-0009">
+                  <input
+                    type="text"
+                    value={newHouseholdNumber}
+                    onChange={(e) => setNewHouseholdNumber(e.target.value)}
+                    placeholder="e.g. 18A019A"
+                    required={destinationMode === "new"}
+                    className={inputClasses}
+                  />
+                </FormField>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <FormField label="Zone / Purok" required>
+                    <select
+                      value={newHouseholdZone}
+                      onChange={(e) => setNewHouseholdZone(e.target.value)}
+                      required={destinationMode === "new"}
+                      className={inputClasses}
+                    >
+                      <option value="">Select Zone / Purok…</option>
+                      {zones.map((z) => (
+                        <option key={z} value={z}>{z}</option>
+                      ))}
+                    </select>
+                  </FormField>
+
+                  <FormField label="House Type">
+                    <select
+                      value={newHouseholdType}
+                      onChange={(e) => setNewHouseholdType(e.target.value)}
+                      className={inputClasses}
+                    >
+                      <option>Concrete</option>
+                      <option>Semi-concrete</option>
+                      <option>Light materials</option>
+                    </select>
+                  </FormField>
+                </div>
+
+                <FormField label="Street Address" required hint="Specific street address in the barangay">
+                  <input
+                    type="text"
+                    value={newHouseholdAddress}
+                    onChange={(e) => setNewHouseholdAddress(e.target.value)}
+                    placeholder="e.g. Zone 18A, Main Road"
+                    required={destinationMode === "new"}
+                    className={inputClasses}
+                  />
+                </FormField>
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-gray/70 p-3">
+            <label className="flex cursor-pointer items-start gap-2.5 text-xs text-dark">
+              <input
+                type="checkbox"
+                checked={transferSyncAddress}
+                onChange={(e) => setTransferSyncAddress(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded accent-primary cursor-pointer"
+              />
+              <div>
+                <span className="font-semibold">Update residents' Purok and Address</span>
+                <p className="text-gray-500 text-[11px] mt-0.5">
+                  Automatically set the transferred residents' Zone / Purok and address to match the destination household.
+                </p>
+              </div>
+            </label>
+          </div>
+
+          <FormField
+            label="Reason for transfer (optional)"
+            hint="e.g. Marriage, family relocation, independent living"
+          >
+            <input
+              type="text"
+              value={transferReason}
+              onChange={(e) => setTransferReason(e.target.value)}
+              placeholder="e.g. Moved to spouse's household, independent living"
+              className={inputClasses}
+            />
+          </FormField>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-gray/50">
+            <button
+              type="button"
+              onClick={() => setTransferModalOpen(false)}
+              className="cursor-pointer rounded-full border border-gray px-5 py-2 text-xs font-semibold text-gray-600 hover:bg-gray/20"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={
+                transferring ||
+                transferResidents.length === 0 ||
+                (destinationMode === "existing" && !transferTargetHousehold) ||
+                (destinationMode === "new" && (!newHouseholdNumber.trim() || !newHouseholdZone || !newHouseholdAddress.trim()))
+              }
+              className="cursor-pointer rounded-full bg-primary px-6 py-2 text-xs font-semibold text-white transition-colors hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {transferring
+                ? "Processing…"
+                : destinationMode === "new"
+                  ? `Create Household & Transfer (${transferResidents.length})`
+                  : `Confirm Transfer (${transferResidents.length})`}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

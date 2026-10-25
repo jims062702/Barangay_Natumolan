@@ -111,17 +111,17 @@ export default function LifeStatusEditor({ resident, onChanged }: Props) {
         {deceased ? (
           <>
             <p className="mb-3 flex items-start gap-2 rounded-xl bg-gray/60 px-4 py-3 text-sm leading-relaxed text-dark">
-              <FiAlertCircle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-gray-500" />
-              <span>
-                Recorded as <strong>deceased</strong>
-                {asDate(resident.date_of_death) && <> on {asDate(resident.date_of_death)}</>}.
-                {resident.life_status_note && <> {resident.life_status_note}</>}
-                <br />
-                They are out of the population count and cannot sign in. Their family links are
-                kept — they are still recorded as a parent, and their grandchildren still have
-                them as a lolo or lola.
-              </span>
-            </p>
+  <FiAlertCircle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
+  <span>
+    Recorded as <strong className="font-semibold text-red-600">deceased</strong>
+    {asDate(resident.date_of_death) && <> on {asDate(resident.date_of_death)}</>}.
+    {resident.life_status_note && <> {resident.life_status_note}</>}
+    <br />
+    They are out of the population count and cannot sign in. Their family links are
+    kept — they are still recorded as a parent, and their grandchildren still have
+    them as a lolo or lola.
+  </span>
+</p>
             <button
               type="button"
               onClick={markAlive}

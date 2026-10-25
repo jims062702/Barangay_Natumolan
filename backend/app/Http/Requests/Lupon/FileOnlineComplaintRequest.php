@@ -76,7 +76,54 @@ class FileOnlineComplaintRequest extends FormRequest
             'relationship_nature' => 'nullable|in:Family,Neighbor,Business,Friend,Other',
 
             'valid_id_type' => $resident ? 'nullable' : 'required|in:' . implode(',', self::ID_TYPES),
-            'valid_id_number' => 'nullable|string|max:80',
+            'valid_id_number' => [
+                'nullable',
+                'string',
+                'max:80',
+                function ($attribute, $value, $fail) {
+                    $idType = $this->input('valid_id_type');
+                    $val = trim((string) $value);
+                    if ($val === '') return;
+
+                    switch ($idType) {
+                        case 'PhilSys / National ID':
+                            if (!ctype_digit($val) || strlen($val) !== 16) {
+                                $fail('PhilSys / National ID number must be exactly 16 numeric digits.');
+                            }
+                            break;
+                        case 'PhilHealth ID':
+                            if (!ctype_digit($val) || strlen($val) !== 12) {
+                                $fail('PhilHealth ID number must be exactly 12 numeric digits.');
+                            }
+                            break;
+                        case 'SSS / GSIS / UMID':
+                            if (!ctype_digit($val) || strlen($val) < 10 || strlen($val) > 12) {
+                                $fail('SSS / GSIS / UMID number must be 10 to 12 numeric digits.');
+                            }
+                            break;
+                        case "Driver's Licence":
+                            if (!preg_match('/^[A-Za-z0-9]{11}$/', $val)) {
+                                $fail('Driver\'s Licence number must be exactly 11 alphanumeric characters.');
+                            }
+                            break;
+                        case 'Passport':
+                            if (!preg_match('/^[A-Za-z0-9]{9}$/', $val)) {
+                                $fail('Passport number must be exactly 9 alphanumeric characters.');
+                            }
+                            break;
+                        case "Voter's ID":
+                            if (!ctype_digit($val) || strlen($val) !== 12) {
+                                $fail('Voter\'s ID number must be exactly 12 numeric digits.');
+                            }
+                            break;
+                        case 'Postal ID':
+                            if (!preg_match('/^[A-Za-z0-9]{16}$/', $val)) {
+                                $fail('Postal ID number must be exactly 16 characters.');
+                            }
+                            break;
+                    }
+                },
+            ],
             /* An image or a PDF, and small enough that a phone on barangay
                data can actually send it. A resident's is their card, read for
                its QR, so theirs must be a picture. */

@@ -38,7 +38,7 @@ export function StageTracker({ caseData, reached }: { caseData: LuponCase; reach
           it cannot settle is dismissed, not arbitrated.
         */}
 
-        {["Dismissed", "Referred"].includes(caseData.current_stage) && (
+        {["Dismissed", "Referred", "Withdrawn"].includes(caseData.current_stage) && (
           <>
             <span className="mx-1 h-0.5 w-6 bg-gray" aria-hidden="true" />
             <div className="whitespace-nowrap rounded-full bg-danger/10 px-4 py-1.5 text-xs font-semibold text-danger">
@@ -49,7 +49,7 @@ export function StageTracker({ caseData, reached }: { caseData: LuponCase; reach
       </div>
 
       {/* Which steps were skipped, said out loud rather than left as a gap. */}
-      {["Dismissed", "Referred"].includes(caseData.current_stage)
+      {["Dismissed", "Referred", "Withdrawn"].includes(caseData.current_stage)
         && !reached.has("Conciliation") && (
         <p className="mt-3 text-xs leading-relaxed text-gray-500">
           No Pangkat ng Tagapagkasundo sat on this case — it left the track before

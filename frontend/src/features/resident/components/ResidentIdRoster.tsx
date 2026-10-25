@@ -39,7 +39,7 @@ const issuedOn = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString
  * anybody who turns out to have one — nobody is ever given a second active
  * card from here.
  */
-export function ResidentIdRoster({ people, heading = "Resident IDs" }: { people: RosterPerson[]; heading?: string }) {
+export function ResidentIdRoster({ people, heading = "Resident IDs", renderExtraActions }: { people: RosterPerson[]; heading?: string; renderExtraActions?: (person: RosterPerson) => React.ReactNode }) {
   const [standing, setStanding] = useState<Record<number, Standing>>({});
   const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -237,6 +237,7 @@ export function ResidentIdRoster({ people, heading = "Resident IDs" }: { people:
               </div>
 
               <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
+                {renderExtraActions && renderExtraActions(person)}
                 {card ? (
                   <>
                     <button

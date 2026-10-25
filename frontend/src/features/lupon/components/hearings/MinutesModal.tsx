@@ -149,10 +149,12 @@ export function MinutesModal({
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Schedule &amp; Status</p>
             <p className="font-semibold text-dark">
-              {formatWallClock(hearing.scheduled_at)}
-              {hearing.schedule_time_range && (
-                <span className="block text-xs font-normal text-gray-600">{hearing.schedule_time_range}</span>
-              )}
+              {formatWallClock(hearing.scheduled_at, {
+                weekday: "long",
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
             </p>
             <div className="mt-1">
               <StatusBadge status={hearing.status} />

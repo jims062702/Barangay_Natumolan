@@ -10,6 +10,7 @@ use App\Http\Requests\Account\UpdateProfileRequest;
 use App\Models\Account\User;
 use App\Models\Resident\Resident;
 use App\Services\Account\ActivationCode;
+use App\Services\Account\ProgressiveLockout;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
@@ -30,28 +31,20 @@ class AuthController extends BaseController
     public function login(CredentialsRequest $request)
     {
         $validated = $request->validated();
+        $email = strtolower(trim($validated['email']));
 
         /*
-         * FIVE WRONG PASSWORDS, AND THE ACCOUNT WAITS FIFTEEN MINUTES
-         * (2026-09-30).
-         *
-         * A resident's starting password is their surname and the year they
-         * were born — a hundred or so guesses for anybody who knows them —
-         * and nothing stopped those guesses coming as fast as a script could
-         * send them.
-         *
-         * Counted per ACCOUNT, and only the failures: a barangay hall is one
-         * IP address (see AppServiceProvider), and somebody who signs in
-         * correctly has nothing counted against them.
+         * PROGRESSIVE LOCKOUT:
+         * 5 wrong attempts -> 15 minutes
+         * Next wrong attempt -> 1 hour
+         * Next wrong attempt -> 24 hours
+         * Checked per account across any browser/device.
          */
-        $failures = 'login-failed:' . strtolower(trim($validated['email']));
-
-        if (RateLimiter::tooManyAttempts($failures, 5)) {
-            $minutes = max(1, (int) ceil(RateLimiter::availableIn($failures) / 60));
-
+        if ($lockout = ProgressiveLockout::check(ProgressiveLockout::ACTION_LOGIN, $email)) {
             return $this->error(
-                'Too many incorrect passwords for this account. Try again in ' . $minutes
-                    . ($minutes === 1 ? ' minute' : ' minutes') . ', or reset your password.',
+                'Too many incorrect passwords for this account. Try again in ' .
+                    ProgressiveLockout::formatRemaining($lockout) .
+                    ', or reset your password.',
                 429,
             );
         }
@@ -59,20 +52,39 @@ class AuthController extends BaseController
         $user = User::where('email', $validated['email'])->first();
 
         if (!$user || !Hash::check($validated['password'], $user->password)) {
-            RateLimiter::hit($failures, 15 * 60);
+            $failure = ProgressiveLockout::recordFailure(ProgressiveLockout::ACTION_LOGIN, $email, 5);
+
+            if ($failure['locked']) {
+                return $this->error(
+                    'Too many incorrect passwords for this account. Try again in ' .
+                        ProgressiveLockout::formatRemaining($failure['seconds']) .
+                        ', or reset your password.',
+                    429,
+                );
+            }
 
             throw ValidationException::withMessages([
                 'email' => 'The provided credentials are invalid.',
             ]);
         }
 
-        RateLimiter::clear($failures);
+        ProgressiveLockout::recordSuccess(ProgressiveLockout::ACTION_LOGIN, $email);
 
         if ($user->resident && $user->resident->isDeceased()) {
             return $this->error(
                 'Your resident account has been deactivated because the resident record is marked as deceased. Please contact the Barangay Office if you believe this is incorrect.',
                 403
             );
+        }
+
+        if ($user->isResident() && $user->resident) {
+            $age = $user->resident->birthdate?->age;
+            if ($age === null || $age < 18) {
+                return $this->error(
+                    'Ang resident portal account ay para lamang sa mga residenteng may edad 18 pataas. Hindi pa maaaring ma-open o ma-access ang account para sa 17 anyos pababa.',
+                    403
+                );
+            }
         }
 
         if (!$user->is_active) {
@@ -88,6 +100,14 @@ class AuthController extends BaseController
          * turns the account on. No token is issued until then.
          */
         if (!$user->isActivated()) {
+            if ($otpLockout = ProgressiveLockout::check(ProgressiveLockout::ACTION_ACTIVATION_OTP, $user->email)) {
+                return $this->error(
+                    'Too many incorrect verification codes for this account. Try again in ' .
+                        ProgressiveLockout::formatRemaining($otpLockout) . '.',
+                    429
+                );
+            }
+
             return $this->success(
                 $this->activation->send($user) + ['requires_activation' => true, 'email' => $user->email],
                 // The screen names the mailbox itself, in full; saying it
@@ -114,10 +134,21 @@ class AuthController extends BaseController
     public function activate(ActivateAccountRequest $request)
     {
         $validated = $request->validated();
+        $email = strtolower(trim($validated['email']));
+
+        if ($lockout = ProgressiveLockout::check(ProgressiveLockout::ACTION_ACTIVATION_OTP, $email)) {
+            return $this->error(
+                'Too many incorrect verification codes for this account. Try again in ' .
+                    ProgressiveLockout::formatRemaining($lockout) . '.',
+                429
+            );
+        }
 
         $user = User::where('email', $validated['email'])->first();
 
         if (!$user || !Hash::check($validated['password'], $user->password)) {
+            ProgressiveLockout::recordFailure(ProgressiveLockout::ACTION_LOGIN, $email, 5);
+
             throw ValidationException::withMessages([
                 'email' => 'The provided credentials are invalid.',
             ]);
@@ -125,6 +156,16 @@ class AuthController extends BaseController
 
         if (!$user->is_active) {
             return $this->error('User account is inactive', 403);
+        }
+
+        if ($user->isResident() && $user->resident) {
+            $age = $user->resident->birthdate?->age;
+            if ($age === null || $age < 18) {
+                return $this->error(
+                    'Ang resident portal account ay para lamang sa mga residenteng may edad 18 pataas. Hindi pa maaaring ma-open o ma-activate ang account para sa 17 anyos pababa.',
+                    403
+                );
+            }
         }
 
         if ($user->isActivated()) {
@@ -143,36 +184,39 @@ class AuthController extends BaseController
             );
         }
 
-        if ($user->otp_attempts >= User::OTP_MAX_ATTEMPTS) {
-            return $this->error(
-                'Too many incorrect codes. Request a new one to try again.',
-                429
-            );
-        }
-
         /* Held before the swap: redeeming the code moves pending_email into
            email and clears it, so afterwards there is nothing left to read. */
         $wasPending = $user->pending_email;
 
         if (!$user->redeemActivationOtp(trim($validated['code']))) {
-            $left = max(0, User::OTP_MAX_ATTEMPTS - $user->fresh()->otp_attempts);
+            $failure = ProgressiveLockout::recordFailure(
+                ProgressiveLockout::ACTION_ACTIVATION_OTP,
+                $user->email,
+                User::OTP_MAX_ATTEMPTS
+            );
+
+            if ($failure['locked']) {
+                $user->forceFill(['otp_attempts' => 0])->save();
+
+                return $this->error(
+                    'Too many incorrect verification codes for this account. Try again in ' .
+                        ProgressiveLockout::formatRemaining($failure['seconds']) . '.',
+                    429
+                );
+            }
 
             return $this->error(
-                'That code is not correct.' . ($left > 0 ? " You have {$left} attempt(s) left." : ' Request a new code.'),
+                'That code is not correct. You have ' . $failure['attempts_left'] . ' attempt(s) left.',
                 422
             );
         }
 
-        /*
-         * The register follows the login.
-         *
-         * A resident who corrected their address before activating has just
-         * proved the new mailbox. Leaving the old one on their resident record
-         * would have the barangay writing to an address they told us is wrong.
-         */
+        ProgressiveLockout::recordSuccess(ProgressiveLockout::ACTION_ACTIVATION_OTP, $user->email);
         if ($wasPending) {
+            ProgressiveLockout::recordSuccess(ProgressiveLockout::ACTION_ACTIVATION_OTP, $wasPending);
             $user->resident?->update(['email' => $wasPending]);
         }
+        ProgressiveLockout::recordSuccess(ProgressiveLockout::ACTION_LOGIN, $user->email);
 
         return $this->success([
             'user' => $user->fresh(),
@@ -184,10 +228,21 @@ class AuthController extends BaseController
     public function resendActivationCode(CredentialsRequest $request)
     {
         $validated = $request->validated();
+        $email = strtolower(trim($validated['email']));
+
+        if ($lockout = ProgressiveLockout::check(ProgressiveLockout::ACTION_ACTIVATION_OTP, $email)) {
+            return $this->error(
+                'Too many incorrect verification codes for this account. Try again in ' .
+                    ProgressiveLockout::formatRemaining($lockout) . '.',
+                429
+            );
+        }
 
         $user = User::where('email', $validated['email'])->first();
 
         if (!$user || !Hash::check($validated['password'], $user->password)) {
+            ProgressiveLockout::recordFailure(ProgressiveLockout::ACTION_LOGIN, $email, 5);
+
             throw ValidationException::withMessages([
                 'email' => 'The provided credentials are invalid.',
             ]);
@@ -230,9 +285,21 @@ class AuthController extends BaseController
             'new_email' => 'required|email|different:email',
         ]);
 
+        $email = strtolower(trim($validated['email']));
+
+        if ($lockout = ProgressiveLockout::check(ProgressiveLockout::ACTION_ACTIVATION_OTP, $email)) {
+            return $this->error(
+                'Too many incorrect verification codes for this account. Try again in ' .
+                    ProgressiveLockout::formatRemaining($lockout) . '.',
+                429
+            );
+        }
+
         $user = User::where('email', $validated['email'])->first();
 
         if (!$user || !Hash::check($validated['password'], $user->password)) {
+            ProgressiveLockout::recordFailure(ProgressiveLockout::ACTION_LOGIN, $email, 5);
+
             throw ValidationException::withMessages([
                 'email' => 'The provided credentials are invalid.',
             ]);

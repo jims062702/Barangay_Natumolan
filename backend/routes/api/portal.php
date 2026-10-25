@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\Portal\EmailChangeController;
 use App\Http\Controllers\Api\Portal\FamilyController;
 use App\Http\Controllers\Api\Portal\HealthController;
 use App\Http\Controllers\Api\Portal\VawcReportController;
+use App\Http\Controllers\Api\Portal\VawcRecordController;
 use App\Http\Controllers\Api\Portal\ResidentCardController;
 use App\Http\Controllers\Api\Portal\ProfileController;
 use App\Http\Controllers\Api\Portal\RequestController;
@@ -97,4 +98,7 @@ Route::prefix('portal')->middleware(['office:ResidentRole', 'resident_still_here
     /* Their VAWC reports to the VAW Desk — sent, and followed. */
     Route::get('vawc-reports', [VawcReportController::class, 'index']);
     Route::post('vawc-reports', [VawcReportController::class, 'store'])->middleware('throttle:60,1,portal-vawc-report');
+
+    /* Complete VAWC records: online complaints, cases, protection orders, and tracking. */
+    Route::get('vawc-records', [VawcRecordController::class, 'index']);
 });

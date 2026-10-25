@@ -24,7 +24,8 @@ export const reportedBySomeoneElse = (type: string | null | undefined) =>
 /**
  * The state and handlers of <CaseList>, so its sections can share them.
  */
-export function useCaseRegistry() {
+export function useCaseRegistry(options?: { status?: "Active" | "Closed" }) {
+  const statusFilter = options?.status ?? "Active";
   /* Never held on this device — the page says so rather than reading empty. */
   const { offline, noteOffline } = useNeedsConnection();
   const [rows, setRows] = useState<VawcCase[]>([]);
@@ -159,7 +160,7 @@ export function useCaseRegistry() {
    */
   const load = (silent = false) => {
     if (!silent) setLoading(true);
-    vawcApi.cases({ params: { page, ...periodParams(period) } })
+    vawcApi.cases({ params: { page, status: statusFilter, ...periodParams(period) } })
       .then((r) => {
         setRows(r.data.data.data ?? []);
         setLastPage(r.data.data.last_page ?? 1);
@@ -178,7 +179,7 @@ export function useCaseRegistry() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, period]);
+  }, [page, period, statusFilter]);
 
   /* A narrower window almost never has as many pages, and page 4 of a
      one-page result is an empty docket that looks like no cases at all. */
@@ -492,6 +493,7 @@ export function useCaseRegistry() {
     currentlyInDanger, setCurrentlyInDanger, protectionNeeded, setProtectionNeeded, bpo, setBpo,
     editForm, setEditForm, load, changePeriod, resetIntake,
     closeIntake, intake, openEdit, saveEdit, setEdit, intakeDraft, editDraft,
+    status: statusFilter,
   };
 }
 

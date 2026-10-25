@@ -77,22 +77,16 @@ export function usePortalRequests() {
     r.status !== "Cancelled" &&
     (r.certificate ? r.certificate.status === "Pending" : r.status === "Pending");
 
-  const cancelRequest = async (r: ServiceRequest) => {
-    const ok = await confirmAction({
-      title: "Cancel this request?",
-      text:
-        `${r.certificate?.certificate_type ?? r.service_type} (${r.request_number}) ` +
-        "will not be worked on. It stays in your list and you can resume it later.",
-      confirmText: "Yes, cancel it",
-      cancelText: "Keep it",
-    });
-
-    if (!ok) return;
+  const cancelRequest = async (r: ServiceRequest, reason: string) => {
+    if (!reason.trim()) {
+      toast("Please provide a reason for cancellation.", "error");
+      return;
+    }
 
     setBusyId(r.id);
 
     try {
-      await portalApi.cancelRequest(r.id);
+      await portalApi.cancelRequest(r.id, { reason_for_cancellation: reason.trim() });
       toast("Request cancelled. You can resume it any time.");
       load(page);
     } catch (err) {

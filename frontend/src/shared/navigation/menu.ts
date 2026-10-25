@@ -8,10 +8,10 @@ import {
   FiBell,
   FiBookOpen,
   FiCalendar,
+  FiCheckCircle,
   FiClipboard,
   FiClock,
   FiFileText,
-  FiFilePlus,
   FiFolder,
   FiHeart,
   FiHome,
@@ -67,46 +67,41 @@ export function menuFor(user: User): MenuSection[] {
            */
           { label: "My Request Certificates", to: "/resident/requests", icon: FiAward },
           /*
-           * FILING ONE, which is not the same thing as having one.
+           * VAWC Records — confidential records, protection orders, reports, and tracking.
            *
-           * Its own entry above Lupon Records, deliberately: a complaint sent
-           * from here is NOT a case, it is a reference number and an
-           * instruction to come to the office. Putting it among the cases
-           * would tell a resident they had filed when they had not.
+           * FOUR CHILDREN tailored specifically for VAWC:
+           * - Online Complaints: reports sent online, verification status, and filing
+           * - Confidential Cases: formal cases where the resident is survivor or reporter
+           * - Protection Orders (BPO): Barangay Protection Orders issued under RA 9262
+           * - Referrals & Tracking: PNP/DSWD/Hospital referrals, follow-ups, and undertakings
            */
-          { label: "File a Complaint", to: "/resident/file-complaint", icon: FiFilePlus },
+          {
+            label: "VAWC Records",
+            to: "/resident/vawc",
+            icon: FiShield,
+            children: [
+              { label: "Online Complaints", to: "/resident/vawc/reports", icon: FiInbox },
+              { label: "Confidential Cases", to: "/resident/vawc/cases", icon: FiFolder },
+              { label: "Protection Orders (BPO)", to: "/resident/vawc/bpo", icon: FiShield },
+              { label: "Referrals & Tracking", to: "/resident/vawc/tracking", icon: FiClock },
+            ],
+          },
           /*
-           * A VAWC report to the VAW Desk — its own entry, apart from the
-           * Lupon's complaint form, because the law keeps the two apart: KP
-           * mediation is prohibited for violence against women and children.
-           * The office asked for residents to follow their reports here.
-           */
-          { label: "VAWC Online Complaint", to: "/resident/vawc-report", icon: FiShield },
-          /*
-           * Their Katarungang Pambarangay record — never VAWC, see
-           * Portal\CaseController for why.
+           * Their Katarungang Pambarangay record — complaints, cases, hearings, and history.
            *
-           * THREE CHILDREN, and they answer three different questions. "What
-           * cases am I in" is the register; "when do I have to appear" is the
-           * schedule, which is what a summons is about; "what has happened so
-           * far" is the history. The old "My Cases" split them by WHO FILED
-           * instead — two lists of the same shape, neither of which told a
-           * person when to turn up.
+           * FIVE CHILDREN:
+           * - Online Complaints: file and track KP complaints submitted online
+           * - Cases I Filed: complaints they brought that became active docket cases
+           * - Cases Against Me: complaints naming them where they are summoned
+           * - Hearings: hearing schedule they need to attend
+           * - Case History: complete events timeline per case
            */
           {
             label: "Lupon Records",
             to: "/resident/lupon",
             icon: FiBookOpen,
             children: [
-              /*
-               * THE TWO SIDES ARE TWO ENTRIES, and they are different news.
-               *
-               * "Somebody filed a complaint against me" is what a resident
-               * opens the portal to find out, and it was folded into one
-               * "Filed Cases" list where it read as a case they had brought
-               * themselves. A person named as a respondent is being summoned;
-               * that deserves its own line and its own count.
-               */
+              { label: "Online Complaints", to: "/resident/lupon/complaints", icon: FiInbox },
               { label: "Cases I Filed", to: "/resident/lupon/filed", icon: FiFileText },
               { label: "Cases Against Me", to: "/resident/lupon/against-me", icon: FiAlertCircle },
               { label: "Hearings", to: "/resident/lupon/hearings", icon: FiCalendar },
@@ -286,6 +281,7 @@ export function menuFor(user: User): MenuSection[] {
         heading: "VAWC Desk",
         items: [
           { label: "Confidential Cases", to: "/vawc/cases", icon: FiShield },
+          { label: "Closed Cases", to: "/vawc/cases/closed", icon: FiCheckCircle },
           /* Reports residents sent online, waiting to be verified. */
           { label: "Online Complaints", to: "/vawc/online-reports", icon: FiInbox },
           /*

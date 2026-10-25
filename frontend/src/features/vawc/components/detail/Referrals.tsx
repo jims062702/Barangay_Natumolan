@@ -1,3 +1,4 @@
+import { FiPrinter } from "react-icons/fi";
 import { useEffect, useState, type FormEvent } from "react";
 import Card from "../../../../shared/ui/Card";
 import { useModalDraft } from "../../../../shared/lib/useModalDraft";
@@ -11,6 +12,7 @@ import {
 } from "../../lib/caseOptions";
 import { vawcApi } from "../../api";
 import type { VawcCase } from "../../types";
+import { printReferral } from "../../lib/vawcPrint";
 import { CardButton, saveToCase, SubmitButton } from "./parts";
 
 /**
@@ -59,17 +61,27 @@ export function ReferralsCard({ caseData, onCreate, onSaved, active }: {
                 {referral.referrer?.name ? ` · referred by ${referral.referrer.name}` : ""}
               </p>
               {referral.notes && <p className="mt-1 whitespace-pre-wrap text-xs text-gray-600">{referral.notes}</p>}
-              <label className="mt-2 flex items-center gap-2 text-xs text-gray-500">
-                Status
-                <select
-                  value={referral.referral_status}
-                  disabled={!active}
-                  onChange={(e) => changeStatus(referral.id, e.target.value)}
-                  className="cursor-pointer rounded-lg border border-gray bg-white px-2 py-1 text-xs font-semibold text-dark outline-none focus:border-primary disabled:cursor-default"
+              <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-gray/50 pt-2">
+                <button
+                  type="button"
+                  onClick={() => printReferral(caseData, referral)}
+                  className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-gray bg-white px-3 py-1 text-xs font-semibold text-primary transition-colors hover:border-primary hover:bg-primary/5"
                 >
-                  {REFERRAL_STATUSES.map((s) => <option key={s}>{s}</option>)}
-                </select>
-              </label>
+                  <FiPrinter className="h-3.5 w-3.5" aria-hidden="true" />
+                  Print Referral
+                </button>
+                <label className="flex items-center gap-2 text-xs text-gray-500">
+                  Status
+                  <select
+                    value={referral.referral_status}
+                    disabled={!active}
+                    onChange={(e) => changeStatus(referral.id, e.target.value)}
+                    className="cursor-pointer rounded-lg border border-gray bg-white px-2 py-1 text-xs font-semibold text-dark outline-none focus:border-primary disabled:cursor-default"
+                  >
+                    {REFERRAL_STATUSES.map((s) => <option key={s}>{s}</option>)}
+                  </select>
+                </label>
+              </div>
             </li>
           ))}
         </ul>

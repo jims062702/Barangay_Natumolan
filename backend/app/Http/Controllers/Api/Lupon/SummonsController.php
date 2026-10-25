@@ -254,8 +254,8 @@ class SummonsController extends BaseController
             ->first();
 
         if ($existing) {
-            $timeRange = $existing->schedule_time_range ?: $existing->scheduled_at->format('g:i A');
-            return $this->error("A hearing is already scheduled for this case: {$timeRange}.", 422);
+            $dayName = $existing->scheduled_at->format('l, F j, Y');
+            return $this->error("A hearing is already scheduled for this case on {$dayName}.", 422);
         }
 
         $result = $calendar->getOrCreateHearing($case, $type, Carbon::now(ManilaTime::ZONE), false);

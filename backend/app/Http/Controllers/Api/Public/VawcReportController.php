@@ -33,7 +33,14 @@ class VawcReportController extends BaseController
             return $this->error($check['message'], 422, ['resident_card_code' => [$check['message']]]);
         }
 
-        $report = $reports->file($data, $check['resident'], $check['card'], OnlineReport::VIA_PUBLIC, $request->file('valid_id'));
+        $report = $reports->file(
+            $data,
+            $check['resident'],
+            $check['card'],
+            OnlineReport::VIA_PUBLIC,
+            $request->file('valid_id'),
+            $request->file('evidence', [])
+        );
 
         return $this->success([
             'reference_no' => $report->reference_no,

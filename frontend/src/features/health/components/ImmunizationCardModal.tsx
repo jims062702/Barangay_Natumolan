@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { FiEdit2 } from "react-icons/fi";
 import { errorMessage } from "../../../shared/lib/api";
 import { announceWrite } from "../../../shared/lib/announceWrite";
 import { confirmAction } from "../../../shared/lib/confirm";
@@ -50,6 +51,7 @@ export default function ImmunizationCardModal({
   const [card, setCard] = useState<ImmunizationCard | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState<boolean>(!fixedResident);
 
   /* The editable half of the card. */
   const [screening, setScreening] = useState("");
@@ -76,6 +78,7 @@ export default function ImmunizationCardModal({
     setCard(null);
     clearFields();
     setOriginal({});
+    setIsEditing(!fixedResident);
   };
 
   /*
@@ -95,8 +98,11 @@ export default function ImmunizationCardModal({
     if (!open) {
       reset();
       loadedFrom.current = null;
+      setIsEditing(false);
       return;
     }
+
+    setIsEditing(!fixedResident);
 
     if (!person) {
       /* The person was taken off. Boxes that held THEIR card go with them;
@@ -226,7 +232,10 @@ export default function ImmunizationCardModal({
 
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!person) return;
+    if (!person) {
+      toast("Please search and select a resident first before saving.", "error");
+      return;
+    }
 
     /* Only the boxes that changed. An empty value takes a recorded dose
        off; an untouched box is not sent, so it cannot be disturbed. */
@@ -279,6 +288,7 @@ export default function ImmunizationCardModal({
             value={doses[vaccine] ?? ""}
             min={born}
             max={today}
+            disabled={!isEditing}
             onChange={(e) => setDose(vaccine, e.target.value)}
             className={`${inputClasses} max-w-[10.5rem] py-1.5 text-sm`}
             aria-label={`${vaccine} — date given`}
@@ -293,6 +303,27 @@ export default function ImmunizationCardModal({
   return (
     <Modal open={open} onClose={close} title="Immunization Record" size="xl">
       <form onSubmit={save} className="space-y-6">
+        <div className="flex items-center justify-between">
+          <span
+            className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+              isEditing
+                ? "border border-primary/20 bg-primary/10 text-primary"
+                : "border border-gray-200 bg-gray-100 text-gray-600"
+            }`}
+          >
+            {isEditing ? "Edit mode" : "View mode (Read-only)"}
+          </span>
+          {!isEditing && (
+            <button
+              type="button"
+              onClick={() => setIsEditing(true)}
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary-dark"
+            >
+              <FiEdit2 className="h-3.5 w-3.5" aria-hidden="true" /> Edit record
+            </button>
+          )}
+        </div>
+
         {!fixedResident && (
           <FormField label="Name" required plain>
             <ResidentPicker value={picked} onChange={setPicked} />
@@ -341,6 +372,7 @@ export default function ImmunizationCardModal({
                         value={screening}
                         min={born}
                         max={today}
+                        disabled={!isEditing}
                         onChange={(e) => setScreening(e.target.value)}
                         className={inputClasses}
                       />
@@ -348,18 +380,19 @@ export default function ImmunizationCardModal({
                     <FormField label="Type of delivery" plain>
                       <div className="flex gap-4 pt-2.5">
                         {deliveryTypes.map((t) => (
-                          <label key={t} className="flex cursor-pointer items-center gap-2 text-sm text-dark">
+                          <label key={t} className={`flex items-center gap-2 text-sm text-dark ${isEditing ? "cursor-pointer" : "cursor-default opacity-80"}`}>
                             <input
                               type="radio"
                               name="delivery"
                               checked={delivery === t}
+                              disabled={!isEditing}
                               onChange={() => setDelivery(t)}
-                              className="h-4 w-4 cursor-pointer accent-primary"
+                              className="h-4 w-4 accent-primary disabled:cursor-not-allowed"
                             />
                             {t}
                           </label>
                         ))}
-                        {delivery && (
+                        {isEditing && delivery && (
                           <button
                             type="button"
                             onClick={() => setDelivery("")}
@@ -377,6 +410,7 @@ export default function ImmunizationCardModal({
                         min="0.3"
                         max="7"
                         value={birthWeight}
+                        disabled={!isEditing}
                         onChange={(e) => setBirthWeight(e.target.value)}
                         className={inputClasses}
                         placeholder="3.20"
@@ -389,6 +423,7 @@ export default function ImmunizationCardModal({
                         min="20"
                         max="70"
                         value={birthLength}
+                        disabled={!isEditing}
                         onChange={(e) => setBirthLength(e.target.value)}
                         className={inputClasses}
                         placeholder="50.0"
@@ -402,7 +437,7 @@ export default function ImmunizationCardModal({
                     Immunization — date given
                   </h3>
                   <p className="mb-3 text-xs text-gray-400">
-                    Leave a box empty if the dose has not been given.
+                    {isEditing ? "Leave a box empty if the dose has not been given." : "Dates when vaccines were administered."}
                   </p>
                   {doseGrid(childVaccines)}
 
@@ -410,6 +445,7 @@ export default function ImmunizationCardModal({
                     <FormField label="Others">
                       <input
                         value={others}
+                        disabled={!isEditing}
                         onChange={(e) => setOthers(e.target.value)}
                         maxLength={500}
                         className={inputClasses}
@@ -418,6 +454,7 @@ export default function ImmunizationCardModal({
                     <FormField label="Booster">
                       <input
                         value={booster}
+                        disabled={!isEditing}
                         onChange={(e) => setBooster(e.target.value)}
                         maxLength={500}
                         className={inputClasses}
@@ -433,16 +470,57 @@ export default function ImmunizationCardModal({
                   {doseGrid(adultVaccines)}
                 </section>
 
-        <DraftNotice draft={draft} />
+        {isEditing && <DraftNotice draft={draft} />}
 
-        <button
-          type="submit"
-          disabled={!person || loading || saving}
-          title={person ? undefined : "Choose the person first"}
-          className="w-full cursor-pointer rounded-full bg-primary py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark disabled:opacity-50"
-        >
-          {saving ? "Saving…" : person ? "Save record" : "Choose the person to save"}
-        </button>
+        {!isEditing ? (
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={close}
+              className="w-1/2 cursor-pointer rounded-full border border-gray py-2.5 text-sm font-semibold text-dark transition-colors hover:bg-secondary"
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsEditing(true)}
+              disabled={loading || !person}
+              className="inline-flex w-1/2 cursor-pointer items-center justify-center gap-2 rounded-full bg-primary py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark disabled:opacity-50"
+            >
+              <FiEdit2 className="h-4 w-4" aria-hidden="true" /> Edit record
+            </button>
+          </div>
+        ) : (
+          <div className="flex gap-3 pt-2">
+            {fixedResident && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (card) {
+                    setScreening(stored.screening);
+                    setDelivery(stored.delivery);
+                    setBirthWeight(stored.birthWeight);
+                    setBirthLength(stored.birthLength);
+                    setOthers(stored.others);
+                    setBooster(stored.booster);
+                    setDoses(card.doses ?? {});
+                  }
+                  setIsEditing(false);
+                }}
+                className="w-1/3 cursor-pointer rounded-full border border-gray py-2.5 text-sm font-semibold text-dark transition-colors hover:bg-secondary"
+              >
+                Cancel
+              </button>
+            )}
+            <button
+              type="submit"
+              disabled={loading || saving}
+              className={`${fixedResident ? "w-2/3" : "w-full"} cursor-pointer rounded-full bg-primary py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark disabled:opacity-50`}
+            >
+              {saving ? "Saving…" : person ? "Save record" : "Select a resident to save record"}
+            </button>
+          </div>
+        )}
       </form>
     </Modal>
   );

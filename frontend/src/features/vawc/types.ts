@@ -86,6 +86,7 @@ export interface VawcProtectionOrder {
   id: number;
   renewal_of_id?: number | null;
   status: string;
+  bpo_number?: string | null;
   applied_on?: string | null;
   issued_on?: string | null;
   /** The last day in effect — worked out by the server, never typed. */
@@ -145,7 +146,7 @@ export interface VawcDialogue {
   session_date: string;
   attendees: string | null;
   discussion: string | null;
-  outcome: "Agreement reached" | "No agreement" | null;
+  outcome: "Agreement reached" | "Not settled" | "No agreement" | null;
   agreement: string | null;
   recorder?: Partial<User> | null;
 }

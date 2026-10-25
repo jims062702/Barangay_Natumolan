@@ -60,11 +60,14 @@ export function PostEditor({ ctx }: { ctx: PostDeskState }) {
         <FormField label="Title" required>
           <input
             value={form.title}
-            onChange={(e) => set("title", e.target.value)}
+            onChange={(e) => set("title", e.target.value.slice(0, 80))}
             required
-            maxLength={255}
+            maxLength={80}
             className={inputClasses}
           />
+          <div className="mt-1 flex justify-end text-xs text-gray-400">
+            <span>{form.title.length}/80 characters</span>
+          </div>
         </FormField>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -96,20 +99,27 @@ export function PostEditor({ ctx }: { ctx: PostDeskState }) {
         >
           <input
             value={form.excerpt}
-            onChange={(e) => set("excerpt", e.target.value)}
-            maxLength={300}
+            onChange={(e) => set("excerpt", e.target.value.slice(0, 80))}
+            maxLength={80}
             className={inputClasses}
           />
+          <div className="mt-1 flex justify-end text-xs text-gray-400">
+            <span>{form.excerpt.length}/80 characters</span>
+          </div>
         </FormField>
 
         <FormField label="Full details" required>
           <textarea
             value={form.body}
-            onChange={(e) => set("body", e.target.value)}
+            onChange={(e) => set("body", e.target.value.slice(0, 1000))}
             required
+            maxLength={1000}
             rows={5}
             className={`${inputClasses} resize-none`}
           />
+          <div className="mt-1 flex justify-end text-xs text-gray-400">
+            <span>{form.body.length}/1,000 characters</span>
+          </div>
         </FormField>
 
         {/*

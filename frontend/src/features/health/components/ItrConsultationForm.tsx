@@ -41,6 +41,11 @@ export function ItrConsultationForm({ draft, set, patient, onPatient }: {
       <div className="sm:col-span-2 lg:col-span-3">
         <FormField label="Patient" required plain>
           <ResidentPicker value={patient} onChange={onPatient} />
+          {!patient && (
+            <p className="mt-1.5 text-xs text-gray-500">
+              Type the resident&apos;s name and click their profile from the dropdown list to select them.
+            </p>
+          )}
         </FormField>
       </div>
 
@@ -48,7 +53,7 @@ export function ItrConsultationForm({ draft, set, patient, onPatient }: {
         <input
           type="date"
           value={draft.visit_date}
-          max={new Date().toISOString().slice(0, 10)}
+          max={new Date().toLocaleDateString("en-CA")}
           onChange={(e) => set("visit_date", e.target.value)}
           required
           className={inputClasses}

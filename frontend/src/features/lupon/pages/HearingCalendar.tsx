@@ -114,34 +114,6 @@ export default function HearingCalendar() {
   const monthName = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)) - 1, 1)
     .toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
-  /*
-   * The WINDOW, not just the start.
-   *
-   * A sitting is allowed an hour and a half, and the next begins a quarter
-   * of an hour after it ends. A tile showing only "8:00 AM" told the
-   * Punong Barangay when to walk in and nothing about when the room is
-   * theirs until — which is the half of it they plan the day around.
-   */
-  const window = (iso: string) => {
-    /*
-     * READ OFF THE STRING, NEVER PARSED.
-     *
-     * The column holds Manila wall-clock and Laravel serialises it with a
-     * "Z" it has not earned — so `new Date(...)` reads 9:00 as nine UTC and
-     * the tile said 5:00 PM for a nine o'clock sitting. The hour on the
-     * summons is the hour in the column; arithmetic on the minutes is all
-     * this needs.
-     */
-    const from = Number(iso.slice(11, 13)) * 60 + Number(iso.slice(14, 16));
-    if (Number.isNaN(from)) return "—";
-
-    const face = (mins: number) => {
-      const h = Math.floor(mins / 60) % 24;
-      return `${h % 12 === 0 ? 12 : h % 12}:${String(mins % 60).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
-    };
-    return `${face(from)} – ${face(from + 120)}`;
-  };
-
   if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => load()} />;
 
   return (
@@ -150,8 +122,8 @@ export default function HearingCalendar() {
         title={isLupon ? "Lupon Hearings Calendar" : "Punong Barangay Hearings Calendar"}
         subtitle={
           isLupon
-            ? "Conciliation hearings on Thursdays for forwarded unsettled cases (Maximum 7 cases per Thursday)"
-            : "The Punong Barangay's mediation sittings on Tuesdays (Maximum 7 cases per Tuesday)"
+            ? "Conciliation hearings on Thursdays for forwarded unsettled cases (Maximum 8 cases per Thursday)"
+            : "The Punong Barangay's mediation sittings on Tuesdays (Maximum 8 cases per Tuesday)"
         }
       />
 
@@ -167,7 +139,7 @@ export default function HearingCalendar() {
                 : "bg-white text-gray-600 border border-gray hover:bg-gray-50"
             }`}
           >
-            Punong Barangay (Tuesdays · Max 7 cases)
+            Punong Barangay (Tuesdays · Max 8 cases)
           </button>
           <button
             type="button"
@@ -178,7 +150,7 @@ export default function HearingCalendar() {
                 : "bg-white text-gray-600 border border-gray hover:bg-gray-50"
             }`}
           >
-            Lupon (Thursdays · Max 7 cases)
+            Lupon (Thursdays · Max 8 cases)
           </button>
         </div>
       )}
@@ -192,10 +164,10 @@ export default function HearingCalendar() {
         />
         <StatTile
           label="Daily Hearing Capacity"
-          value="7 cases max"
+          value="8 cases max"
           icon={FiCalendar}
           tone="primary"
-          hint={isLupon ? "Strictly 7 active cases per Thursday" : "Strictly 7 active cases per Tuesday"}
+          hint={isLupon ? "Strictly 8 active cases per Thursday" : "Strictly 8 active cases per Tuesday"}
         />
       </div>
 
@@ -267,8 +239,10 @@ export default function HearingCalendar() {
                   const dayOfWeek = cellDate.getDay(); // 0 = Sun, 2 = Tue, 4 = Thu
                   const isHearingDay = !isLupon ? dayOfWeek === 2 : dayOfWeek === 4;
                   const dayCap = capacities[cell.key];
-                  const scheduledCount = dayCap?.count ?? cell.sittings.filter((s) => s.status === "Scheduled").length;
-                  const isFull = dayCap?.is_full ?? scheduledCount >= 7;
+                  const maxCases = dayCap?.max ?? 8;
+                  const activeSittingsCount = cell.sittings.filter((s) => s.status !== "Cancelled").length;
+                  const scheduledCount = Math.max(dayCap?.count ?? 0, activeSittingsCount);
+                  const isFull = dayCap?.is_full ?? scheduledCount >= maxCases;
 
                   return (
                     <div
@@ -305,9 +279,9 @@ export default function HearingCalendar() {
                                 ? "bg-blue-100 text-blue-800 border border-blue-200"
                                 : "bg-gray-100 text-gray-500 border border-gray-200"
                             }`}
-                            title={`${scheduledCount} out of 7 maximum cases scheduled for this day`}
+                            title={`${scheduledCount} out of ${maxCases} maximum cases scheduled for this day`}
                           >
-                            {scheduledCount} / 7 {isFull ? "FULL" : "cases"}
+                            {scheduledCount} / {maxCases} {isFull ? "FULL" : "cases"}
                           </span>
                         )}
                       </div>
@@ -326,10 +300,8 @@ export default function HearingCalendar() {
                     <div className="mt-1 space-y-1">
                       {cell.sittings.map((h) => (
                         /*
-                          The whole sitting on the tile: the hour, both
-                          parties and whether it still stands. A tile that
-                          said only "1 hearing" would send the reader back
-                          to a list to find out whose.
+                          The sitting on the tile: case number, both
+                          parties and whether it still stands.
                         */
                         <button
                           key={h.id}
@@ -343,7 +315,7 @@ export default function HearingCalendar() {
                           }`}
                         >
                           <span className="block text-[11px] font-semibold text-dark">
-                            {h.schedule_time_range || window(h.scheduled_at)}
+                            {h.lupon_case?.case_number || h.hearing_title || "Hearing"}
                           </span>
                           {/* Both parties on ONE line. Six sittings at three
                               lines each made a row tall enough to push the

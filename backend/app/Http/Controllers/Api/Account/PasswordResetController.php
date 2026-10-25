@@ -9,6 +9,7 @@ use App\Http\Requests\Account\VerifyResetCodeRequest;
 use App\Mail\PasswordResetCode;
 use App\Models\Account\User;
 use App\Services\Account\PasswordCodes;
+use App\Services\Account\ProgressiveLockout;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
@@ -132,6 +133,7 @@ class PasswordResetController extends BaseController
         $user->setPassword($validated['password'], null);
 
         $this->codes->forget($email);
+        ProgressiveLockout::recordSuccess(ProgressiveLockout::ACTION_LOGIN, $email);
 
         return $this->success(null, 'Your password has been changed. Sign in with it now.');
     }

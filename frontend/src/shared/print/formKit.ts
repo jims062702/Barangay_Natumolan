@@ -114,3 +114,43 @@ export function formDocument({ title, page, margin = "0.4in", css, body }: {
 
 /** A cell's mark: the barangay's forms tick a box with "/". */
 export const tick = (on: boolean) => (on ? "/" : "");
+
+/**
+ * Prints HTML directly via a temporary off-screen iframe without opening a new tab or page.
+ */
+export function printHtmlViaIframe(html: string): void {
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute(
+    "style",
+    "position:fixed;top:-10000px;left:-10000px;width:0;height:0;border:0;visibility:hidden;",
+  );
+  document.body.appendChild(iframe);
+
+  const frameDoc = iframe.contentWindow?.document;
+  if (!frameDoc) {
+    iframe.remove();
+    return;
+  }
+
+  frameDoc.open();
+  frameDoc.write(html);
+  frameDoc.close();
+
+  let printed = false;
+  const trigger = () => {
+    if (printed) return;
+    printed = true;
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch (e) {
+      console.error("Print error:", e);
+    } finally {
+      setTimeout(() => {
+        iframe.remove();
+      }, 1000);
+    }
+  };
+
+  setTimeout(trigger, 300);
+}

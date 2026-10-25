@@ -32,20 +32,14 @@ export function ExportSection({ ctx }: { ctx: RegisterTransferState }) {
         <p className="mb-1.5 text-sm font-medium text-dark">Who to include</p>
         <div className="flex flex-wrap gap-2">
           {([
-            { value: "residents", label: "Residents only" },
-            { value: "non-residents", label: "Non-residents only" },
-            { value: "both", label: "Both" },
+            { value: "residents", label: "Residents" },
           ] as const).map((option) => (
             <button
               key={option.value}
               type="button"
               onClick={() => setWho(option.value)}
               aria-pressed={who === option.value}
-              className={`cursor-pointer rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
-                who === option.value
-                  ? "bg-primary text-white"
-                  : "bg-secondary text-dark hover:bg-primary/10"
-              }`}
+              className="cursor-pointer rounded-full bg-primary px-4 py-2 text-xs font-semibold text-white transition-colors"
             >
               {option.label}
             </button>

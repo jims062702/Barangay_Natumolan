@@ -30,7 +30,7 @@ class StoreVisitRequest extends FormRequest
                never a future one — a consultation that has not happened yet
                is an appointment, and this system keeps none. */
             'visit_date' => 'required|date|before_or_equal:' . ManilaTime::now(),
-            'visit_time' => 'nullable|date_format:H:i',
+            'visit_time' => ['nullable', 'regex:/^\d{1,2}:\d{2}(:\d{2})?$/'],
             'visit_reason' => 'required|string|max:255',
             'chief_complaints' => 'nullable|string',
 
@@ -71,6 +71,7 @@ class StoreVisitRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'patient_id.required' => 'Please select a patient from the resident list first.',
             'visit_date.before_or_equal' => 'A consultation cannot be recorded in the future.',
             'blood_pressure.regex' => 'Write the reading as systolic/diastolic, e.g. 120/80.',
             'temperature.between' => 'That temperature is outside anything a person survives — check the decimal point.',

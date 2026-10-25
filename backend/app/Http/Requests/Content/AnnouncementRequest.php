@@ -22,13 +22,13 @@ abstract class AnnouncementRequest extends FormRequest
         $required = $this->creating() ? 'required' : 'sometimes';
 
         return [
-            'title' => "{$required}|string|max:255",
-            'body' => "{$required}|string",
+            'title' => "{$required}|string|max:80",
+            'body' => "{$required}|string|max:1000",
             'category' => "{$required}|in:" . implode(',', array_keys(Announcement::KINDS)),
             'status' => 'nullable|in:' . implode(',', Announcement::STATUSES),
 
             'author_name' => 'nullable|string|max:120',
-            'excerpt' => 'nullable|string|max:300',
+            'excerpt' => 'nullable|string|max:80',
             'image' => 'nullable|image|max:5120',
 
             /* Event */
@@ -49,6 +49,15 @@ abstract class AnnouncementRequest extends FormRequest
 
             /* Event, Activity and Program all use a venue. */
             'location' => 'nullable|string|max:255',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'title.max' => 'The title must not exceed 80 characters.',
+            'excerpt.max' => 'The short description must not exceed 80 characters.',
+            'body.max' => 'The full details must not exceed 1,000 characters.',
         ];
     }
 }

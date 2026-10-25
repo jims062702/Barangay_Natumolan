@@ -134,6 +134,22 @@ export function CaseTable({ ctx }: { ctx: LuponDocketState }) {
           {
             header: "Next Hearing",
             render: (c: LuponCase) => {
+              if (c.current_stage === "CFA") {
+                const dateText = c.date_resolved
+                  ? `Already Filed CFA · ${new Date(c.date_resolved).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}`
+                  : (c.next_hearing_info?.day_time || "Already Filed CFA");
+                return (
+                  <div className="flex flex-col gap-0.5">
+                    <span className="font-semibold text-xs text-rose-600">
+                      {c.next_hearing_info?.title || "CFA Issued"}
+                    </span>
+                    <span className="text-[11px] text-gray-600 font-mono">
+                      {dateText}
+                    </span>
+                  </div>
+                );
+              }
+
               if (!c.next_hearing_info || c.next_hearing_info.schedule === "—") {
                 return <span className="text-xs text-gray-400">—</span>;
               }

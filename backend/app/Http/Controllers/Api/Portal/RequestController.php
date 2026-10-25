@@ -7,6 +7,7 @@ use App\Models\Account\Notification;
 use App\Models\Chat\Conversation;
 use App\Models\Service\ServiceRequest;
 use App\Services\Portal\OnlineCertificate;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /** The resident's own requests: made, read, taken back and resumed. */
@@ -44,6 +45,8 @@ class RequestController extends PortalController
                 'certificates_clearances.fee_amount',
                 'certificates_clearances.documentary_stamp',
                 'certificates_clearances.released_at',
+                'certificates_clearances.cancel_reason',
+                'certificates_clearances.purpose',
             ])])
                 ->where('resident_id', $this->residentId())
                 ->latest()
@@ -179,7 +182,7 @@ class RequestController extends PortalController
      *
      * That is also why resuming is possible at all: the record never left.
      */
-    public function cancel(ServiceRequest $serviceRequest)
+    public function cancel(Request $request, ServiceRequest $serviceRequest)
     {
         if ($serviceRequest->resident_id !== $this->residentId()) {
             return $this->forbidden('This request does not belong to your account');
@@ -187,6 +190,11 @@ class RequestController extends PortalController
 
         if ($serviceRequest->status === 'Cancelled') {
             return $this->success($serviceRequest->fresh('certificate'), 'This request is already cancelled');
+        }
+
+        $reason = trim((string) ($request->input('reason_for_cancellation') ?? $request->input('reason') ?? ''));
+        if ($reason === '') {
+            return $this->error('A reason for cancellation is required.', 422);
         }
 
         $certificate = $serviceRequest->certificate;
@@ -209,12 +217,15 @@ class RequestController extends PortalController
             );
         }
 
-        DB::transaction(function () use ($serviceRequest, $certificate) {
+        DB::transaction(function () use ($serviceRequest, $certificate, $reason) {
             $serviceRequest->update(['status' => 'Cancelled']);
 
             /* The certificate goes with it, or the counter still has something
                to print for a request the resident has withdrawn. */
-            $certificate?->update(['status' => 'Cancelled']);
+            $certificate?->update([
+                'status' => 'Cancelled',
+                'cancel_reason' => $reason,
+            ]);
         });
 
         return $this->success($serviceRequest->fresh('certificate'), 'Request cancelled');

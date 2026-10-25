@@ -14,13 +14,10 @@ import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
  * VIEW ONLY, and the page says so rather than leaving somebody to discover
  * it. A health record is written at the station by the person who took the
  * reading; a patient reading theirs is right, a patient editing it is not.
- *
- * The consultation notes are deliberately not here — see Portal\HealthController.
- * What a midwife wrote about somebody is her clinical note, and a half
- * sentence read at home is one nobody can ask her about.
  */
 
 interface PortalVisit {
+  type?: string | null;
   visit_date?: string | null;
   visit_time?: string | null;
   visit_reason: string;
@@ -36,14 +33,42 @@ interface PortalVisit {
 }
 
 interface PortalImmunization {
+  child_name?: string | null;
   vaccine_name: string;
   vaccination_date?: string | null;
   status: string;
 }
 
+interface PortalMaternalRecord {
+  id: number;
+  status: string;
+  pregnancy_registration_date?: string | null;
+  lmp?: string | null;
+  expected_delivery_date?: string | null;
+  actual_delivery_date?: string | null;
+  risk_indicators?: string | null;
+  maternal_immunization_received?: boolean;
+  post_natal_followup_required?: boolean;
+  family_planning_method?: string | null;
+  prenatal_visits_count?: number;
+}
+
+interface PortalChildRecord {
+  id: number;
+  record_date?: string | null;
+  current_weight?: string | null;
+  current_height?: string | null;
+  nutritional_status?: string | null;
+  fully_immunized_status?: string | null;
+  breastfeeding_status?: string | null;
+  vitamin_services_received?: boolean;
+}
+
 export default function HealthRecords() {
   const [visits, setVisits] = useState<PortalVisit[]>([]);
   const [shots, setShots] = useState<PortalImmunization[]>([]);
+  const [maternalRecords, setMaternalRecords] = useState<PortalMaternalRecord[]>([]);
+  const [childRecords, setChildRecords] = useState<PortalChildRecord[]>([]);
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
   /* Its skeleton until the first answer — see PageLoad. */
@@ -56,6 +81,8 @@ export default function HealthRecords() {
       .then((r) => {
         setVisits(r.data.data.visits ?? []);
         setShots(r.data.data.immunizations ?? []);
+        setMaternalRecords(r.data.data.maternal_records ?? []);
+        setChildRecords(r.data.data.child_records ?? []);
         setNote(r.data.data.note ?? "");
       })
       .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
@@ -89,7 +116,113 @@ export default function HealthRecords() {
         </Card>
       ) : (
         <div className="space-y-6">
-          <Card title="Consultations">
+          {maternalRecords.length > 0 && (
+            <Card title="Maternal Health & Pregnancy">
+              <DataTable
+                columns={[
+                  {
+                    header: "Registered",
+                    render: (m: PortalMaternalRecord) => (
+                      <span className="whitespace-nowrap font-medium text-dark">
+                        {m.pregnancy_registration_date
+                          ? new Date(m.pregnancy_registration_date).toLocaleDateString("en-PH")
+                          : "—"}
+                      </span>
+                    ),
+                  },
+                  {
+                    header: "Status",
+                    render: (m: PortalMaternalRecord) => <StatusBadge status={m.status} />,
+                  },
+                  {
+                    header: "Expected Delivery (EDC)",
+                    render: (m: PortalMaternalRecord) => (
+                      <span className="whitespace-nowrap text-xs font-semibold text-primary">
+                        {m.expected_delivery_date
+                          ? new Date(m.expected_delivery_date).toLocaleDateString("en-PH")
+                          : "—"}
+                      </span>
+                    ),
+                  },
+                  {
+                    header: "LMP",
+                    render: (m: PortalMaternalRecord) => (
+                      <span className="whitespace-nowrap text-xs text-gray-600">
+                        {m.lmp ? new Date(m.lmp).toLocaleDateString("en-PH") : "—"}
+                      </span>
+                    ),
+                  },
+                  {
+                    header: "Prenatal Visits",
+                    render: (m: PortalMaternalRecord) => (
+                      <span className="text-xs font-medium text-gray-700">
+                        {m.prenatal_visits_count ?? 0} {m.prenatal_visits_count === 1 ? "visit" : "visits"}
+                      </span>
+                    ),
+                  },
+                  {
+                    header: "Notes / Advice",
+                    render: (m: PortalMaternalRecord) => (
+                      <span className="text-xs text-gray-600">
+                        {m.risk_indicators || "None recorded"}
+                      </span>
+                    ),
+                  },
+                ]}
+                rows={maternalRecords}
+                rowKey={(m) => `maternal-${m.id}`}
+                emptyMessage="No maternal record found."
+              />
+            </Card>
+          )}
+
+          {childRecords.length > 0 && (
+            <Card title="Child Health & Growth Monitoring">
+              <DataTable
+                columns={[
+                  {
+                    header: "Date",
+                    render: (c: PortalChildRecord) => (
+                      <span className="whitespace-nowrap font-medium text-dark">
+                        {c.record_date ? new Date(c.record_date).toLocaleDateString("en-PH") : "—"}
+                      </span>
+                    ),
+                  },
+                  {
+                    header: "Weight & Height",
+                    render: (c: PortalChildRecord) => (
+                      <span className="text-xs text-gray-600">
+                        {[c.current_weight && `${c.current_weight} kg`, c.current_height && `${c.current_height} cm`].filter(Boolean).join(" · ") || "—"}
+                      </span>
+                    ),
+                  },
+                  {
+                    header: "Nutritional Status",
+                    render: (c: PortalChildRecord) => (
+                      <span className="text-xs font-medium text-dark">{c.nutritional_status || "—"}</span>
+                    ),
+                  },
+                  {
+                    header: "Immunization",
+                    render: (c: PortalChildRecord) => (
+                      <span className="text-xs text-gray-600">{c.fully_immunized_status || "—"}</span>
+                    ),
+                  },
+                  {
+                    header: "Breastfeeding",
+                    render: (c: PortalChildRecord) => (
+                      <span className="text-xs text-gray-600">{c.breastfeeding_status || "—"}</span>
+                    ),
+                  },
+                ]}
+                rows={childRecords}
+                rowKey={(c) => `child-${c.id}`}
+                emptyMessage="No child health record found."
+              />
+            </Card>
+          )}
+
+          <Card title="Consultations & Checkups">
             <DataTable
               columns={[
                 {
@@ -136,7 +269,7 @@ export default function HealthRecords() {
                   },
                 },
                 {
-                  header: "Advice",
+                  header: "Advice / Plan",
                   render: (v: PortalVisit) => (
                     <span className="text-xs text-gray-600">{v.treatment_advice || "—"}</span>
                   ),
@@ -154,7 +287,7 @@ export default function HealthRecords() {
                 },
               ]}
               rows={visits}
-              rowKey={(v) => `${v.visit_date}-${v.visit_time ?? ""}-${v.visit_reason}`}
+              rowKey={(v: PortalVisit) => `${v.visit_date ?? ""}-${v.visit_time ?? ""}-${v.visit_reason}`}
               emptyMessage="The station has no consultation on record for you."
             />
           </Card>
@@ -162,6 +295,18 @@ export default function HealthRecords() {
           <Card title="Immunizations">
             <DataTable
               columns={[
+                ...(shots.some((i) => i.child_name)
+                  ? [
+                      {
+                        header: "Person",
+                        render: (i: PortalImmunization) => (
+                          <span className="text-xs font-medium text-dark">
+                            {i.child_name || "Self"}
+                          </span>
+                        ),
+                      },
+                    ]
+                  : []),
                 {
                   header: "Vaccine",
                   render: (i: PortalImmunization) => (
@@ -184,7 +329,7 @@ export default function HealthRecords() {
                 },
               ]}
               rows={shots}
-              rowKey={(i) => `${i.vaccine_name}-${i.vaccination_date ?? ""}`}
+              rowKey={(i: PortalImmunization) => `${i.child_name ?? ""}-${i.vaccine_name}-${i.vaccination_date ?? ""}`}
               emptyMessage="No immunization is on record for you."
             />
           </Card>

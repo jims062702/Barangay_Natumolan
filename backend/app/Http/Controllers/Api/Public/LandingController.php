@@ -148,7 +148,7 @@ class LandingController extends BaseController
         }, array_values($rows));
     }
 
-    /** One published announcement + up to 3 related posts (same category first). */
+    /** One published announcement + related posts (same category first). */
     public function announcement(Announcement $announcement)
     {
         if ($announcement->status !== 'Published') {
@@ -162,7 +162,7 @@ class LandingController extends BaseController
             ->orderByRaw('CASE WHEN category = ? THEN 0 ELSE 1 END', [$announcement->category])
             ->orderBy('sort_order')
             ->orderByDesc('published_at')
-            ->limit(3)
+            ->limit(6)
             ->get();
 
         return $this->success([

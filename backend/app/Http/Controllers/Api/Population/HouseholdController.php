@@ -9,7 +9,9 @@ use App\Http\Requests\Population\UpdateHouseholdRequest;
 use App\Models\Household\Household;
 use App\Models\Household\OwnerChange;
 use App\Models\Resident\Resident;
+use App\Services\Content\LandingCache;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /** Households: the houses on the register, and who owns each. */
 class HouseholdController extends BaseController
@@ -94,15 +96,36 @@ class HouseholdController extends BaseController
         // a readable beginning rather than a name that was simply always
         // there.
         $firstOwner = $validated['household_head_id'] ?? null;
-        unset($validated['household_head_id']);
+        $memberIds = $validated['member_ids'] ?? [];
+        unset($validated['household_head_id'], $validated['member_ids']);
 
         $household = Household::create($validated);
 
         if ($firstOwner) {
-            $household->handOverTo(Resident::find($firstOwner));
+            $head = Resident::find($firstOwner);
+            if ($head) {
+                $household->handOverTo($head);
+                if ($household->zone_purok && empty($head->zone_purok)) {
+                    $head->update(['zone_purok' => $household->zone_purok]);
+                }
+            }
         }
 
-        $household->load('head:id,first_name,last_name');
+        if (!empty($memberIds)) {
+            $members = Resident::whereIn('id', $memberIds)->get();
+            foreach ($members as $member) {
+                $updateData = ['household_id' => $household->id];
+                if ($household->zone_purok && empty($member->zone_purok)) {
+                    $updateData['zone_purok'] = $household->zone_purok;
+                }
+                $member->update($updateData);
+            }
+        }
+
+        $household->update(['total_members' => $household->residents()->count()]);
+        $household->load(['head:id,first_name,last_name', 'residents']);
+
+        LandingCache::clearStats();
 
         return $this->success($household, 'Household created', 201);
     }
@@ -217,5 +240,115 @@ class HouseholdController extends BaseController
             'changes' => $changes,
             'reasons' => OwnerChange::REASONS,
         ], 'Household owner history retrieved');
+    }
+
+    /**
+     * Transfer one or more residents from their current households to a destination household,
+     * or create a brand new household for them on the fly and designate the household head.
+     */
+    public function transferResident(Request $request)
+    {
+        // Support both single resident_id and array of resident_ids
+        if ($request->has('resident_id') && !$request->has('resident_ids')) {
+            $request->merge(['resident_ids' => [$request->input('resident_id')]]);
+        }
+
+        $validated = $request->validate([
+            'resident_ids' => 'required|array|min:1',
+            'resident_ids.*' => 'exists:residents,id',
+            'head_resident_id' => 'nullable|exists:residents,id',
+            'household_id' => 'nullable|required_without:new_household|exists:households,id',
+            'new_household' => 'nullable|required_without:household_id|array',
+            'new_household.household_number' => 'required_with:new_household|string|unique:households,household_number',
+            'new_household.zone_purok' => 'required_with:new_household|string',
+            'new_household.street_address' => 'required_with:new_household|string',
+            'new_household.house_type' => 'nullable|string',
+            'reason' => 'nullable|string|max:255',
+            'sync_address' => 'nullable|boolean',
+        ]);
+
+        $residents = Resident::whereIn('id', $validated['resident_ids'])->get();
+        if ($residents->isEmpty()) {
+            return $this->error('No valid residents selected to transfer.', 422);
+        }
+
+        $newHousehold = DB::transaction(function () use ($validated, $residents) {
+            if (!empty($validated['new_household'])) {
+                $nhData = $validated['new_household'];
+                $newHousehold = Household::create($nhData);
+            } else {
+                $newHousehold = Household::with('head')->findOrFail($validated['household_id']);
+            }
+
+            $headId = $validated['head_resident_id'] ?? null;
+            // If new household and no head explicitly specified, default to first resident
+            if (!$headId && !empty($validated['new_household']) && $residents->isNotEmpty()) {
+                $headId = $residents->first()->id;
+            }
+
+            $oldHouseholdIds = [];
+            $syncAddress = $validated['sync_address'] ?? true;
+
+            foreach ($residents as $resident) {
+                $oldHouseholdId = $resident->household_id;
+                if ($oldHouseholdId && $oldHouseholdId !== $newHousehold->id) {
+                    $oldHouseholdIds[$oldHouseholdId] = true;
+                    $oldHh = Household::find($oldHouseholdId);
+
+                    // If this resident was the head of their old household, record move out
+                    if ($oldHh && (int) $oldHh->household_head_id === (int) $resident->id) {
+                        $oldHh->handOverTo(
+                            null,
+                            'Moved out',
+                            'Transferred to Household ' . $newHousehold->household_number . (!empty($validated['reason']) ? ": {$validated['reason']}" : '')
+                        );
+                    }
+                }
+
+                $updateData = ['household_id' => $newHousehold->id];
+                if ($syncAddress) {
+                    if ($newHousehold->zone_purok) {
+                        $updateData['zone_purok'] = $newHousehold->zone_purok;
+                    }
+                    if ($newHousehold->street_address) {
+                        $updateData['address'] = $newHousehold->street_address;
+                    }
+                }
+                $resident->update($updateData);
+            }
+
+            // Set or hand over the head of the destination household if a head was designated
+            if ($headId) {
+                $headResident = $residents->firstWhere('id', $headId) ?? Resident::find($headId);
+                if ($headResident) {
+                    $newHousehold->handOverTo(
+                        $headResident,
+                        'Designated Head',
+                        !empty($validated['reason']) ? $validated['reason'] : 'Assigned as Household Head during transfer.'
+                    );
+                }
+            }
+
+            // Keep total_members in sync for all affected old households
+            foreach (array_keys($oldHouseholdIds) as $oldId) {
+                $oldHh = Household::find($oldId);
+                if ($oldHh) {
+                    $oldHh->update(['total_members' => $oldHh->residents()->count()]);
+                }
+            }
+            $newHousehold->update(['total_members' => $newHousehold->residents()->count()]);
+
+            return $newHousehold;
+        });
+
+        LandingCache::clearStats();
+
+        $count = $residents->count();
+        $plural = $count === 1 ? 'resident' : 'residents';
+
+        return $this->success([
+            'transferred_count' => $count,
+            'household' => $newHousehold->fresh(['residents', 'head']),
+        ], "{$count} {$plural} successfully transferred to household {$newHousehold->household_number}.");
     }
 }

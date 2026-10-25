@@ -1,15 +1,14 @@
 import { useState } from "react";
-import { FiCalendar, FiCheck, FiClock, FiCornerUpLeft, FiEdit2, FiEye, FiPlay, FiPlus, FiPrinter } from "react-icons/fi";
+import { FiCalendar, FiCheck, FiCornerUpLeft, FiEye, FiFileText, FiPlus, FiPrinter } from "react-icons/fi";
 import Card from "../../../../shared/ui/Card";
 import DataTable from "../../../../shared/ui/DataTable";
-import { formatWallClock, parseWallClock } from "../../../../shared/lib/datetime";
+import { parseWallClock } from "../../../../shared/lib/datetime";
 import { deskForType, worksSitting } from "../../lib/hearings";
 import { getHearingDisplayStatus } from "../case/HearingsCard";
 import RowAction, { RowActions } from "../../../../shared/ui/RowAction";
 import type { HearingCalendarState } from "../../hooks/useHearingCalendar";
 import type { LuponCase, LuponHearing } from "../../types";
 import { CaseSchedulesModal } from "./CaseSchedulesModal";
-import { EditHearingTimeModal } from "./EditHearingTimeModal";
 
 /**
  * The Punong Barangay's sittings.
@@ -22,24 +21,23 @@ import { EditHearingTimeModal } from "./EditHearingTimeModal";
 export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
   const {
     view, rows, total, loading, page, lastPage, setPage, user,
-    startSession, printSummons, openWithdraw, setResultFor, openCaseFile, setStartTime,
-    openMinutes, timeEditFor, closeEditTime, load,
+    printSummons, openWithdraw, setResultFor, openCaseFile,
+    openMinutes,
   } = ctx;
 
   const [schedulesForCase, setSchedulesForCase] = useState<Partial<LuponCase> | null>(null);
 
-  // In Upcoming Hearing: ensure strictly 1 row per Case File
-  const displayRows = view === "upcoming"
-    ? rows.filter(
-        (h, index, self) =>
-          index ===
-          self.findIndex(
-            (other) =>
-              (other.lupon_case_id && other.lupon_case_id === h.lupon_case_id) ||
-              other.id === h.id
-          )
+  // Ensure strictly 1 row per Case File across hearing lists
+  const displayRows = rows.filter(
+    (h, index, self) =>
+      index ===
+      self.findIndex(
+        (other) =>
+          (other.lupon_case_id && other.lupon_case_id === h.lupon_case_id) ||
+          (other.lupon_case?.case_number && other.lupon_case.case_number === h.lupon_case?.case_number) ||
+          other.id === h.id
       )
-    : rows;
+  );
 
   const party = (name?: string | null, nonResident?: boolean) => (
     <span className="text-xs text-dark">
@@ -58,22 +56,15 @@ export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
     {
       header: "Case Number",
       /*
-       * In upcoming view: opens the modal showing all schedules for this case file.
-       * In other views: opens the case file modal.
+       * Opens the modal showing all schedules for this case file, just like in Secretary.
        */
       render: (h: LuponHearing) =>
         h.lupon_case ? (
           <button
             type="button"
-            onClick={() => {
-              if (view === "upcoming") {
-                setSchedulesForCase(h.lupon_case ?? null);
-              } else {
-                openCaseFile(h.lupon_case?.id);
-              }
-            }}
+            onClick={() => setSchedulesForCase(h.lupon_case ?? null)}
             className="cursor-pointer font-bold text-primary hover:underline text-left block text-xs whitespace-nowrap"
-            title={view === "upcoming" ? "Click to view all hearing schedules for this case" : "Click to view case file"}
+            title="Click to view all hearing schedules for this case"
           >
             {h.lupon_case.case_number}
           </button>
@@ -151,40 +142,18 @@ export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
             <span className="block whitespace-nowrap text-[11px] text-gray-500">
               {dateStr}
             </span>
-            {view === "upcoming" && (
-              <button
-                type="button"
-                onClick={() => setSchedulesForCase(h.lupon_case ?? null)}
-                className="mt-1 inline-flex cursor-pointer items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary/20 hover:underline"
-                title="Click to view all hearing schedules in modal"
-              >
-                <FiCalendar className="h-2.5 w-2.5" />
-                {totalSchedules > 1 ? `View all ${totalSchedules} schedules` : "View schedules"}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setSchedulesForCase(h.lupon_case ?? null)}
+              className="mt-1 inline-flex cursor-pointer items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary/20 hover:underline"
+              title="Click to view all hearing schedules in modal"
+            >
+              <FiCalendar className="h-2.5 w-2.5" />
+              {totalSchedules > 1 ? `View all ${totalSchedules} schedules` : "View schedules"}
+            </button>
           </div>
         );
       },
-    },
-    {
-      header: "Time",
-      render: (h: LuponHearing) => (
-        <div>
-          <span className="whitespace-nowrap font-semibold text-dark text-xs">
-            {h.schedule_time_range || formatWallClock(h.scheduled_at, { hour: "numeric", minute: "2-digit" })}
-          </span>
-          {h.past_closing && h.status === "Scheduled" && (
-            <span className="mt-0.5 block text-[10px] font-medium text-warning">
-              Past closing — set hour
-            </span>
-          )}
-          {!!h.delayed_minutes && h.delayed_minutes > 0 && (
-            <span className="mt-0.5 block text-[10px] font-medium text-danger">
-              Running {h.delayed_minutes} min late
-            </span>
-          )}
-        </div>
-      ),
     },
     ...(view === "past"
       ? [
@@ -272,45 +241,12 @@ export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
           <RowActions>
             {view === "today" && open && (
               <>
-                <RowAction
-                  label="Start the sitting"
-                  icon={FiPlay}
-                  tone="primary"
-                  onClick={() => startSession(h)}
-                />
-                {mine && (
-                  <RowAction
-                    label={hasMin ? "Edit Minutes" : "Add Minutes"}
-                    icon={hasMin ? FiEdit2 : FiPlus}
-                    onClick={() => openMinutes(h, "edit")}
-                  />
-                )}
-              </>
-            )}
-
-            {/*
-              PAST SITTINGS:
-              Secretary / authorized staff can always Add or Edit Minutes for past hearings,
-              even if hearing_date < current_date or status is Completed.
-            */}
-            {view === "past" && (
-              <>
                 {hasMin ? (
-                  <>
-                    <RowAction
-                      label="View Minutes"
-                      icon={FiEye}
-                      onClick={() => openMinutes(h, "view")}
-                    />
-                    {mine && (
-                      <RowAction
-                        label="Edit Minutes"
-                        icon={FiEdit2}
-                        tone="primary"
-                        onClick={() => openMinutes(h, "edit")}
-                      />
-                    )}
-                  </>
+                  <RowAction
+                    label="View Minutes"
+                    icon={FiFileText}
+                    onClick={() => openMinutes(h, "view")}
+                  />
                 ) : (
                   mine && (
                     <RowAction
@@ -321,11 +257,39 @@ export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
                     />
                   )
                 )}
-                <RowAction
-                  label={h.status === "Cancelled" ? "Why it did not sit" : "View the result"}
-                  icon={FiEye}
-                  onClick={() => setResultFor(h)}
-                />
+              </>
+            )}
+
+            {/*
+              PAST SITTINGS:
+              Cancelled shows why it did not sit.
+              Minuted hearings open View Minutes (with Edit Minutes available inside the modal).
+              Unminuted hearings show Add Minutes for authorized officers.
+            */}
+            {view === "past" && (
+              <>
+                {h.status === "Cancelled" ? (
+                  <RowAction
+                    label="Why it did not sit"
+                    icon={FiEye}
+                    onClick={() => setResultFor(h)}
+                  />
+                ) : hasMin ? (
+                  <RowAction
+                    label="View Minutes"
+                    icon={FiFileText}
+                    onClick={() => openMinutes(h, "view")}
+                  />
+                ) : (
+                  mine && (
+                    <RowAction
+                      label="Add Minutes"
+                      icon={FiPlus}
+                      tone="primary"
+                      onClick={() => openMinutes(h, "edit")}
+                    />
+                  )
+                )}
               </>
             )}
 
@@ -349,16 +313,6 @@ export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
                   icon={FiPrinter}
                   onClick={() => printSummons(h)}
                 />
-                {/* The HOUR, not the day. No cancel and no reschedule: a
-                    sitting the parties were summoned to is not called off
-                    or moved to another date, but the hour on a day the
-                    arithmetic overfilled is the office's to set. */}
-                <RowAction
-                  label="Set the hour this sitting begins"
-                  icon={FiClock}
-                  tone={h.past_closing ? "primary" : undefined}
-                  onClick={() => setStartTime(h)}
-                />
                 <RowAction
                   label="Withdraw the complaint"
                   icon={FiCornerUpLeft}
@@ -377,37 +331,47 @@ export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
                   tone="primary"
                   onClick={() => setSchedulesForCase(h.lupon_case ?? null)}
                 />
-                <RowAction
-                  label={h.status === "Cancelled" ? "Why it did not sit" : "View the result"}
-                  icon={FiEye}
-                  onClick={() => setResultFor(h)}
-                />
+                {h.status === "Cancelled" ? (
+                  <RowAction
+                    label="Why it did not sit"
+                    icon={FiEye}
+                    onClick={() => setResultFor(h)}
+                  />
+                ) : hasMin ? (
+                  <RowAction
+                    label="View Minutes"
+                    icon={FiFileText}
+                    onClick={() => openMinutes(h, "view")}
+                  />
+                ) : null}
               </>
             )}
 
             {/* Today hearings that are closed */}
             {view === "today" && !open && (
               <>
-                {hasMin && (
+                {h.status === "Cancelled" ? (
+                  <RowAction
+                    label="Why it did not sit"
+                    icon={FiEye}
+                    onClick={() => setResultFor(h)}
+                  />
+                ) : hasMin ? (
                   <RowAction
                     label="View Minutes"
-                    icon={FiEye}
+                    icon={FiFileText}
                     onClick={() => openMinutes(h, "view")}
                   />
+                ) : (
+                  mine && (
+                    <RowAction
+                      label="Add Minutes"
+                      icon={FiPlus}
+                      tone="primary"
+                      onClick={() => openMinutes(h, "edit")}
+                    />
+                  )
                 )}
-                {mine && (
-                  <RowAction
-                    label="Edit Minutes"
-                    icon={FiEdit2}
-                    tone="primary"
-                    onClick={() => openMinutes(h, "edit")}
-                  />
-                )}
-                <RowAction
-                  label={h.status === "Cancelled" ? "Why it did not sit" : "View the result"}
-                  icon={FiEye}
-                  onClick={() => setResultFor(h)}
-                />
               </>
             )}
           </RowActions>
@@ -454,18 +418,9 @@ export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
             openCaseFile(caseId);
           }}
           onPrintSummons={printSummons}
-          onSetStartTime={setStartTime}
-          onStartSession={startSession}
           onOpenMinutes={openMinutes}
         />
       )}
-
-      <EditHearingTimeModal
-        hearing={timeEditFor}
-        isOpen={timeEditFor !== null}
-        onClose={closeEditTime}
-        onSaved={load}
-      />
     </Card>
   );
 }

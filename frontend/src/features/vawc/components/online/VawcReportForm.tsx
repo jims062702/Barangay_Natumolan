@@ -14,6 +14,7 @@ import {
   type ResidentIdValue,
 } from "../../../../shared/residentCard/ResidentIdCheck";
 import { useContactFromId } from "../../../../shared/residentCard/useContactFromId";
+import PhoneInput from "../../../../shared/ui/PhoneInput";
 
 /** What the server says back once a complaint is received. */
 export interface ReportReceipt {
@@ -87,6 +88,7 @@ export function VawcReportForm({
   const [relationship, setRelationship] = useState("");
   const [safeContact, setSafeContact] = useState("");
   const [safeTime, setSafeTime] = useState("");
+  const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
   const [residentId, setResidentId] = useState<ResidentIdValue>(BLANK_RESIDENT_ID);
   const [sending, setSending] = useState(false);
   const upload = useUpload();
@@ -121,6 +123,7 @@ export function VawcReportForm({
     body.append("in_danger_now", danger === "yes" ? "1" : "0");
     if (safeContact.trim()) body.append("safe_contact", safeContact.trim());
     if (safeTime.trim()) body.append("safe_time", safeTime.trim());
+    evidenceFiles.forEach((file) => body.append("evidence[]", file));
 
     setSending(true);
     try {
@@ -277,6 +280,42 @@ export function VawcReportForm({
                   <input value={place} onChange={(e) => setPlace(e.target.value)} maxLength={255} className={inputClasses} />
                 </FormField>
               </div>
+
+              <FormField
+                label="Evidence or supporting documents"
+                hint="Optional. Photos, screenshots, medical certificates, or documents (JPG, PNG, WEBP, PDF — up to 5 files, 5 MB each)."
+              >
+                <input
+                  type="file"
+                  multiple
+                  accept=".jpg,.jpeg,.png,.webp,.pdf"
+                  onChange={(e) => {
+                    const selected = Array.from(e.target.files ?? []);
+                    if (selected.length + evidenceFiles.length > 5) {
+                      toast("You may only upload up to 5 evidence files.", "error");
+                      return;
+                    }
+                    setEvidenceFiles((prev) => [...prev, ...selected].slice(0, 5));
+                  }}
+                  className={inputClasses}
+                />
+                {evidenceFiles.length > 0 && (
+                  <ul className="mt-2 space-y-1">
+                    {evidenceFiles.map((f, i) => (
+                      <li key={i} className="flex items-center justify-between text-xs text-gray-700 bg-secondary/80 px-3 py-1.5 rounded-xl">
+                        <span className="truncate font-medium">{f.name} ({(f.size / 1024 / 1024).toFixed(2)} MB)</span>
+                        <button
+                          type="button"
+                          onClick={() => setEvidenceFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                          className="text-danger hover:underline ml-2 cursor-pointer font-semibold"
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </FormField>
             </div>
           </section>
 
@@ -288,9 +327,9 @@ export function VawcReportForm({
                 label="Contact number"
                 hint={contactFromRecord
                   ? "From your Barangay Resident ID record. Change it if your number has changed — or clear it if it is not safe for the VAW Desk to call or text this number."
-                  : "Or another safe way to reach you. Leave it blank if there is none."}
+                  : "Or another safe way to reach you (+63 followed by 10 digits). Leave blank if none."}
               >
-                <input value={safeContact} onChange={(e) => setSafeContact(e.target.value)} maxLength={100} aria-label="Contact number" className={inputClasses} />
+                <PhoneInput value={safeContact} onChange={setSafeContact} />
               </FormField>
               <FormField label="Safe time to contact you">
                 <input value={safeTime} onChange={(e) => setSafeTime(e.target.value)} maxLength={100} className={inputClasses} placeholder="e.g. weekdays before noon" />

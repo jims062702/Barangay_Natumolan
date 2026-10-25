@@ -1,3 +1,4 @@
+import { FiAlertTriangle, FiCheck, FiFileText, FiPrinter } from "react-icons/fi";
 import Card from "../../../../shared/ui/Card";
 import { confirmAction, confirmWithReason } from "../../../../shared/lib/confirm";
 import { errorMessage } from "../../../../shared/lib/api";
@@ -6,7 +7,8 @@ import { useAuth } from "../../../../shared/auth/AuthContext";
 import { luponApi } from "../../api";
 import type { LuponCase } from "../../types";
 import type { LuponCaseState } from "../../hooks/useLuponCase";
-import { CLOSED_UNPAID, FEE_DAYS, feeStanding, TONE_CLASSES } from "../../lib/filingFee";
+import { CLOSED_UNPAID, feeStanding, TONE_CLASSES } from "../../lib/filingFee";
+import { printCfaDocument } from "../../lib/kpForms";
 
 /**
  * A filing fee is a STATUS, not a sum.
@@ -73,7 +75,7 @@ export function FeeAndScheduleCard({ ctx, caseData }: {
    * the server, which is what actually refuses it.
    */
   const canCertify = (caseData.hearings ?? []).some(
-    (h) => h.hearing_type === "Conciliation" && h.status === "Completed" && h.outcome !== "Agreement",
+    (h) => h.hearing_type === "Conciliation" && (h.status === "Completed" || h.dynamic_status === "Completed") && h.outcome !== "Agreement",
   );
 
   /** One sentence saying whose desk the case is on, in the office's words. */
@@ -165,8 +167,7 @@ export function FeeAndScheduleCard({ ctx, caseData }: {
               <p className="font-medium text-dark">Filing fee</p>
               <p className="mt-0.5 text-xs text-gray-500">
                 Press Paid once the complainant shows you the official receipt.
-                Nothing on the case moves until then. It must be paid within {FEE_DAYS} calendar
-                days of filing, or the case closes unpaid.
+                Nothing on the case moves until then.
               </p>
             </div>
             {filingPaid ? (
@@ -259,22 +260,56 @@ export function FeeAndScheduleCard({ ctx, caseData }: {
           handles no money.
         */}
         {!closed && isLupon && (
-          <div className="rounded-xl border border-gray/70 px-3.5 py-3">
-            <p className="font-medium text-dark">Certify to file action</p>
-            <p className="mt-0.5 text-xs text-gray-500">
-              {canCertify
-                ? "Closes the case here and frees the complainant to go to court. Every sitting still on the calendar is stood down."
-                : "Available once a sitting before the Lupon has been held without agreement. The complainant may ask for it from that sitting on."}
-            </p>
-            {canCertify && (
-              <button
-                type="button"
-                onClick={() => void certify()}
-                className="mt-2.5 cursor-pointer rounded-full border border-danger/50 px-3.5 py-1.5 text-xs font-semibold text-danger transition-colors hover:bg-danger hover:text-white"
-              >
-                Certify to file action
-              </button>
+          <div className={`rounded-xl border px-3.5 py-3 ${canCertify ? "border-rose-300 bg-rose-50/80 text-rose-950" : "border-gray/70"}`}>
+            {canCertify ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <FiAlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
+                  <p className="font-bold text-xs text-rose-900">Eligible for Certificate to File Action (CFA)</p>
+                </div>
+                <p className="mt-1 text-[11px] text-gray-700">
+                  Conciliation proceedings before the Lupon have ended without agreement. Closes the case here and frees the complainant to take the matter to court.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void certify()}
+                  className="mt-2.5 inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-rose-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-700"
+                >
+                  <FiFileText className="h-3 w-3" />
+                  Certify to file action (CFA)
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="font-medium text-dark">Certify to file action</p>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  Available once a sitting before the Lupon has been held without agreement. The complainant may ask for it from that sitting on.
+                </p>
+              </>
             )}
+          </div>
+        )}
+
+        {stage === "CFA" && (
+          <div className="rounded-xl border border-rose-300 bg-rose-50/80 px-3.5 py-3">
+            <div className="flex items-center gap-2">
+              <FiCheck className="h-4 w-4 shrink-0 text-emerald-600" />
+              <p className="font-bold text-xs text-rose-950">Certificate to File Action Issued</p>
+            </div>
+            <p className="mt-1 text-[11px] text-gray-700">
+              {caseData.closure_reason
+                ? `Case certified to court. Reason: ${caseData.closure_reason}`
+                : "This case was certified to file action. Complainant may bring the matter before the proper court or government office."}
+            </p>
+            <button
+              type="button"
+              onClick={() => printCfaDocument(caseData)}
+              className="mt-2.5 inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-primary-dark"
+              title="Print official KP Form 20-B"
+            >
+              <FiPrinter className="h-3.5 w-3.5" />
+              Print CFA (KP Form 20-B)
+            </button>
           </div>
         )}
       </div>

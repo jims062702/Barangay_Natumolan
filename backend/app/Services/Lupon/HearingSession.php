@@ -216,10 +216,9 @@ final class HearingSession
                 }
 
                 $nextSeq = $completedCount + 1;
-                $timeRange = $next->schedule_time_range ?: $next->scheduled_at->format('g:i A');
                 $dayName = $next->scheduled_at->format('l, F j, Y');
 
-                return "Recorded as unsettled (Punong Barangay Hearing #{$completedCount}). Punong Barangay Hearing #{$nextSeq} is scheduled for {$dayName} at {$timeRange}.";
+                return "Recorded as unsettled (Punong Barangay Hearing #{$completedCount}). Punong Barangay Hearing #{$nextSeq} is scheduled for {$dayName}.";
             }
 
             // Exactly 3 Punong Barangay hearings completed unsettled! Move to Lupon stage
@@ -245,10 +244,9 @@ final class HearingSession
             }
 
             $nextSeq = $completedCount + 1;
-            $timeRange = $next->schedule_time_range ?: $next->scheduled_at->format('g:i A');
             $dayName = $next->scheduled_at->format('l, F j, Y');
 
-            return "Recorded as unsettled (Lupon Hearing #{$completedCount}). Lupon Hearing #{$nextSeq} is scheduled for {$dayName} at {$timeRange}.";
+            return "Recorded as unsettled (Lupon Hearing #{$completedCount}). Lupon Hearing #{$nextSeq} is scheduled for {$dayName}.";
         }
 
         // 3 Lupon conciliation hearings completed without settlement!

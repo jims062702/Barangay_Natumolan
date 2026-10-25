@@ -98,7 +98,7 @@ export default function ResidentDetail() {
 
       {isDeceased && (
         <p className="mb-6 rounded-2xl bg-dark/5 px-4 py-3 text-sm font-medium text-dark">
-          Recorded as <strong>deceased</strong>
+          Recorded as <strong className="font-semibold text-red-500">deceased</strong>
           {resident.date_of_death && (
             <> on {new Date(resident.date_of_death).toLocaleDateString("en-PH", { dateStyle: "long" })}</>
           )}

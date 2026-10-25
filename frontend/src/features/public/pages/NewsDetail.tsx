@@ -164,7 +164,7 @@ export default function NewsDetail() {
           setRelated(
             staticNews
               .filter((n) => String(n.id) !== String(passed.id))
-              .slice(0, 3)
+              .slice(0, 6)
               .map((n) => ({ ...n, category: "Announcement", facts: [], author: null }))
           );
         } else {
@@ -206,7 +206,7 @@ export default function NewsDetail() {
   return (
     <div className="bg-secondary pb-20 pt-28">
       {/* max-w-7xl and the same padding as the navbar, so the breadcrumb starts
-          flush with the logo. At max-w-4xl it sat 192px inboard of it. */}
+          flush with the logo. */}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Breadcrumbs */}
         <nav aria-label="Breadcrumb" className="mb-6">
@@ -260,7 +260,6 @@ export default function NewsDetail() {
 
         {item && (
           <article className="overflow-hidden rounded-3xl bg-white shadow-lg shadow-primary/5">
-            {/* Taller to stay in proportion now that the card is wider. */}
             <img
               src={item.image}
               alt={item.title}
@@ -290,7 +289,7 @@ export default function NewsDetail() {
                 {/* Today, Tomorrow, Ended, In effect now, New… */}
                 <Status view={item} />
               </span>
-              <h1 className="mt-3 text-3xl font-extrabold leading-tight text-dark sm:text-4xl">
+              <h1 className="mt-3 text-3xl font-extrabold leading-tight text-dark sm:text-4xl break-words [overflow-wrap:anywhere]">
                 {item.title}
               </h1>
               <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 border-b border-gray pb-5 text-sm text-gray-500">
@@ -381,12 +380,9 @@ export default function NewsDetail() {
                   })}
                 </dl>
               )}
-              {/* Larger body text, but the line length is capped: the card is
-                  now 1280px wide and prose that runs the full width is very
-                  hard to read back to the next line. */}
-              <p className="mt-6 max-w-4xl whitespace-pre-line text-lg leading-relaxed text-gray-600">
+              <div className="mt-6 whitespace-pre-line text-base sm:text-lg leading-relaxed text-gray-700 break-words [overflow-wrap:anywhere]">
                 {item.description}
-              </p>
+              </div>
             </div>
           </article>
         )}

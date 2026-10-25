@@ -32,14 +32,27 @@ class CaseController extends PortalController
             return $this->notFound('No resident record is linked to your account');
         }
 
-        $kp = CaseFile::where(fn ($q) => $q->where('complainant_id', $residentId)
-                ->orWhereHas('respondents', fn ($r) => $r->where('residents.id', $residentId)))
-            /* On their portal once the summons is PRINTED — see summonsIssued(). */
-            ->summonsIssued()
+        $kp = CaseFile::where(function ($q) use ($residentId) {
+                // Complainant sees cases they brought once paid or active/settled (not closed unpaid)
+                $q->where(function ($c) use ($residentId) {
+                    $c->where('complainant_id', $residentId)
+                      ->where('current_stage', '!=', 'Closed — Unpaid');
+                })
+                // Respondent sees cases once summons is issued, or case reached mediation/conciliation/settled
+                ->orWhere(function ($r) use ($residentId) {
+                    $r->whereHas('respondents', fn ($resp) => $resp->where('residents.id', $residentId))
+                      ->where(function ($s) {
+                          $s->summonsIssued()
+                            ->orWhereIn('current_stage', ['Mediation', 'Conciliation', 'Settled', 'CFA']);
+                      });
+                });
+            })
             ->with([
                 'complaint:id,lupon_case_id,date_of_occurrence,place_of_occurrence',
                 'hearings' => fn ($q) => $q->orderBy('scheduled_at'),
                 'settlement',
+                'respondents:id,first_name,middle_name,last_name,suffix',
+                'complainant:id,first_name,middle_name,last_name,suffix',
             ])
             ->orderByDesc('date_filed')
             ->get()
@@ -63,13 +76,13 @@ class CaseController extends PortalController
                     /*
                      * The other side is named — they must be, a person is
                      * entitled to know who they are in a dispute with — but
-                     * never their address or number. That is the difference
-                     * between telling somebody who complained and telling
-                     * them where to find them.
+                     * never their address or number.
                      */
                     'other_party' => $mine === 'Complainant'
-                        ? $case->respondents->map(fn ($r) => $r->full_name)->join(', ')
-                        : ($case->complainant?->full_name ?: $case->complainant_name),
+                        ? ($case->respondents->isNotEmpty()
+                            ? $case->respondents->map(fn ($r) => $r->full_name)->join(', ')
+                            : ($case->respondent_display_names ?: '—'))
+                        : ($case->complainant?->full_name ?: ($case->complainant_display_name ?: $case->complainant_name)),
                     'next_hearing' => $next ? [
                         'type' => $next->hearing_type,
                         'scheduled_at' => $next->scheduled_at?->toDateTimeString(),
@@ -220,6 +233,7 @@ class CaseController extends PortalController
                 'status' => $case->current_stage,
                 'description' => match ($case->current_stage) {
                     'Settled' => 'Closed because the parties agreed.',
+                    'Withdrawn' => 'The complaint was withdrawn.',
                     'Dismissed' => 'Closed without an agreement.',
                     'Referred' => 'Sent on to another office.',
                     default => 'The case was closed.',

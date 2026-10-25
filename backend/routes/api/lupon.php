@@ -130,7 +130,7 @@ Route::prefix('lupon')
         Route::get('cases/{case}/forms', [ReportController::class, 'forms']);
     });
 
-Route::prefix('lupon')->middleware('office:Lupon,PB')->group(function () {
+Route::prefix('lupon')->middleware(['office:Lupon,PB,Secretary,Main Office,Admin', 'deny_role:Clerk'])->group(function () {
     Route::get('deadlines', [ReportController::class, 'deadlines']);
     Route::get('reports/monthly-transmittal', [ReportController::class, 'monthlyTransmittal']);
     /* The barangay's own list of what was filed this month, by status. */

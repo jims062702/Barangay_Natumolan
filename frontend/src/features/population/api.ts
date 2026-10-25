@@ -26,6 +26,8 @@ export const populationApi = {
     api.get("/population/households", ...args),
   createHousehold: (...args: BodyArgs) =>
     api.post("/population/households", ...args),
+  transferResident: (...args: BodyArgs) =>
+    api.post('/population/households/transfer-resident', ...args),
   updateHousehold: (householdId: PathParam, ...args: BodyArgs) =>
     api.put(`/population/households/${householdId}`, ...args),
   sectoralReport: (...args: QueryArgs) =>

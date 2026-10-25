@@ -91,7 +91,11 @@ class BadgeController extends BaseController
 
             $badges['/resident/lupon/filed'] = LuponCase::whereNotIn('current_stage', $closed)
                 ->where('complainant_id', $mine)
-                ->summonsIssued()
+                ->where('current_stage', '!=', 'Closed — Unpaid')
+                ->count();
+
+            $badges['/resident/lupon/complaints'] = \App\Models\Lupon\OnlineComplaint::where('resident_id', $mine)
+                ->where('status', \App\Models\Lupon\OnlineComplaint::FOR_VERIFICATION)
                 ->count();
 
             /*
@@ -127,9 +131,29 @@ class BadgeController extends BaseController
                 ->count();
 
             /*
-             * Case History carries no badge, deliberately. It is a log: it
-             * only grows, so a count on it would climb for ever and mean
-             * nothing. Health Records likewise — nothing there is pending.
+             * VAWC Records badges for resident:
+             * - Online complaints waiting for verification
+             * - Active confidential cases
+             * - Active / applied protection orders
+             */
+            $badges['/resident/vawc/reports'] = \App\Models\Vawc\OnlineReport::where('resident_id', $mine)
+                ->where('status', 'For Verification')
+                ->count();
+
+            $badges['/resident/vawc/cases'] = \App\Models\Vawc\CaseFile::where(function ($q) use ($mine) {
+                    $q->where('survivor_id', $mine)->orWhere('reported_by_resident_id', $mine);
+                })
+                ->where('status', 'Active')
+                ->count();
+
+            $badges['/resident/vawc/bpo'] = \App\Models\Vawc\ProtectionOrder::whereIn('vawc_case_id', function ($q) use ($mine) {
+                    $q->select('id')->from('vawc_cases')->where('survivor_id', $mine);
+                })
+                ->whereIn('status', ['Applied', 'Issued'])
+                ->count();
+
+            /*
+             * Case History & Tracking carries no badge. It is an activity log.
              */
 
             return $this->success(array_filter($badges), 'Sidebar counts retrieved');
@@ -225,12 +249,15 @@ class BadgeController extends BaseController
                 )', [$today])
                 ->count();
 
-            // Past Hearings: sittings that already ran before today
+            // Past Hearings: sittings that already ran before today or completed
             $badges['/lupon/hearings/past'] = DB::table('lupon_hearings')
                 ->join('lupon_cases', 'lupon_hearings.lupon_case_id', '=', 'lupon_cases.id')
                 ->whereIn('lupon_hearings.hearing_type', $hearingTypes)
                 ->whereNotIn('lupon_cases.current_stage', ['Filed', 'For Summons'])
-                ->whereDate('lupon_hearings.scheduled_at', '<', $today)
+                ->where(function ($q) use ($today) {
+                    $q->whereDate('lupon_hearings.scheduled_at', '<', $today)
+                      ->orWhere('lupon_hearings.status', 'Completed');
+                })
                 ->count();
 
             // Cancelled (Withdrawn) cases

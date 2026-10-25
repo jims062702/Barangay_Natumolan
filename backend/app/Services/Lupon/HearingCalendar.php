@@ -65,36 +65,22 @@ class HearingCalendar
 
     public const CLOSES_AT = 19;
 
-    /** Duration of each hearing: 2 hours (120 minutes) */
-    public const DURATION_MINUTES = 120;
-
-    public const MINUTES_PER_SITTING = 120;
-
-    /** Buffer between hearings: 15 minutes */
-    public const BUFFER_MINUTES = 15;
-
     /**
-     * Standard Daily Hearing Slots (7 slots: 2 hours each with 15-minute buffers)
-     * Slot 1: 08:00 AM – 10:00 AM
-     * Slot 2: 10:15 AM – 12:15 PM
-     * Slot 3: 12:30 PM – 02:30 PM
-     * Slot 4: 02:45 PM – 04:45 PM
-     * Slot 5: 05:00 PM – 07:00 PM
-     * Slot 6: 07:15 PM – 09:15 PM
-     * Slot 7: 09:30 PM – 11:30 PM
+     * Standard Daily Hearing Slots (8 slots for 8 cases per day: 08:00 to 17:00, lunch break 12:00-13:00)
      */
     public const DAILY_SLOTS = [
-        ['start' => '08:00', 'end' => '10:00'],
-        ['start' => '10:15', 'end' => '12:15'],
-        ['start' => '12:30', 'end' => '14:30'],
-        ['start' => '14:45', 'end' => '16:45'],
-        ['start' => '17:00', 'end' => '19:00'],
-        ['start' => '19:15', 'end' => '21:15'],
-        ['start' => '21:30', 'end' => '23:30'],
+        ['start' => '08:00', 'end' => '09:00', 'label' => '08:00 AM'],
+        ['start' => '09:00', 'end' => '10:00', 'label' => '09:00 AM'],
+        ['start' => '10:00', 'end' => '11:00', 'label' => '10:00 AM'],
+        ['start' => '11:00', 'end' => '12:00', 'label' => '11:00 AM'],
+        ['start' => '13:00', 'end' => '14:00', 'label' => '01:00 PM'],
+        ['start' => '14:00', 'end' => '15:00', 'label' => '02:00 PM'],
+        ['start' => '15:00', 'end' => '16:00', 'label' => '03:00 PM'],
+        ['start' => '16:00', 'end' => '17:00', 'label' => '04:00 PM'],
     ];
 
-    /** Maximum allowed scheduled cases per hearing day (7 cases per Tuesday for PB, 7 per Thursday for Lupon) */
-    public const MAX_DAILY_CASES = 7;
+    /** Maximum allowed scheduled cases per hearing day (8 cases per Tuesday for PB, 8 per Thursday for Lupon) */
+    public const MAX_DAILY_CASES = 8;
 
     /**
      * Ensures hearings are scheduled for the case at the given stage (up to 3 weekly hearings):
@@ -120,8 +106,7 @@ class HearingCalendar
         $hearings = $this->schedule($case, $type, $after, $markSummonsPrinted);
         $first = collect($hearings)->sortBy('scheduled_at')->first();
 
-        $timeRange = $first->schedule_time_range
-            ?: ($first->scheduled_at->format('g:i A') . ' – ' . $first->scheduled_at->copy()->addMinutes(self::DURATION_MINUTES)->format('g:i A'));
+        $timeRange = $first->schedule_time_range ?: $first->scheduled_at->format('g:i A');
         $dayName = $first->scheduled_at->format('l, F j, Y');
         $label = $type === 'Mediation' ? 'Punong Barangay' : 'Lupon';
 
@@ -130,8 +115,8 @@ class HearingCalendar
             'hearings' => $hearings,
             'reused' => $reused,
             'message' => $reused
-                ? "Existing {$type} hearing schedule used: {$timeRange}."
-                : "{$label} hearings scheduled starting {$dayName} at {$timeRange}.",
+                ? "Existing {$type} hearing schedule used: {$dayName}."
+                : "{$label} hearings scheduled starting {$dayName}.",
         ];
     }
 
@@ -383,14 +368,12 @@ class HearingCalendar
 
             foreach (self::DAILY_SLOTS as $slot) {
                 [$sh, $sm] = explode(':', $slot['start']);
-                [$eh, $em] = explode(':', $slot['end']);
 
                 $slotAvailable = true;
 
                 for ($s = 0; $s < $sessionCount; $s++) {
                     $dayForSession = $candidateDay->copy()->addWeeks($s);
                     $slotStart = $dayForSession->copy()->setTime((int) $sh, (int) $sm, 0);
-                    $slotEnd = $dayForSession->copy()->setTime((int) $eh, (int) $em, 0);
 
                     if ($slotStart->isPast()) {
                         $slotAvailable = false;
@@ -402,9 +385,9 @@ class HearingCalendar
                             ? $existing->scheduled_at->format('Y-m-d H:i:s')
                             : Carbon::parse($existing->scheduled_at)->format('Y-m-d H:i:s');
                         $exStart = Carbon::parse($rawTime, ManilaTime::ZONE);
-                        $exEnd = $exStart->copy()->addMinutes(self::DURATION_MINUTES);
 
-                        if ($slotStart->lt($exEnd) && $slotEnd->gt($exStart)) {
+                        // Conflict check: taken if another hearing on the same day starts at the same hour or within 30 mins
+                        if (abs($slotStart->diffInMinutes($exStart, false)) < 30) {
                             $slotAvailable = false;
                             break 2;
                         }
@@ -431,7 +414,7 @@ class HearingCalendar
     }
 
     /**
-     * Returns capacity statistics for a given day (e.g. 5/7 cases scheduled, is_full = false).
+     * Returns capacity statistics for a given day (e.g. 5/8 cases scheduled, is_full = false).
      *
      * @return array{date: string, count: int, max: int, is_full: bool}
      */
@@ -440,7 +423,7 @@ class HearingCalendar
         $dateStr = $date instanceof Carbon ? $date->toDateString() : substr((string) $date, 0, 10);
         $count = Hearing::whereDate('scheduled_at', $dateStr)
             ->where('hearing_type', $type)
-            ->where('status', 'Scheduled')
+            ->where('status', '!=', 'Cancelled')
             ->count();
 
         return [
@@ -459,7 +442,7 @@ class HearingCalendar
     public function monthCapacities(string $yearMonth, string $type): array
     {
         $counts = Hearing::where('hearing_type', $type)
-            ->where('status', 'Scheduled')
+            ->where('status', '!=', 'Cancelled')
             ->whereRaw("DATE_FORMAT(scheduled_at, '%Y-%m') = ?", [$yearMonth])
             ->selectRaw('DATE(scheduled_at) as hearing_date, COUNT(*) as scheduled_count')
             ->groupBy('hearing_date')
@@ -492,14 +475,13 @@ class HearingCalendar
      */
     public static function endsAt(Carbon $start): Carbon
     {
-        return $start->copy()->addMinutes(self::MINUTES_PER_SITTING);
+        return $start->copy()->addHour();
     }
 
     /** Is this appointment past the hour the hall closes? */
     public static function pastClosing(Carbon $start): bool
     {
-        return self::endsAt($start)->hour >= self::CLOSES_AT
-            || self::endsAt($start)->day !== $start->day;
+        return $start->hour >= self::CLOSES_AT;
     }
 
     /**

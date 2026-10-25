@@ -109,6 +109,7 @@ const STATUS_TONES: Record<string, string> = {
   Withdrawn: "bg-gray text-gray-500",
   // VAWC — the one dialogue
   "Agreement reached": "bg-success/10 text-success",
+  "Not settled": "bg-amber-100 text-amber-800 border border-amber-300 font-semibold",
   "No agreement": "bg-gray text-gray-500",
 };
 

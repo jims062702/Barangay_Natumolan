@@ -81,27 +81,50 @@ export function CaseFileModal({ caseFor, onClose }: {
                   No sitting is on the calendar — the summons has not been printed.
                 </li>
               )}
-              {(c.hearings ?? []).map((h) => (
-                <li key={h.id} className="px-3.5 py-2.5">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-sm text-dark">
-                      {formatWallClock(h.scheduled_at)}
-                      <span className="ml-2 text-xs text-gray-500">
-                        {h.hearing_type === "Conciliation" ? "Lupon" : "Punong Barangay"}
-                      </span>
-                    </span>
-                    <StatusBadge status={h.status} />
-                  </div>
-                  {h.outcome && <p className="mt-0.5 text-xs text-gray-600">{h.outcome}</p>}
-                  {/* The minutes of the ones already held: what was said
-                      last time is what this sitting picks up from. */}
-                  {h.proceedings_notes && (
-                    <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-gray-600">
-                      {h.proceedings_notes}
-                    </p>
-                  )}
-                </li>
-              ))}
+              {(c.hearings ?? []).map((h, idx) => {
+                const isLupon = h.hearing_type === "Conciliation";
+                const seq = h.hearing_sequence ?? (idx + 1);
+                const title = h.hearing_title || (isLupon ? `Lupon Hearing #${seq}` : `Punong Barangay Hearing #${seq}`);
+
+                return (
+                  <li key={h.id} className="px-3.5 py-3 bg-white/60 hover:bg-white transition-colors">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-bold text-dark text-xs sm:text-sm">
+                          {formatWallClock(h.scheduled_at)}
+                        </span>
+                        {isLupon ? (
+                          <span className="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-0.5 text-[11px] font-bold text-purple-800 border border-purple-300">
+                            Lupon Tagapamayapa (Conciliation · Thursdays)
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-bold text-blue-800 border border-blue-300">
+                            Punong Barangay (Mediation · Tuesdays)
+                          </span>
+                        )}
+                      </div>
+                      <StatusBadge status={h.status} />
+                    </div>
+
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className="text-xs font-semibold text-dark">{title}</span>
+                      {h.outcome && (
+                        <span className="text-xs text-gray-500 font-medium">
+                          · Outcome: <strong className="text-dark">{h.outcome}</strong>
+                        </span>
+                      )}
+                    </div>
+
+                    {/* The minutes of the ones already held: what was said
+                        last time is what this sitting picks up from. */}
+                    {h.proceedings_notes && (
+                      <p className="mt-1.5 whitespace-pre-wrap rounded-lg bg-gray-50 p-2 text-xs leading-relaxed text-gray-700 border border-gray-200">
+                        {h.proceedings_notes}
+                      </p>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </section>
 

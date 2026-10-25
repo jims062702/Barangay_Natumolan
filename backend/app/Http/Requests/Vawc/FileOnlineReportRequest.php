@@ -40,8 +40,10 @@ class FileOnlineReportRequest extends FormRequest
             'relationship' => ['nullable', Rule::in(OnlineReport::RELATIONSHIPS)],
             'threatened' => 'required|boolean',
             'in_danger_now' => 'required|boolean',
-            'safe_contact' => 'nullable|string|max:100',
+            'safe_contact' => ['nullable', 'string', 'regex:/^\+63\d{10}$/'],
             'safe_time' => 'nullable|string|max:100',
+            'evidence' => 'nullable|array|max:5',
+            'evidence.*' => 'file|mimes:jpg,jpeg,png,webp,pdf|max:5120',
         ];
     }
 
@@ -57,6 +59,10 @@ class FileOnlineReportRequest extends FormRequest
             'respondent_name.min' => 'Write the name of the person the complaint is about.',
             'narrative.required' => 'Tell the VAW Desk what happened.',
             'narrative.min' => 'Tell the VAW Desk a little more about what happened.',
+            'safe_contact.regex' => 'The contact number must be in the format +63 followed by 10 digits (e.g. +639123456789).',
+            'evidence.max' => 'You may upload up to 5 evidence files.',
+            'evidence.*.mimes' => 'Evidence files must be images or documents (JPG, PNG, WEBP, or PDF).',
+            'evidence.*.max' => 'Each evidence file must not exceed 5 MB.',
             'threatened.required' => 'Answer whether you have been threatened.',
             'in_danger_now.required' => 'Answer whether you are in danger right now.',
             'occurred_on.before_or_equal' => 'The date cannot be in the future.',

@@ -8,8 +8,9 @@ import { IntakeModal } from "../components/cases/IntakeModal";
 import { EditCaseModal } from "../components/cases/EditCaseModal";
 import { PageLoading } from "../../../shared/ui/PageLoad";
 
-export default function CaseList() {
-  const ctx = useCaseRegistry();
+export default function CaseList({ initialStatus = "Active" }: { initialStatus?: "Active" | "Closed" }) {
+  const isClosed = initialStatus === "Closed";
+  const ctx = useCaseRegistry({ status: initialStatus });
   const {
     period, windowLabel, years, periodCounts, total, setIntakeOpen, changePeriod, offline,
   } = ctx;
@@ -19,16 +20,22 @@ export default function CaseList() {
   return (
     <div>
       <PageHeader
-        title="Confidential Cases"
-        subtitle="Cases are identified by case code — access is logged"
+        title={isClosed ? "Closed Cases" : "Confidential Cases"}
+        subtitle={
+          isClosed
+            ? "Archived and resolved cases kept for records and history — access is logged"
+            : "Cases are identified by case code — access is logged"
+        }
         actions={
-          <button
-            type="button"
-            onClick={() => setIntakeOpen(true)}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
-          >
-            <FiPlus className="h-4 w-4" aria-hidden="true" /> Confidential intake
-          </button>
+          !isClosed ? (
+            <button
+              type="button"
+              onClick={() => setIntakeOpen(true)}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
+            >
+              <FiPlus className="h-4 w-4" aria-hidden="true" /> Confidential intake
+            </button>
+          ) : undefined
         }
       />
 

@@ -18,6 +18,7 @@ Route::prefix('population')->middleware('office:Population,AdminRole')->group(fu
     Route::post('households', [HouseholdController::class, 'store']);
     Route::put('households/{household}', [HouseholdController::class, 'update']);
     Route::put('households/{household}/head', [HouseholdController::class, 'setHead']);
+    Route::post('households/transfer-resident', [HouseholdController::class, 'transferResident']);
     // Who owned it before, and why it changed hands.
     Route::get('households/{household}/owner-history', [HouseholdController::class, 'ownerHistory']);
     Route::get('events', [EventController::class, 'index']);

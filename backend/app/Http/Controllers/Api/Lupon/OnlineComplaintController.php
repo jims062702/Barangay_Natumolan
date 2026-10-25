@@ -299,9 +299,7 @@ class OnlineComplaintController extends BaseController
 
         return $this->success(
             ['complaint' => $complaint->fresh('luponCase'), 'case' => $case->fresh()],
-            'Accepted as case ' . $case->case_number . '. The filing fee must be paid by '
-                . FilingFeeDeadlines::dueWords($case->payment_due_at) . ' (end of day) — ' . FilingFeeDeadlines::DAYS
-                . ' calendar days — or the case closes unpaid. It is confirmed on the case itself.'
+            'Accepted as case ' . $case->case_number . '. The filing fee must be paid before a summons can be issued. It is confirmed on the case itself.'
         );
     }
 

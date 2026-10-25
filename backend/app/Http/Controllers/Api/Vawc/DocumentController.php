@@ -9,6 +9,7 @@ use App\Models\Vawc\AccessLog;
 use App\Models\Vawc\CaseFile;
 use App\Models\Vawc\Document;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * The confidential document register: per case and across the desk.
@@ -40,8 +41,27 @@ class DocumentController extends BaseController
         ], 'Documents retrieved');
     }
 
+    public function file(CaseFile $case, Document $document)
+    {
+        if ($document->vawc_case_id !== $case->id) {
+            return $this->notFound();
+        }
+
+        if (! $document->file_reference || ! Storage::disk('local')->exists($document->file_reference)) {
+            return $this->notFound('The document file is not available on disk.');
+        }
+
+        AccessLog::record($case->id, 'document_downloaded', $document->title);
+
+        return Storage::disk('local')->response($document->file_reference);
+    }
+
     public function store(StoreDocumentRequest $request, CaseFile $case)
     {
+        if ($case->status === 'Closed') {
+            return $this->error('Closed VAWC cases are read-only.', 422);
+        }
+
         $validated = $request->validated();
 
         $document = $case->documents()->create($validated + ['uploaded_by' => auth()->id()]);
@@ -58,6 +78,10 @@ class DocumentController extends BaseController
      */
     public function update(UpdateDocumentRequest $request, Document $document)
     {
+        if ($document->vawcCase && $document->vawcCase->status === 'Closed') {
+            return $this->error('Closed VAWC cases are read-only.', 422);
+        }
+
         $validated = $request->validated();
 
         $document->update($validated);

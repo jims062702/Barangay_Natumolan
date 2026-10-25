@@ -38,7 +38,7 @@ export function reachedStages(caseData: LuponCase): Set<string> {
     reached.add("Conciliation");
   }
 
-  if (caseData.current_stage === "Settled" || caseData.settlement) {
+  if (caseData.current_stage === "Settled") {
     reached.add("Settled");
   }
 
@@ -52,8 +52,12 @@ export const EXIT_GUIDE: Record<string, { what: string; next: string }> = {
     next: "The complainant may now take the matter to the city or municipal court. The Lupon has done what the law asks of it.",
   },
   Dismissed: {
-    what: "The case was dropped — withdrawn, outside this Lupon's jurisdiction, or the complainant did not pursue it.",
+    what: "The case was dropped — outside this Lupon's jurisdiction, or the complainant did not pursue it.",
     next: "Nothing further is scheduled. The record stays on the docket.",
+  },
+  Withdrawn: {
+    what: "The complaint was withdrawn or settled amicably before any hearing was held.",
+    next: "Nothing further is scheduled. The case is closed.",
   },
 };
 

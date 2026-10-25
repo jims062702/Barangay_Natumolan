@@ -35,7 +35,7 @@ class OnlineReport extends Model
     protected $fillable = [
         'reference_no', 'resident_id', 'resident_card_id', 'filed_via',
         'violence_types', 'narrative', 'occurred_on', 'place', 'respondent_name', 'respondent_address', 'respondent_id', 'relationship',
-        'threatened', 'in_danger_now', 'safe_contact', 'safe_time', 'id_path',
+        'threatened', 'in_danger_now', 'safe_contact', 'safe_time', 'id_path', 'evidence_paths',
         'status', 'visit_required', 'confirmed_in_person', 'vawc_case_id',
         'reviewed_by', 'reviewed_at', 'office_note',
     ];
@@ -47,6 +47,7 @@ class OnlineReport extends Model
     {
         return [
             'violence_types' => 'encrypted:array',
+            'evidence_paths' => 'encrypted:array',
             'narrative' => 'encrypted',
             'place' => 'encrypted',
             'respondent_name' => 'encrypted',

@@ -4,33 +4,26 @@ import {
   FiEdit2,
   FiEye,
   FiPlus,
+  FiCalendar,
   FiClock,
-  FiFileText,
   FiLock,
   FiAlertCircle,
-  FiAlertTriangle,
   FiChevronDown,
   FiChevronUp,
 } from "react-icons/fi";
 import Card from "../../../../shared/ui/Card";
-import { formatWallClock, parseWallClock } from "../../../../shared/lib/datetime";
+import { parseWallClock } from "../../../../shared/lib/datetime";
 import type { LuponCaseState } from "../../hooks/useLuponCase";
 import type { LuponCase, LuponHearing } from "../../types";
 import { useAuth } from "../../../../shared/auth/AuthContext";
 import { worksSitting, today } from "../../lib/hearings";
 import { MinutesModal } from "../hearings/MinutesModal";
-import { EditHearingTimeModal } from "../hearings/EditHearingTimeModal";
-import { confirmWithReason } from "../../../../shared/lib/confirm";
-import { errorMessage } from "../../../../shared/lib/api";
-import { toast } from "../../../../shared/lib/toast";
-import { luponApi } from "../../api";
 
 /**
- * Computes dynamic hearing status according to real-time wall-clock schedule:
+ * Computes dynamic hearing status:
  * - Future date: "Upcoming"
- * - Today before start time: "Today"
- * - Today during hearing duration (2 hours): "On-going"
- * - Today after hearing duration or past date: "Completed"
+ * - Past date: "Completed"
+ * - Today: "On-going" (if started and not ended) or "Today"
  */
 export function getHearingDisplayStatus(hearing: LuponHearing): {
   label: "Upcoming" | "Today" | "On-going" | "Completed" | "Cancelled";
@@ -72,24 +65,11 @@ export function getHearingDisplayStatus(hearing: LuponHearing): {
     return { label: "Completed", tone: "bg-emerald-50 text-emerald-700 border border-emerald-200" };
   }
 
-  const [curH, curM] = now
-    .toLocaleTimeString("en-GB", { timeZone: "Asia/Manila", hour12: false })
-    .split(":")
-    .map(Number);
-  const curMins = curH * 60 + curM;
-
-  const startH = Number(hearing.scheduled_at.slice(11, 13));
-  const startM = Number(hearing.scheduled_at.slice(14, 16));
-  const startMins = isNaN(startH) ? 8 * 60 : startH * 60 + (isNaN(startM) ? 0 : startM);
-  const endMins = startMins + 120; // 2-hour duration
-
-  if (curMins < startMins) {
-    return { label: "Today", tone: "bg-amber-100 text-amber-800 border border-amber-300 font-bold" };
-  }
-  if (curMins >= startMins && curMins <= endMins) {
+  // Today
+  if (hearing.started_at && !hearing.ended_at) {
     return { label: "On-going", tone: "bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold" };
   }
-  return { label: "Completed", tone: "bg-emerald-50 text-emerald-700 border border-emerald-200" };
+  return { label: "Today", tone: "bg-amber-100 text-amber-800 border border-amber-300 font-bold" };
 }
 
 /**
@@ -99,14 +79,12 @@ export function getHearingDisplayStatus(hearing: LuponHearing): {
  * - Always shows Punong Barangay (Tuesdays) and Lupon (Thursdays, locked when in PB stage)
  */
 export function HearingsCard({ ctx, caseData }: { ctx: LuponCaseState; caseData: LuponCase }) {
-  const { setMediationOpen, setConciliationOpen, load } = ctx;
+  const { setMediationOpen, setConciliationOpen } = ctx;
   const { user } = useAuth();
   const isPb = user?.role === "Punong Barangay";
-  const isLuponStaff = user?.office === "Lupon" || user?.office === "Admin";
 
   const [selectedHearing, setSelectedHearing] = useState<LuponHearing | null>(null);
   const [minutesMode, setMinutesMode] = useState<"view" | "edit">("view");
-  const [timeEditHearing, setTimeEditHearing] = useState<LuponHearing | null>(null);
 
   // Show more / Show less state for compact height
   const [showAllPb, setShowAllPb] = useState(false);
@@ -130,35 +108,10 @@ export function HearingsCard({ ctx, caseData }: { ctx: LuponCaseState; caseData:
   const completedLuponCount = luponHearings.filter(
     (h) => h.status === "Completed" || getHearingDisplayStatus(h).label === "Completed",
   ).length;
-  const unsettledLuponCount = luponHearings.filter(
-    (h) => (h.status === "Completed" || getHearingDisplayStatus(h).label === "Completed") && h.outcome && h.outcome !== "Agreement",
-  ).length;
-
   const isLuponStage = ["For Lupon Summons", "Conciliation", "CFA"].includes(caseData.current_stage);
   const isSettled = caseData.current_stage === "Settled";
   const isCfa = caseData.current_stage === "CFA";
   const isEligibleForLupon = completedPbCount >= 3 || isLuponStage;
-  const isCfaEligible = isCfa || (isLuponStage && unsettledLuponCount >= 3);
-
-  const certify = async () => {
-    const reason = await confirmWithReason({
-      title: "Certify this case to file action?",
-      text: "The case closes at the Lupon and the complainant may take it to court.",
-      placeholder: "e.g. The parties failed to reach an agreement after three conciliation sittings.",
-      required: "Say what the certification rests on.",
-      confirmText: "Yes, certify",
-      danger: true,
-    });
-    if (reason === null) return;
-
-    try {
-      const response = await luponApi.certifyToFileAction(caseData.id, { reason });
-      toast(response.data.message ?? "Certified to file action.");
-      load();
-    } catch (err) {
-      toast(errorMessage(err), "error");
-    }
-  };
 
   // Find active hearing index for PB
   const activePbIndex = Math.max(
@@ -200,11 +153,7 @@ export function HearingsCard({ ctx, caseData }: { ctx: LuponCaseState; caseData:
         })
       : "";
 
-    const timeRange = hearing.schedule_time_range || formatWallClock(hearing.scheduled_at);
-    const scheduleTime = dateFormatted
-      ? `${dateFormatted} · ${timeRange}`
-      : (hearing.formatted_schedule || timeRange);
-
+    const scheduleDate = dateFormatted || hearing.formatted_schedule || "—";
     const displayStatus = getHearingDisplayStatus(hearing);
 
     return (
@@ -212,11 +161,6 @@ export function HearingsCard({ ctx, caseData }: { ctx: LuponCaseState; caseData:
         <div className="flex items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
             <p className="font-bold text-dark">{title}</p>
-            {hearing.schedule_time_range && (
-              <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
-                {hearing.schedule_time_range}
-              </span>
-            )}
           </div>
           {/* Dynamic Status Badge: Upcoming, Today, On-going, Completed */}
           <span
@@ -231,8 +175,8 @@ export function HearingsCard({ ctx, caseData }: { ctx: LuponCaseState; caseData:
 
         <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-gray-600">
           <p className="flex items-center gap-1 font-medium">
-            <FiClock className="h-3 w-3 text-gray-400" />
-            {scheduleTime}
+            <FiCalendar className="h-3 w-3 text-gray-400" />
+            {scheduleDate}
           </p>
 
           <span
@@ -306,17 +250,6 @@ export function HearingsCard({ ctx, caseData }: { ctx: LuponCaseState; caseData:
                 </button>
               )}
             </div>
-
-            {hearing.status === "Scheduled" && (
-              <button
-                type="button"
-                onClick={() => setTimeEditHearing(hearing)}
-                className="inline-flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-primary hover:text-primary-dark hover:underline"
-              >
-                <FiClock className="h-3 w-3" />
-                Edit Hour
-              </button>
-            )}
           </div>
         )}
       </li>
@@ -377,36 +310,7 @@ export function HearingsCard({ ctx, caseData }: { ctx: LuponCaseState; caseData:
         </p>
       </div>
 
-      {/* 2. CFA CALLOUT (IF ELIGIBLE / 3 UNSETTLED LUPON HEARINGS) */}
-      {isCfaEligible && isLuponStaff && (
-        <div className="mb-3.5 rounded-xl border border-rose-300 bg-rose-50/80 p-3 text-xs text-rose-950">
-          <div className="flex items-start gap-2">
-            <FiAlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-600" />
-            <div className="flex-1">
-              <p className="font-bold text-xs text-rose-900">
-                {isCfa ? "Certificate to File Action Issued" : "Eligible for Certificate to File Action (CFA)"}
-              </p>
-              <p className="mt-0.5 text-[11px] text-gray-700">
-                {isCfa
-                  ? `Case certified to court. Reason: ${caseData.closure_reason || "Concluded without settlement"}`
-                  : "All 3 Lupon conciliation hearings have completed without agreement. Complainant may request CFA."}
-              </p>
-              {!isCfa && (
-                <button
-                  type="button"
-                  onClick={() => void certify()}
-                  className="mt-2 inline-flex cursor-pointer items-center gap-1 rounded-full bg-rose-600 px-3 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-700"
-                >
-                  <FiFileText className="h-3 w-3" />
-                  Certify to file action (CFA)
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 3. BOTH SECTIONS: PUNONG BARANGAY AND LUPON */}
+      {/* 2. BOTH SECTIONS: PUNONG BARANGAY AND LUPON */}
       <div className="space-y-4">
         {/* SECTION 1: PUNONG BARANGAY */}
         <div>
@@ -418,7 +322,7 @@ export function HearingsCard({ ctx, caseData }: { ctx: LuponCaseState; caseData:
               </span>
             </div>
             <span className="text-[11px] font-medium text-gray-500">
-              {Math.max(pbHearings.length, 3)}/3 hearings {completedPbCount > 0 && `(${completedPbCount} completed)`}
+              {pbHearings.length}/3 hearings {completedPbCount > 0 && `(${completedPbCount} completed)`}
             </span>
           </div>
 
@@ -446,10 +350,10 @@ export function HearingsCard({ ctx, caseData }: { ctx: LuponCaseState; caseData:
                 >
                   <span className="flex items-center gap-1.5 text-[11px]">
                     <FiClock className="h-3 w-3 text-primary" />
-                    {showAllPb ? "Showing all 3 hearings" : `Active: Hearing #${(pbHearings[activePbIndex]?.hearing_sequence ?? activePbIndex + 1)} (+${pbHearings.length - 1} other hearings)`}
+                    {showAllPb ? `Showing all ${pbHearings.length} hearings` : `Active: Hearing #${(pbHearings[activePbIndex]?.hearing_sequence ?? activePbIndex + 1)} (+${pbHearings.length - 1} other hearings)`}
                   </span>
                   <span className="flex items-center gap-1 text-[11px] text-primary">
-                    {showAllPb ? "Show less" : "Show all (3)"}
+                    {showAllPb ? "Show less" : `Show all (${pbHearings.length})`}
                     {showAllPb ? <FiChevronUp className="h-3 w-3" /> : <FiChevronDown className="h-3 w-3" />}
                   </span>
                 </button>
@@ -468,7 +372,7 @@ export function HearingsCard({ ctx, caseData }: { ctx: LuponCaseState; caseData:
               </span>
             </div>
             <span className="text-[11px] font-medium text-gray-500">
-              {isEligibleForLupon ? `${Math.max(luponHearings.length, 3)}/3 hearings` : "0/3 hearings"} {completedLuponCount > 0 && `(${completedLuponCount} completed)`}
+              {luponHearings.length}/3 hearings {completedLuponCount > 0 && `(${completedLuponCount} completed)`}
             </span>
           </div>
 
@@ -516,10 +420,10 @@ export function HearingsCard({ ctx, caseData }: { ctx: LuponCaseState; caseData:
                 >
                   <span className="flex items-center gap-1.5 text-[11px]">
                     <FiClock className="h-3 w-3 text-primary" />
-                    {showAllLupon ? "Showing all 3 hearings" : `Active: Hearing #${(luponHearings[activeLuponIndex]?.hearing_sequence ?? activeLuponIndex + 1)} (+${luponHearings.length - 1} other hearings)`}
+                    {showAllLupon ? `Showing all ${luponHearings.length} hearings` : `Active: Hearing #${(luponHearings[activeLuponIndex]?.hearing_sequence ?? activeLuponIndex + 1)} (+${luponHearings.length - 1} other hearings)`}
                   </span>
                   <span className="flex items-center gap-1 text-[11px] text-primary">
-                    {showAllLupon ? "Show less" : "Show all (3)"}
+                    {showAllLupon ? "Show less" : `Show all (${luponHearings.length})`}
                     {showAllLupon ? <FiChevronUp className="h-3 w-3" /> : <FiChevronDown className="h-3 w-3" />}
                   </span>
                 </button>
@@ -572,16 +476,6 @@ export function HearingsCard({ ctx, caseData }: { ctx: LuponCaseState; caseData:
           }}
         />
       )}
-
-      <EditHearingTimeModal
-        hearing={timeEditHearing}
-        isOpen={timeEditHearing !== null}
-        onClose={() => setTimeEditHearing(null)}
-        onSaved={() => {
-          setTimeEditHearing(null);
-          ctx.load();
-        }}
-      />
     </Card>
   );
 }

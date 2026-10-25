@@ -111,15 +111,12 @@ class ReportController extends BaseController
                     'available' => $settlement?->settlement_type === 'Amicable Settlement',
                     'requires' => 'a recorded amicable settlement',
                 ],
-                /*
-                 * KP-18, KP-20 and KP-21 are not listed.
-                 *
-                 * The arbitration award, the Certificate to File Action and
-                 * the Certificate to Bar Action are no longer part of this
-                 * barangay's process, and the columns behind them are gone.
-                 * Listing a form as "not available" would keep suggesting it
-                 * is a document somebody could eventually get.
-                 */
+                [
+                    'code' => 'KP-20-B',
+                    'name' => 'Certification to File Action (KP Form 20-B)',
+                    'available' => $case->current_stage === 'CFA' || ($case->current_stage === 'Conciliation' && $case->hearings()->where('hearing_type', 'Conciliation')->where('status', 'Completed')->count() >= 3),
+                    'requires' => 'conciliation to be completed without settlement or case certified to court',
+                ],
             ],
         ], 'KP form data generated');
     }

@@ -33,7 +33,7 @@ class ImmunizationProfile extends Model
     protected function casts(): array
     {
         return [
-            'newborn_screening_date' => 'date',
+            'newborn_screening_date' => 'date:Y-m-d',
             'birth_weight_kg' => 'decimal:2',
             'birth_length_cm' => 'decimal:1',
         ];

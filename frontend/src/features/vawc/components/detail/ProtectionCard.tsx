@@ -1,9 +1,10 @@
-import { FiAlertTriangle, FiShield } from "react-icons/fi";
+import { FiAlertTriangle, FiPrinter, FiShield } from "react-icons/fi";
 import Card from "../../../../shared/ui/Card";
 import StatusBadge from "../../../../shared/ui/StatusBadge";
 import { RiskBadge } from "../RiskBadge";
 import { BPO_DAYS, BPO_OPEN_STATUSES, formatDay } from "../../lib/caseOptions";
 import type { VawcCase, VawcProtectionOrder } from "../../types";
+import { printBpo } from "../../lib/vawcPrint";
 import { CardButton, DetailRows, type CaseModal } from "./parts";
 
 /** Issued orders nobody has renewed yet — the ones a renewal can follow. */
@@ -131,18 +132,28 @@ export function ProtectionCard({ caseData, open, active }: {
                     : "Not yet applied for"}
               </p>
               {order.notes && <p className="mt-1 whitespace-pre-wrap text-xs text-gray-600">{order.notes}</p>}
-              {active && (
-                <div className="mt-1 flex gap-3">
-                  <CardButton onClick={() => open({ kind: "bpo", mode: "edit", order })}>
-                    <span className="text-xs">Update</span>
-                  </CardButton>
-                  {next?.id === order.id && !pending && (
-                    <CardButton onClick={() => open({ kind: "bpo", mode: "renew", order })}>
-                      <span className="text-xs">Renew</span>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => printBpo(caseData, order)}
+                  className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-gray bg-white px-3 py-1 text-xs font-semibold text-primary transition-colors hover:border-primary hover:bg-primary/5"
+                >
+                  <FiPrinter className="h-3.5 w-3.5" aria-hidden="true" />
+                  Print
+                </button>
+                {active && (
+                  <>
+                    <CardButton onClick={() => open({ kind: "bpo", mode: "edit", order })}>
+                      <span className="text-xs">Update</span>
                     </CardButton>
-                  )}
-                </div>
-              )}
+                    {next?.id === order.id && !pending && (
+                      <CardButton onClick={() => open({ kind: "bpo", mode: "renew", order })}>
+                        <span className="text-xs">Renew</span>
+                      </CardButton>
+                    )}
+                  </>
+                )}
+              </div>
             </li>
           ))}
         </ul>

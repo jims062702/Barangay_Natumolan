@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { FiAlertCircle, FiBookOpen, FiCalendar, FiClock } from "react-icons/fi";
 import { Link } from "react-router-dom";
-import { formatWallClock, parseWallClock } from "../../../shared/lib/datetime";
+import { parseWallClock } from "../../../shared/lib/datetime";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { usePulse } from "../../../shared/hooks/usePulse";
 import { PageLoading, settleAll, usePageLoad } from "../../../shared/ui/PageLoad";
@@ -87,7 +87,7 @@ export default function LuponDashboard() {
                 <div>
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-xs font-bold uppercase tracking-wider text-dark">Punong Barangay (Tuesday)</span>
-                    <span className="text-[11px] text-gray-500 font-medium">{pbHearings.length} scheduled</span>
+                    <span className="text-[11px] text-gray-500 font-medium">{pbHearings.length} scheduled (Max 8/day)</span>
                   </div>
                   {pbHearings.length === 0 ? (
                     <p className="rounded-lg bg-gray-50 p-2.5 text-xs text-gray-400">No Punong Barangay hearings scheduled.</p>
@@ -102,15 +102,13 @@ export default function LuponDashboard() {
                               day: "numeric",
                             })
                           : "";
-                        const timeText = dateFormatted
-                          ? `${dateFormatted} · ${h.schedule_time_range || formatWallClock(h.scheduled_at)}`
-                          : (h.formatted_schedule ?? formatWallClock(h.scheduled_at, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }));
+                        const scheduleDateText = dateFormatted || h.formatted_schedule || "—";
 
                         return (
                           <li key={h.id} className="flex items-center justify-between gap-3 py-2.5">
                             <div>
                               <p className="text-sm font-semibold text-dark">
-                                {timeText}
+                                {scheduleDateText}
                               </p>
                               <p className="text-xs text-gray-500">
                                 {h.lupon_case?.id ? (
@@ -127,7 +125,7 @@ export default function LuponDashboard() {
                               </p>
                             </div>
                             <span className="shrink-0 rounded bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 border border-blue-200">
-                              {h.schedule_time_range ?? "2 hrs"}
+                              {h.hearing_title || "Hearing"}
                             </span>
                           </li>
                         );
@@ -140,7 +138,7 @@ export default function LuponDashboard() {
                 <div>
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-xs font-bold uppercase tracking-wider text-dark">Lupon (Thursday)</span>
-                    <span className="text-[11px] text-gray-500 font-medium">{luponHearings.length} scheduled (Max 7/day)</span>
+                    <span className="text-[11px] text-gray-500 font-medium">{luponHearings.length} scheduled (Max 8/day)</span>
                   </div>
                   {luponHearings.length === 0 ? (
                     <p className="rounded-lg bg-gray-50 p-2.5 text-xs text-gray-400">No Lupon hearings scheduled.</p>
@@ -155,15 +153,13 @@ export default function LuponDashboard() {
                               day: "numeric",
                             })
                           : "";
-                        const timeText = dateFormatted
-                          ? `${dateFormatted} · ${h.schedule_time_range || formatWallClock(h.scheduled_at)}`
-                          : (h.formatted_schedule ?? formatWallClock(h.scheduled_at, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }));
+                        const scheduleDateText = dateFormatted || h.formatted_schedule || "—";
 
                         return (
                           <li key={h.id} className="flex items-center justify-between gap-3 py-2.5">
                             <div>
                               <p className="text-sm font-semibold text-dark">
-                                {timeText}
+                                {scheduleDateText}
                               </p>
                               <p className="text-xs text-gray-500">
                                 {h.lupon_case?.id ? (
@@ -180,7 +176,7 @@ export default function LuponDashboard() {
                               </p>
                             </div>
                             <span className="shrink-0 rounded bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700 border border-purple-200">
-                              {h.schedule_time_range ?? "2 hrs"}
+                              {h.hearing_title || "Hearing"}
                             </span>
                           </li>
                         );

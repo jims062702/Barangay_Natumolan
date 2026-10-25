@@ -25,7 +25,7 @@ class Agreement extends Model
 
     protected $table = 'vawc_agreements';
 
-    public const OUTCOMES = ['Agreement reached', 'No agreement'];
+    public const OUTCOMES = ['Agreement reached', 'Not settled', 'No agreement'];
 
     protected $fillable = [
         'vawc_case_id', 'session_date', 'attendees', 'discussion', 'outcome', 'agreement', 'recorded_by',

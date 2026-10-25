@@ -15,18 +15,16 @@ import {
   escapeHtml as e,
   formDocument,
   manilaToday,
+  printHtmlViaIframe,
   seals,
   upperDate,
   withHon,
   withoutHon,
 } from "../../../shared/print/formKit";
-import type { KpFormPayload, LuponHearing } from "../types";
+import type { KpFormPayload, LuponCase, LuponHearing } from "../types";
 import type { Resident } from "../../../shared/types/resident";
 
-export interface KpNames {
-  punong_barangay: string;
-  secretary: string;
-}
+export type KpNames = Record<string, string | null>;
 
 /** "2026-09-29T09:00:00" → "29th day of September, 2026". */
 function ordinalDay(ymd: string): string {
@@ -58,24 +56,9 @@ export function formatScheduleTime(iso?: string | null): string {
   return `${h12}:${m} ${ampm}`;
 }
 
-/** Formats hearing schedule start and end time range, e.g. "8:00 AM – 10:00 AM" */
+/** Formats hearing schedule start time, e.g. "8:00 AM" */
 export function formatHearingRange(h: LuponHearing): string {
-  if (h.schedule_time_range) return h.schedule_time_range;
-  const start = formatScheduleTime(h.scheduled_at);
-  if (h.scheduled_end_at) {
-    const end = formatScheduleTime(h.scheduled_end_at);
-    return `${start} – ${end}`;
-  }
-  const d = new Date(h.scheduled_at);
-  if (!Number.isNaN(d.getTime())) {
-    d.setMinutes(d.getMinutes() + 120);
-    const endH = d.getHours();
-    const endM = String(d.getMinutes()).padStart(2, "0");
-    const h12 = endH % 12 === 0 ? 12 : endH % 12;
-    const ampm = endH < 12 ? "AM" : "PM";
-    return `${start} – ${h12}:${endM} ${ampm}`;
-  }
-  return start;
+  return h.schedule_time_range || formatScheduleTime(h.scheduled_at);
 }
 
 /*
@@ -361,6 +344,111 @@ function amicableSettlement(p: KpFormPayload, names: KpNames): Paper {
   `);
 }
 
+/** KP-20-B — Certification to File Action (KP Form 20-B). */
+function cfaCertificate(p: KpFormPayload, names: KpNames): Paper {
+  const c = p.case;
+  const pbName = names.punong_barangay?.trim() ? withHon(names.punong_barangay) : "HON. RAFAEL P. VIDAL";
+  const secName = names.lupon_secretary?.trim()
+    ? withoutHon(names.lupon_secretary)
+    : (names.secretary?.trim() ? withoutHon(names.secretary) : "Maria Faye C. Ordiz");
+  const dated = c.date_resolved ?? manilaToday();
+  const respondents = (c.respondents ?? []).map(nameOf).join("<br/>")
+    || e(c.respondent_display_names ?? "");
+
+  return paper(`CFA — ${c.case_number}`, `
+    <div style="font-size:10.5pt;font-weight:bold;margin-bottom:6px;">KP Form 20-B</div>
+    <div class="head" style="min-height:95px;text-align:center;position:relative;">
+      <img class="seal" src="${seals.barangay()}" alt="" style="position:absolute;left:4%;top:0;width:95px;height:auto;" />
+      <p style="margin:0;font-size:11pt;">Republic of the Philippines</p>
+      <p style="margin:0;font-size:11.5pt;font-weight:bold;letter-spacing:0.5px;">PROVINCE OF MISAMIS ORIENTAL</p>
+      <p style="margin:0;font-size:11pt;">Municipality of Tagoloan</p>
+      <p style="margin:0;font-size:11.5pt;font-weight:bold;">Barangay Natumolan</p>
+      <p style="margin:0;font-size:10pt;">-o0o-</p>
+      <p class="office b" style="margin-top:10px;font-size:12.5pt;font-weight:bold;letter-spacing:0.8px;">OFFICE OF THE LUPONG TAGAPAMAYAPA</p>
+    </div>
+
+    <table style="width:100%;margin-top:22px;line-height:1.45;font-size:11.5pt;">
+      <tr>
+        <td style="width:55%;vertical-align:top;">
+          <p style="margin:0;"><span style="font-weight:bold;">${e(c.complainant_display_name ?? "")}</span></p>
+          <p style="margin:2px 0 0 16px;font-style:italic;font-size:10.5pt;">Complainant/s</p>
+          <p style="margin:10px 0 10px 32px;font-style:italic;">-against-</p>
+          <p style="margin:0;"><span style="font-weight:bold;">${respondents}</span></p>
+          <p style="margin:2px 0 0 16px;font-style:italic;font-size:10.5pt;">Respondent/s</p>
+        </td>
+        <td style="width:45%;vertical-align:top;padding-left:15px;">
+          <p style="margin:0;"><strong>Barangay Case :</strong> ${e(c.case_number)}</p>
+          <p style="margin:12px 0 0;"><strong>For :</strong> ${e(c.case_classification || c.case_title || "")}</p>
+        </td>
+      </tr>
+    </table>
+
+    <div style="text-align:center;margin:28px 0 18px;">
+      <h3 style="margin:0;font-size:14pt;font-weight:bold;letter-spacing:1px;">CERTIFICATION TO FILE ACTION</h3>
+    </div>
+
+    <p style="margin:0 0 14px;font-size:11.5pt;">This is to certify that :</p>
+
+    <div style="margin-left:14px;line-height:1.65;font-size:11pt;text-align:justify;">
+      <p style="margin:0 0 12px;">1. There was a personal confrontation between the parties before the Lupon Chairman but mediation failed ;</p>
+      <p style="margin:0 0 12px;">2. The Punong Barangay set the meeting of the parties for the constitution of the Lupon ;</p>
+      <p style="margin:0 0 12px;">3. The Respondent willfully failed or refuse to appear without justifiable reason at the conciliation proceedings before the Lupon ; and</p>
+      <p style="margin:0 0 12px;">4. The both parties had already an agreement but the respondent was failed to comply there agreement.</p>
+      <p style="margin:0 0 14px;">5. Therefore, the corresponding complaint for the dispute may now be filed in court/government office.</p>
+    </div>
+
+    <p style="margin:24px 0 20px;font-size:11pt;">This <span style="font-weight:bold;">${ordinalDay(dated)}</span> day of <span style="font-weight:bold;">${monthYear(dated)}</span>.</p>
+
+    <table style="width:100%;margin-top:28px;font-size:11pt;">
+      <tr>
+        <td style="width:50%;"></td>
+        <td style="width:50%;text-align:center;">
+          <p style="margin:0;font-weight:bold;text-transform:uppercase;text-decoration:underline;">${e(secName)}</p>
+          <p style="margin:2px 0 0;font-size:10.5pt;">Lupon Secretary</p>
+        </td>
+      </tr>
+    </table>
+
+    <div style="margin-top:26px;font-size:11pt;">
+      <p style="margin:0 0 18px;">Attested :</p>
+      <div style="margin-left:24px;">
+        <p style="margin:0;font-weight:bold;text-transform:uppercase;text-decoration:underline;">${e(pbName)}</p>
+        <p style="margin:2px 0 0;font-size:10.5pt;">Lupon Chairman/Punong barangay</p>
+      </div>
+    </div>
+  `);
+}
+
+/** Standalone print action for CFA (KP Form 20-B). */
+export function printCfaDocument(caseData: LuponCase, names?: Partial<KpNames>): void {
+  const defaultNames: KpNames = {
+    punong_barangay: names?.punong_barangay || "HON. RAFAEL P. VIDAL",
+    secretary: names?.secretary || "Grace G. Galola",
+    lupon_secretary: names?.lupon_secretary || "Maria Faye C. Ordiz",
+  };
+
+  const payload: KpFormPayload = {
+    case: caseData,
+    barangay: {
+      name: "Barangay Natumolan",
+      municipality: "Tagoloan",
+      province: "Misamis Oriental",
+    },
+    signatories: defaultNames,
+    forms: [
+      {
+        code: "KP-20-B",
+        name: "Certification to File Action (KP Form 20-B)",
+        available: true,
+        requires: "none",
+      },
+    ],
+  };
+
+  const html = documentOf([cfaCertificate(payload, defaultNames)]);
+  printHtmlViaIframe(html);
+}
+
 /**
  * The document for a form code, or "" when this case cannot produce it.
  *
@@ -409,6 +497,7 @@ function kpPaper(code: string, payload: KpFormPayload | null, names: KpNames, fo
   if (code === "KP-7") return hearing ? noticeOfHearing(payload, hearing, names) : null;
   if (code === "KP-9") return hearing ? summons(payload, hearing, names) : null;
   if (code === "KP-16") return payload.case.settlement ? amicableSettlement(payload, names) : null;
+  if (code === "KP-20" || code === "KP-20-B") return cfaCertificate(payload, names);
 
   return null;
 }

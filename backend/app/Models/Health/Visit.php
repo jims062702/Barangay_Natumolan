@@ -48,8 +48,8 @@ class Visit extends Model
     protected function casts(): array
     {
         return [
-            'visit_date' => 'date',
-            'followup_schedule' => 'date',
+            'visit_date' => 'date:Y-m-d',
+            'followup_schedule' => 'date:Y-m-d',
             'height_cm' => 'decimal:1',
             'weight_kg' => 'decimal:2',
             'fundal_height_cm' => 'decimal:1',

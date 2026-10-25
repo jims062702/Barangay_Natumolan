@@ -8,13 +8,14 @@ import { luponApi } from "../../api";
 import type { LuponHearing } from "../../types";
 
 const STANDARD_SLOTS = [
-  { start: "08:00", end: "10:00", label: "8:00 AM – 10:00 AM", name: "Slot 1 (Morning)" },
-  { start: "10:15", end: "12:15", label: "10:15 AM – 12:15 PM", name: "Slot 2 (Mid-Day)" },
-  { start: "12:30", end: "14:30", label: "12:30 PM – 2:30 PM", name: "Slot 3 (Early Afternoon)" },
-  { start: "14:45", end: "16:45", label: "2:45 PM – 4:45 PM", name: "Slot 4 (Late Afternoon)" },
-  { start: "17:00", end: "19:00", label: "5:00 PM – 7:00 PM", name: "Slot 5 (Early Evening)" },
-  { start: "19:15", end: "21:15", label: "7:15 PM – 9:15 PM", name: "Slot 6 (Evening)" },
-  { start: "21:30", end: "23:30", label: "9:30 PM – 11:30 PM", name: "Slot 7 (Night)" },
+  { start: "08:00", label: "8:00 AM", name: "Slot 1 (Morning)" },
+  { start: "09:00", label: "9:00 AM", name: "Slot 2 (Morning)" },
+  { start: "10:00", label: "10:00 AM", name: "Slot 3 (Late Morning)" },
+  { start: "11:00", label: "11:00 AM", name: "Slot 4 (Late Morning)" },
+  { start: "13:00", label: "1:00 PM", name: "Slot 5 (Early Afternoon)" },
+  { start: "14:00", label: "2:00 PM", name: "Slot 6 (Afternoon)" },
+  { start: "15:00", label: "3:00 PM", name: "Slot 7 (Mid Afternoon)" },
+  { start: "16:00", label: "4:00 PM", name: "Slot 8 (Late Afternoon)" },
 ];
 
 interface EditHearingTimeModalProps {
@@ -154,7 +155,7 @@ export function EditHearingTimeModal({
         {/* PRESET TIME SLOTS */}
         <div>
           <label className="block text-xs font-bold text-dark mb-1.5">
-            Select Daily Hearing Slot (2 Hours + 15m Buffer)
+            Select Daily Hearing Slot (Max 8 Cases per Day)
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {STANDARD_SLOTS.map((slot) => {
@@ -218,7 +219,7 @@ export function EditHearingTimeModal({
                 required
               />
               <span className="text-[11px] text-gray-500">
-                Duration will automatically be 2 hours (120 minutes) with a 15-minute hall buffer.
+                Hearing will begin at this designated start time.
               </span>
             </div>
           )}

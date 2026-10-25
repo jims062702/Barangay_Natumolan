@@ -10,6 +10,7 @@ import SearchInput from "../../../shared/ui/SearchInput";
 import type { User } from "../../../shared/types";
 import { populationApi } from "../api";
 import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
+import { ageFrom } from "../../../shared/lib/birthdate";
 
 /**
  * One of the two lists the sidebar's Portal Accounts opens into.
@@ -114,7 +115,26 @@ export default function ResidentAccounts({ activation }: { activation: "pending"
 
         <DataTable
           columns={[
-            { header: "Name", render: (u: User) => <span className="font-medium text-dark">{u.name}</span> },
+            {
+              header: "Name",
+              render: (u: User) => {
+                const age = ageFrom(u.resident?.birthdate);
+                const isMinor = age !== null && age < 18;
+                return (
+                  <div>
+                    <span className="font-medium text-dark">{u.name}</span>
+                    {isMinor && (
+                      <span
+                        className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800"
+                        title="Residents aged 17 and below cannot access the portal"
+                      >
+                        {age} yrs old (Minor · 18+ only)
+                      </span>
+                    )}
+                  </div>
+                );
+              },
+            },
             { header: "Email", render: (u: User) => u.email },
             {
               header: "Resident Number",
@@ -126,12 +146,25 @@ export default function ResidentAccounts({ activation }: { activation: "pending"
               // whether the office allows this login at all, and whether the
               // resident has confirmed the mailbox is theirs.
               header: "Sign-in",
-              render: (u: User) =>
-                u.is_active ? (
+              render: (u: User) => {
+                const age = ageFrom(u.resident?.birthdate);
+                const isMinor = age !== null && age < 18;
+                if (isMinor) {
+                  return (
+                    <span
+                      className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 border border-amber-200"
+                      title="Access restricted: resident is 17 years old or younger"
+                    >
+                      Restricted (Under 18)
+                    </span>
+                  );
+                }
+                return u.is_active ? (
                   <span className="rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">Enabled</span>
                 ) : (
                   <span className="rounded-full bg-gray px-2.5 py-1 text-xs font-semibold text-gray-500">Disabled</span>
-                ),
+                );
+              },
             },
             {
               header: "Email verified",
@@ -148,30 +181,24 @@ export default function ResidentAccounts({ activation }: { activation: "pending"
             },
             {
               header: "",
-              render: (u: User) => (
-                <div className="flex flex-wrap justify-end gap-1.5">
-                  {!u.activated_at && (
-                    <button
-                      type="button"
-                      onClick={() => resend(u)}
-                      className="cursor-pointer rounded-full border border-primary/40 px-3 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
-                      title="Email this resident a fresh 6-digit activation code"
-                    >
-                      Resend code
-                    </button>
-                  )}
-                  {/*
-                    "Set password" and "Disable" are gone.
-
-                    Setting a resident's password at the counter meant an
-                    office typing a credential the resident then had to be
-                    told — which is the office knowing how to sign in as
-                    them. A resident who cannot reach their email gets a
-                    fresh activation code instead, which is the button
-                    beside this one.
-                  */}
-                </div>
-              ),
+              render: (u: User) => {
+                const age = ageFrom(u.resident?.birthdate);
+                const isMinor = age !== null && age < 18;
+                return (
+                  <div className="flex flex-wrap justify-end gap-1.5">
+                    {!u.activated_at && !isMinor && (
+                      <button
+                        type="button"
+                        onClick={() => resend(u)}
+                        className="cursor-pointer rounded-full border border-primary/40 px-3 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
+                        title="Email this resident a fresh 6-digit activation code"
+                      >
+                        Resend code
+                      </button>
+                    )}
+                  </div>
+                );
+              },
             },
           ]}
           rows={rows}

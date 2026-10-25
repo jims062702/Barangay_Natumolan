@@ -15,6 +15,7 @@ import {
   type PopulationPart,
   type Report,
 } from "../components/ReportSections";
+import { printConsolidatedReport } from "../lib/consolidatedPrint";
 
 export const filterSelect =
   "cursor-pointer rounded-full border border-gray bg-white px-4 py-2 text-sm text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/25";
@@ -98,7 +99,7 @@ export default function OfficeReport({ filters, pageLoad: shared }: {
         actions={
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={() => (report && section ? printConsolidatedReport(report, section) : report ? printConsolidatedReport(report, "all") : window.print())}
             className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
           >
             <FiPrinter className="h-4 w-4" aria-hidden="true" /> Print report

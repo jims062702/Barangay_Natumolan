@@ -162,7 +162,10 @@ class HearingController extends BaseController
                     )', [$day])
                     ->orderBy('scheduled_at', 'asc')
                     ->orderBy('lupon_case_id', 'asc'),
-                'past' => $query->whereDate('scheduled_at', '<', $day)->orderBy('scheduled_at', 'asc')->orderBy('lupon_case_id', 'asc'),
+                'past' => $query->where(function ($q) use ($day) {
+                    $q->whereDate('scheduled_at', '<', $day)
+                      ->orWhere('status', 'Completed');
+                })->orderBy('scheduled_at', 'asc')->orderBy('lupon_case_id', 'asc'),
                 default => $query->orderBy('scheduled_at', 'asc')->orderBy('lupon_case_id', 'asc'),
             };
         } else {
@@ -380,8 +383,7 @@ class HearingController extends BaseController
             return $this->error('This case is closed; nothing more is scheduled on it.', 422);
         }
         if ($case->current_stage === 'Filed' && ! $case->filing_fee_paid) {
-            return $this->error('The filing fee has not been paid yet, so no sitting can be scheduled. It is due by '
-                . FilingFeeDeadlines::dueWords($case->payment_due_at) . '.', 422);
+            return $this->error('The filing fee has not been paid yet, so no sitting can be scheduled.', 422);
         }
 
         $hearing = $case->hearings()->create($validated + ['recorded_by' => auth()->id()]);
@@ -621,25 +623,16 @@ class HearingController extends BaseController
             );
         }
 
-        $movedEnd = $moved->copy()->addMinutes(HearingCalendar::DURATION_MINUTES);
-        $movedBufferEnd = $movedEnd->copy()->addMinutes(HearingCalendar::BUFFER_MINUTES);
-
-        /* The hall holds one sitting at a time, check collision with duration & buffer. */
+        /* Check if another sitting is scheduled at the same time on the same date */
         $clash = Hearing::where('id', '!=', $hearing->id)
             ->where('hearing_type', $hearing->hearing_type)
             ->whereIn('status', ['Scheduled', 'Completed'])
             ->whereDate('scheduled_at', $moved->toDateString())
-            ->get()
-            ->contains(function ($other) use ($moved, $movedBufferEnd) {
-                $otherStart = $other->scheduled_at->copy();
-                $otherEnd = $other->scheduled_at->copy()->addMinutes(HearingCalendar::DURATION_MINUTES);
-                $otherBufferEnd = $otherEnd->copy()->addMinutes(HearingCalendar::BUFFER_MINUTES);
-
-                return $moved->lt($otherBufferEnd) && $otherStart->lt($movedBufferEnd);
-            });
+            ->whereTime('scheduled_at', $moved->format('H:i:s'))
+            ->exists();
 
         if ($clash) {
-            return $this->error('Another sitting or its 15-minute buffer conflicts with that hour. Pick a different one.', 422);
+            return $this->error('Another sitting is already scheduled at that time. Pick a different time.', 422);
         }
 
         $hearing->update(['scheduled_at' => $moved]);
@@ -655,21 +648,13 @@ class HearingController extends BaseController
 
             foreach ($subsequentHearings as $sub) {
                 $subMoved = $sub->scheduled_at->copy()->setTime($hour, $minute, 0);
-                $subMovedEnd = $subMoved->copy()->addMinutes(HearingCalendar::DURATION_MINUTES);
-                $subMovedBufferEnd = $subMovedEnd->copy()->addMinutes(HearingCalendar::BUFFER_MINUTES);
 
                 $subClash = Hearing::where('id', '!=', $sub->id)
                     ->where('hearing_type', $sub->hearing_type)
                     ->whereIn('status', ['Scheduled', 'Completed'])
                     ->whereDate('scheduled_at', $subMoved->toDateString())
-                    ->get()
-                    ->contains(function ($other) use ($subMoved, $subMovedBufferEnd) {
-                        $otherStart = $other->scheduled_at->copy();
-                        $otherEnd = $other->scheduled_at->copy()->addMinutes(HearingCalendar::DURATION_MINUTES);
-                        $otherBufferEnd = $otherEnd->copy()->addMinutes(HearingCalendar::BUFFER_MINUTES);
-
-                        return $subMoved->lt($otherBufferEnd) && $otherStart->lt($subMovedBufferEnd);
-                    });
+                    ->whereTime('scheduled_at', $subMoved->format('H:i:s'))
+                    ->exists();
 
                 if (! $subClash) {
                     $sub->update(['scheduled_at' => $subMoved]);

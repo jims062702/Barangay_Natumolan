@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { FiPrinter } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import Card from "../../../shared/ui/Card";
 import PageHeader from "../../../shared/ui/PageHeader";
@@ -114,15 +113,6 @@ export default function CertificateReport() {
       <PageHeader
         title="Certificate Report"
         subtitle="How many certificates were asked for, and by whom"
-        actions={
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
-          >
-            <FiPrinter className="h-4 w-4" aria-hidden="true" /> Print report
-          </button>
-        }
       />
 
       {offline && (
@@ -193,7 +183,7 @@ export default function CertificateReport() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title={`What was asked for · ${chosenLabel}`} className="flex h-full flex-col">
+        <Card title={`Certificate Requests by Type · ${chosenLabel}`} className="flex h-full flex-col">
           {report?.by_type.length ? (
             <>
               {/*

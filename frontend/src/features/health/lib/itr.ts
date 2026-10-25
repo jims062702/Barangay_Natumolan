@@ -67,7 +67,7 @@ export interface ItrDraft {
 
 /** An empty consultation, dated today. */
 export const blankItr = (): ItrDraft => ({
-  visit_date: new Date().toISOString().slice(0, 10),
+  visit_date: new Date().toLocaleDateString("en-CA"),
   visit_time: "",
   visit_reason: "",
   chief_complaints: "",
@@ -104,7 +104,7 @@ export function itrPayload(draft: ItrDraft, patientId?: number) {
   return {
     patient_id: patientId,
     visit_date: draft.visit_date,
-    visit_time: text(draft.visit_time),
+    visit_time: text(draft.visit_time) ? draft.visit_time.trim().slice(0, 5) : undefined,
     visit_reason: draft.visit_reason,
     chief_complaints: text(draft.chief_complaints),
 

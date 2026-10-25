@@ -50,6 +50,7 @@ final class OnlineReports
 {
     /** Where the Resident ID picture goes: the private disk, never the public one. */
     public const ID_DIR = 'vawc/online-reports/ids';
+    public const EVIDENCE_DIR = 'vawc/online-reports/evidence';
 
     /**
      * Who the desk may open the case against: a registered, living, current
@@ -75,11 +76,18 @@ final class OnlineReports
         return [$respondent, null];
     }
 
-    public function file(array $data, Resident $resident, ResidentCard $card, string $via, UploadedFile $id): OnlineReport
+    public function file(array $data, Resident $resident, ResidentCard $card, string $via, UploadedFile $id, array $evidence = []): OnlineReport
     {
-        return DB::transaction(function () use ($data, $resident, $card, $via, $id) {
+        return DB::transaction(function () use ($data, $resident, $card, $via, $id, $evidence) {
             $threatened = (bool) $data['threatened'];
             $danger = (bool) $data['in_danger_now'];
+
+            $evidencePaths = [];
+            foreach ($evidence as $file) {
+                if ($file instanceof UploadedFile) {
+                    $evidencePaths[] = $file->store(self::EVIDENCE_DIR, 'local');
+                }
+            }
 
             $report = OnlineReport::create([
                 'reference_no' => OnlineReport::nextReference((int) substr(ManilaTime::today(), 0, 4)),
@@ -99,6 +107,7 @@ final class OnlineReports
                 'safe_contact' => $data['safe_contact'] ?? null,
                 'safe_time' => $data['safe_time'] ?? null,
                 'id_path' => $id->store(self::ID_DIR, 'local'),
+                'evidence_paths' => $evidencePaths,
                 'status' => OnlineReport::FOR_VERIFICATION,
                 /* No threat: she confirms it in person first. A threat: optional. */
                 'visit_required' => ! ($threatened || $danger),
@@ -192,6 +201,32 @@ final class OnlineReports
             ]);
 
             AccessLog::record($case->id, 'created', 'Case opened from online report ' . $report->reference_no);
+
+            /* Attach complainant's Resident ID as a case document */
+            if ($report->id_path) {
+                $case->documents()->create([
+                    'document_type' => 'Photograph',
+                    'title' => 'Complainant Resident ID (' . $report->reference_no . ')',
+                    'file_reference' => $report->id_path,
+                    'description' => 'Barangay Resident ID uploaded by complainant in online report ' . $report->reference_no,
+                    'uploaded_by' => $by->id,
+                    'document_date' => $report->created_at?->toDateString(),
+                ]);
+            }
+
+            /* Attach complainant's evidence files as case documents */
+            if (! empty($report->evidence_paths) && is_array($report->evidence_paths)) {
+                foreach ($report->evidence_paths as $idx => $path) {
+                    $case->documents()->create([
+                        'document_type' => 'Photograph',
+                        'title' => 'Online Evidence #' . ($idx + 1) . ' (' . $report->reference_no . ')',
+                        'file_reference' => $path,
+                        'description' => 'Evidence uploaded by complainant in online report ' . $report->reference_no,
+                        'uploaded_by' => $by->id,
+                        'document_date' => $report->created_at?->toDateString(),
+                    ]);
+                }
+            }
 
             $report->update([
                 'status' => OnlineReport::ACCEPTED,

@@ -21,7 +21,7 @@ class ResidentAccountController extends BaseController
 {
     public function index(Request $request)
     {
-        $query = User::with('resident:id,resident_number,first_name,last_name,zone_purok')
+        $query = User::with('resident:id,resident_number,first_name,last_name,zone_purok,birthdate')
             ->where('role', 'Resident')
             // `activated_at` is what the list badges: an account exists for
             // every registered resident, but it does nothing until they enter
@@ -81,6 +81,11 @@ class ResidentAccountController extends BaseController
     {
         if (!$resident->is_active) {
             return $this->error('Cannot create an account for an inactive resident record', 422);
+        }
+
+        $age = $resident->birthdate?->age;
+        if ($age === null || $age < 18) {
+            return $this->error('Ang resident portal account ay para lamang sa mga residenteng may edad 18 pataas. Hindi maaaring gawan o buksan ang portal account para sa residenteng 17 anyos pababa.', 422);
         }
 
         // The resident record is the source of truth for the login address,
@@ -184,6 +189,13 @@ class ResidentAccountController extends BaseController
             return $this->error('Only resident portal accounts can be managed here', 422);
         }
 
+        if ($user->resident) {
+            $age = $user->resident->birthdate?->age;
+            if ($age === null || $age < 18) {
+                return $this->error('Hindi maaaring i-activate ang portal account ng residenteng 17 anyos pababa. Para lamang sa 18 pataas ang resident portal.', 422);
+            }
+        }
+
         if ($user->isActivated()) {
             return $this->error('This account is already activated.', 422);
         }
@@ -208,6 +220,13 @@ class ResidentAccountController extends BaseController
     {
         if ($user->role !== 'Resident') {
             return $this->error('Only resident portal accounts can be managed here', 422);
+        }
+
+        if (! $user->is_active && $user->resident) {
+            $age = $user->resident->birthdate?->age;
+            if ($age === null || $age < 18) {
+                return $this->error('Hindi maaaring i-enable ang sign-in para sa residenteng 17 anyos pababa.', 422);
+            }
         }
 
         $user->forceFill(['is_active' => ! $user->is_active])->save();

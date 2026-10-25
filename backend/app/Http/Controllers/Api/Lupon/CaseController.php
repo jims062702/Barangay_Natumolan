@@ -214,8 +214,7 @@ class CaseController extends BaseController
 
         return $this->success(
             $case->load(['complaint', 'respondents:id,first_name,last_name']),
-            'Lupon case filed. The filing fee must be paid by ' . FilingFeeDeadlines::dueWords($case->payment_due_at)
-                . ' (end of day) — ' . FilingFeeDeadlines::DAYS . ' calendar days — or the case closes unpaid.',
+            'Lupon case filed. The filing fee must be paid before a summons can be issued.',
             201
         );
     }

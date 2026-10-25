@@ -195,7 +195,7 @@ export default function FileComplaint() {
   return (
     <div>
       <PageHeader
-        title="File a Complaint"
+        title="Online Complaints"
         subtitle="Start a Katarungang Pambarangay complaint, and follow the reference number it gives you"
         actions={
           !formOpen && (

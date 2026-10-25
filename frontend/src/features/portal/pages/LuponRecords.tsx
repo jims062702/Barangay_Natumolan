@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { FiCalendar } from "react-icons/fi";
+import { FiCalendar, FiClock } from "react-icons/fi";
 import Card from "../../../shared/ui/Card";
 import DataTable from "../../../shared/ui/DataTable";
 import Modal from "../../../shared/ui/Modal";
@@ -20,7 +20,7 @@ import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
  *   Cases I Filed    — complaints they brought
  *   Cases Against Me — complaints naming them; they will be summoned
  *   Hearings         — ONE ROW PER CASE, the next sitting; the rest in a modal
- *   Case History     — ONE ROW PER EVENT, across every case
+ *   Case History     — ONE ROW PER CASE; full event history in a modal
  *
  * The two sides are two entries because they are two different pieces of
  * news. "Somebody filed a complaint against me" is what a person opens the
@@ -34,6 +34,7 @@ import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
 type View = "filed" | "against-me" | "hearings" | "history";
 
 type Sitting = NonNullable<PortalKpCase["hearings"]>[number];
+type CaseHistoryEvent = NonNullable<PortalKpCase["history"]>[number];
 
 const VIEWS: Record<View, { label: string; blurb: string; empty: string }> = {
   filed: {
@@ -53,7 +54,7 @@ const VIEWS: Record<View, { label: string; blurb: string; empty: string }> = {
   },
   history: {
     label: "Case History",
-    blurb: "Everything that has happened on your cases, oldest first.",
+    blurb: "Select a case to view its complete timeline and recorded events.",
     empty: "Nothing has been recorded on your cases yet.",
   },
 };
@@ -103,6 +104,8 @@ export default function LuponRecords() {
   const [attempt, setAttempt] = useState(0);
   /** The case whose full schedule is open, or null. */
   const [viewing, setViewing] = useState<PortalKpCase | null>(null);
+  /** The case whose history timeline is open in modal, or null. */
+  const [historyViewing, setHistoryViewing] = useState<PortalKpCase | null>(null);
 
   useEffect(() => {
     portalApi.cases()
@@ -128,18 +131,6 @@ export default function LuponRecords() {
    * the whole schedule is behind View.
    */
   const withSittings = cases.filter((c) => (c.hearings ?? []).length > 0);
-
-  /* Every event across every case, oldest first, each still naming its case. */
-  const history = cases
-    .flatMap((c) =>
-      (c.history ?? []).map((e, i) => ({
-        ...e,
-        key: `${c.case_number}-${i}`,
-        case_number: c.case_number,
-        title: c.title,
-      })),
-    )
-    .sort((a, b) => a.on.localeCompare(b.on));
 
   if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => setAttempt((n) => n + 1)} />;
 
@@ -255,43 +246,91 @@ export default function LuponRecords() {
               numbered
               columns={[
                 {
-                  header: "Date",
-                  render: (e: (typeof history)[number]) => (
-                    <span className="whitespace-nowrap font-medium text-dark">
-                      {new Date(e.on).toLocaleDateString("en-PH")}
+                  header: "Case Number",
+                  render: (c: PortalKpCase) => (
+                    <button
+                      type="button"
+                      onClick={() => setHistoryViewing(c)}
+                      className="cursor-pointer text-left font-mono text-xs font-semibold text-primary hover:underline"
+                    >
+                      {c.case_number}
+                    </button>
+                  ),
+                },
+                {
+                  header: "Case Title / Type",
+                  render: (c: PortalKpCase) => (
+                    <button
+                      type="button"
+                      onClick={() => setHistoryViewing(c)}
+                      className="cursor-pointer text-left group"
+                    >
+                      <span className="font-medium text-dark group-hover:text-primary">
+                        {c.title}
+                      </span>
+                      {c.classification && c.classification.toLowerCase() !== c.title.toLowerCase() && (
+                        <span className="block text-xs text-gray-500">
+                          {c.classification}
+                        </span>
+                      )}
+                    </button>
+                  ),
+                },
+                {
+                  header: "Role",
+                  render: (c: PortalKpCase) => (
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        c.my_role === "Complainant"
+                          ? "bg-primary/10 text-primary"
+                          : "bg-amber-100 text-amber-800"
+                      }`}
+                    >
+                      {c.my_role}
                     </span>
                   ),
                 },
                 {
-                  header: "Event",
-                  render: (e: (typeof history)[number]) => (
-                    <span className="whitespace-nowrap text-sm text-dark">{e.event}</span>
+                  header: "Other Party",
+                  render: (c: PortalKpCase) => (
+                    <span className="text-sm text-dark">{c.other_party || "—"}</span>
+                  ),
+                },
+                {
+                  header: "Date Filed",
+                  render: (c: PortalKpCase) => (
+                    <span className="whitespace-nowrap text-sm text-gray-600">
+                      {c.date_filed ? new Date(c.date_filed).toLocaleDateString("en-PH") : "—"}
+                    </span>
                   ),
                 },
                 {
                   header: "Status",
-                  render: (e: (typeof history)[number]) => <StatusBadge status={e.status} />,
-                },
-                {
-                  header: "Description",
-                  render: (e: (typeof history)[number]) => (
-                    <span className="text-sm text-gray-600">{e.description}</span>
-                  ),
-                },
-                {
-                  header: "Case",
-                  render: (e: (typeof history)[number]) => (
+                  render: (c: PortalKpCase) => (
                     <div className="leading-tight">
-                      <span className="text-sm text-gray-600">{e.title}</span>
-                      <span className="block font-mono text-[11px] text-gray-400">
-                        {e.case_number}
+                      <StatusBadge status={c.stage} />
+                      <span className="mt-1 block text-xs text-gray-500">
+                        {STAGE_MEANS[c.stage] ?? ""}
                       </span>
                     </div>
                   ),
                 },
+                {
+                  header: "Action",
+                  render: (c: PortalKpCase) => (
+                    <button
+                      type="button"
+                      onClick={() => setHistoryViewing(c)}
+                      className="cursor-pointer inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-primary/40 px-3.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
+                    >
+                      <FiClock className="h-3.5 w-3.5" aria-hidden="true" />
+                      View history
+                    </button>
+                  ),
+                },
               ]}
-              rows={history}
-              rowKey={(e) => e.key}
+              rows={cases}
+              rowKey={(c) => c.case_number}
               emptyMessage={VIEWS.history.empty}
             />
           ) : (
@@ -432,6 +471,100 @@ export default function LuponRecords() {
               <FiCalendar aria-hidden="true" className="h-4 w-4" />
               No sitting is on this case.
             </p>
+          )}
+        </div>
+      </Modal>
+
+      {/* The full history timeline of one case */}
+      <Modal
+        open={historyViewing !== null}
+        onClose={() => setHistoryViewing(null)}
+        title={historyViewing ? `Case History · ${historyViewing.case_number}` : "Case History"}
+        wide
+      >
+        <div className="p-5 space-y-4">
+          {historyViewing && (
+            <>
+              {/* Summary card at top of modal */}
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray bg-secondary/40 p-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-semibold text-primary">
+                      {historyViewing.case_number}
+                    </span>
+                    <span className="text-gray-300">·</span>
+                    <span className="font-semibold text-dark">{historyViewing.title}</span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
+                    <span>
+                      Role: <strong className="text-gray-700">{historyViewing.my_role}</strong>
+                    </span>
+                    <span>
+                      {historyViewing.my_role === "Complainant" ? "Against: " : "Filed by: "}
+                      <strong className="text-gray-700">{historyViewing.other_party || "—"}</strong>
+                    </span>
+                    {historyViewing.date_filed && (
+                      <span>
+                        Filed:{" "}
+                        <strong className="text-gray-700">
+                          {new Date(historyViewing.date_filed).toLocaleDateString("en-PH")}
+                        </strong>
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <StatusBadge status={historyViewing.stage} />
+                </div>
+              </div>
+
+              {/* Events table */}
+              {(historyViewing.history ?? []).length > 0 ? (
+                <DataTable
+                  numbered
+                  columns={[
+                    {
+                      header: "Date",
+                      render: (e: CaseHistoryEvent) => (
+                        <span className="whitespace-nowrap font-medium text-dark">
+                          {new Date(e.on).toLocaleDateString("en-PH")}
+                        </span>
+                      ),
+                    },
+                    {
+                      header: "Event",
+                      render: (e: CaseHistoryEvent) => (
+                        <span className="whitespace-nowrap text-sm font-medium text-dark">
+                          {e.event}
+                        </span>
+                      ),
+                    },
+                    {
+                      header: "Status",
+                      render: (e: CaseHistoryEvent) => <StatusBadge status={e.status} />,
+                    },
+                    {
+                      header: "Description",
+                      render: (e: CaseHistoryEvent) => (
+                        <span className="text-sm text-gray-600 leading-relaxed">
+                          {e.description}
+                        </span>
+                      ),
+                    },
+                  ]}
+                  rows={historyViewing.history ?? []}
+                  rowKey={(e: CaseHistoryEvent) =>
+                    `${e.on}-${e.event}-${e.status}-${(e.description || "").slice(0, 15)}`
+                  }
+                  emptyMessage="No events recorded for this case."
+                />
+              ) : (
+                <p className="flex items-center justify-center gap-2 py-8 text-center text-sm text-gray-400">
+                  <FiClock aria-hidden="true" className="h-4 w-4" />
+                  No events recorded for this case yet.
+                </p>
+              )}
+            </>
           )}
         </div>
       </Modal>

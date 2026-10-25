@@ -23,7 +23,11 @@ class CaseController extends BaseController
         $query = CaseFile::with(['officer:id,name'])->where('status', '!=', 'Archived');
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            if ($request->status !== 'all') {
+                $query->where('status', $request->status);
+            }
+        } else {
+            $query->where('status', 'Active');
         }
         /*
          * Filtering on the LIST, not the one-word column.
@@ -164,6 +168,10 @@ class CaseController extends BaseController
     {
         $validated = $request->validated();
 
+        if ($case->status === 'Closed' && ($validated['status'] ?? 'Closed') === 'Closed') {
+            return $this->error('Closed VAWC cases are read-only and cannot be modified.', 422);
+        }
+
         // Re-pointing a case at a different person is the single most
         // sensitive edit here, so it is named explicitly in the trail.
         if (array_key_exists('survivor_id', $validated) && $validated['survivor_id'] !== $case->survivor_id) {
@@ -172,6 +180,10 @@ class CaseController extends BaseController
 
         if (($validated['status'] ?? null) === 'Closed' && $case->status !== 'Closed') {
             $validated['closed_at'] = now();
+            AccessLog::record($case->id, 'case_closed', 'Case closed');
+        } elseif (($validated['status'] ?? null) === 'Active' && $case->status === 'Closed') {
+            $validated['closed_at'] = null;
+            AccessLog::record($case->id, 'case_reopened', 'Case reopened');
         }
 
         /* She reported it herself: nobody else's details stay on the case. */

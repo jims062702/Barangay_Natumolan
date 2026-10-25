@@ -37,10 +37,11 @@ const ageText = (child: Resident) => {
  * Deliberately apart from any dialogue: a child's food, schooling and care
  * are a welfare matter to be referred, not a term somebody agrees to.
  */
-export function ChildWelfareCard({ caseData, onEdit, active }: {
+export function ChildWelfareCard({ caseData, onEdit, active, className = "" }: {
   caseData: VawcCase;
   onEdit: () => void;
   active: boolean;
+  className?: string;
 }) {
   const children = caseData.dependents ?? [];
   const w = caseData.child_welfare;
@@ -49,6 +50,7 @@ export function ChildWelfareCard({ caseData, onEdit, active }: {
   return (
     <Card
       title="Child & Dependent Welfare"
+      className={className}
       action={active && <CardButton onClick={onEdit}>{w ? "Update" : "Record"}</CardButton>}
     >
       <ul className="space-y-2">

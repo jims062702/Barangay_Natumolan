@@ -4,6 +4,7 @@ interface FormFieldProps {
   label: string;
   required?: boolean;
   hint?: string;
+  error?: string;
   children: ReactNode;
   /**
    * Render as a plain <div> instead of a <label>.
@@ -25,6 +26,7 @@ export default function FormField({
   label,
   required,
   hint,
+  error,
   children,
   plain = false,
 }: FormFieldProps) {
@@ -37,7 +39,8 @@ export default function FormField({
         {required && <span className="text-danger"> *</span>}
       </span>
       {children}
-      {hint && <span className="mt-1 block text-xs text-gray-400">{hint}</span>}
+      {error && <span className="mt-1 block text-xs font-medium text-danger">{error}</span>}
+      {hint && !error && <span className="mt-1 block text-xs text-gray-400">{hint}</span>}
     </Wrapper>
   );
 }

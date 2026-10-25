@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { FiPlus, FiPrinter } from "react-icons/fi";
+import { FiEye, FiPlus, FiPrinter } from "react-icons/fi";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { usePulse } from "../../../shared/hooks/usePulse";
 import Card from "../../../shared/ui/Card";
 import DataTable from "../../../shared/ui/DataTable";
 import PageHeader from "../../../shared/ui/PageHeader";
+import RowAction, { RowActions } from "../../../shared/ui/RowAction";
 import type { Resident } from "../../../shared/types";
 import { healthApi } from "../api";
 import ImmunizationCardModal from "../components/ImmunizationCardModal";
@@ -117,13 +118,13 @@ export default function Immunization() {
               header: "Actions",
               render: (r: ImmunizationRecord) =>
                 r.child ? (
-                  <button
-                    type="button"
-                    onClick={() => openCard(r.child ?? null)}
-                    className="cursor-pointer whitespace-nowrap rounded-full border border-primary/40 px-3.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
-                  >
-                    Open record
-                  </button>
+                  <RowActions>
+                    <RowAction
+                      label="View immunization record"
+                      icon={FiEye}
+                      onClick={() => openCard(r.child ?? null)}
+                    />
+                  </RowActions>
                 ) : null,
             },
           ]}

@@ -58,7 +58,14 @@ class VawcReportController extends PortalController
             return $this->error($check['message'], 422, ['resident_card_code' => [$check['message']]]);
         }
 
-        $report = $reports->file($data, $resident, $check['card'], OnlineReport::VIA_PORTAL, $request->file('valid_id'));
+        $report = $reports->file(
+            $data,
+            $resident,
+            $check['card'],
+            OnlineReport::VIA_PORTAL,
+            $request->file('valid_id'),
+            $request->file('evidence', [])
+        );
 
         return $this->success([
             'reference_no' => $report->reference_no,

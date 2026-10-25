@@ -50,17 +50,21 @@ class AgreementController extends BaseController
             'discussion' => ['required', 'string'],
             'outcome' => ['required', Rule::in(Agreement::OUTCOMES)],
             'agreement' => ['nullable', 'string', 'required_if:outcome,Agreement reached'],
+            'close_case' => ['nullable', 'boolean'],
         ], [
             'session_date.before_or_equal' => 'A dialogue cannot be recorded for a future date.',
             'discussion.required' => 'Write what was discussed at the dialogue.',
-            'outcome.required' => 'Say whether the parties reached an agreement.',
+            'outcome.required' => 'Say whether the parties reached an agreement or not settled.',
             'agreement.required_if' => 'Write what the parties agreed to.',
         ]);
 
-        /* No agreement, nothing agreed — a leftover text would read as terms. */
-        if ($validated['outcome'] === 'No agreement') {
+        /* Not settled / No agreement: nothing agreed — terms cleared. */
+        if (in_array($validated['outcome'], ['Not settled', 'No agreement'], true)) {
             $validated['agreement'] = null;
         }
+
+        $closeCase = !empty($validated['close_case']);
+        unset($validated['close_case']);
 
         $agreement = Agreement::updateOrCreate(
             ['vawc_case_id' => $case->id],
@@ -73,11 +77,23 @@ class AgreementController extends BaseController
             $validated['outcome']
         );
 
+        if ($closeCase && $case->status === 'Active') {
+            $case->update([
+                'status' => 'Closed',
+                'closed_at' => now(),
+            ]);
+            AccessLog::record(
+                $case->id,
+                'case_closed',
+                "Case closed following dialogue ({$validated['outcome']})"
+            );
+        }
+
         return $this->success(
             $agreement->fresh()->load('recorder:id,name'),
             $agreement->wasRecentlyCreated
-                ? 'Dialogue recorded.'
-                : 'The dialogue record was updated.'
+                ? ($closeCase ? 'Dialogue recorded and case closed.' : 'Dialogue recorded.')
+                : ($closeCase ? 'Dialogue updated and case closed.' : 'The dialogue record was updated.')
         );
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Health;
 
 use App\Http\Controllers\Api\BaseController;
 use App\Models\Health\ChildRecord;
+use App\Models\Health\ImmunizationProfile;
 use App\Models\Health\ImmunizationRecord;
 use App\Models\Health\MaternalRecord;
 use App\Models\Health\Visit;
@@ -27,6 +28,7 @@ class PatientController extends BaseController
                 ->orderBy('vaccination_date', 'desc')
                 ->limit(10)
                 ->get(),
+            'immunization_profile' => ImmunizationProfile::where('resident_id', $resident->id)->first(),
             /* Every pregnancy and every weighing, newest first — there used
                to be one of each, which is why this said ->first(). */
             'maternal_health' => MaternalRecord::where('mother_id', $resident->id)

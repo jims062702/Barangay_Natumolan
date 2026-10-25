@@ -49,6 +49,10 @@ class ReferralController extends BaseController
 
     public function store(StoreReferralRequest $request, CaseFile $case)
     {
+        if ($case->status === 'Closed') {
+            return $this->error('Closed VAWC cases are read-only.', 422);
+        }
+
         $validated = $request->validated();
 
         /* Whoever records it is who referred her — shown, not typed. */
@@ -63,6 +67,10 @@ class ReferralController extends BaseController
 
     public function update(Request $request, CaseFile $case, Referral $referral)
     {
+        if ($case->status === 'Closed') {
+            return $this->error('Closed VAWC cases are read-only.', 422);
+        }
+
         if ($referral->vawc_case_id !== $case->id) {
             return $this->notFound('Referral does not belong to this case');
         }

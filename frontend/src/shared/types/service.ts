@@ -85,6 +85,7 @@ export interface Certificate {
    */
   status: string;
   cancel_reason?: string | null;
+  reason_for_cancellation?: string | null;
   reference_number: string;
   processed_at?: string | null;
   printed_at?: string | null;

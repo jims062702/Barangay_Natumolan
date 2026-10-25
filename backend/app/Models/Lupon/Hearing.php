@@ -103,7 +103,7 @@ class Hearing extends Model
     }
 
     /**
-     * Formatted schedule with day of week (e.g. "Tuesday, 8:00 AM – 10:00 AM")
+     * Formatted schedule with day of week and full date (e.g. "Tuesday, October 6, 2026")
      */
     public function getFormattedScheduleAttribute(): ?string
     {
@@ -115,10 +115,7 @@ class Hearing extends Model
             ? $this->scheduled_at->copy()
             : \Carbon\Carbon::parse($this->scheduled_at);
 
-        $dayName = $at->format('l');
-        $range = $this->schedule_time_range ?: $at->format('g:i A');
-
-        return "{$dayName}, {$range}";
+        return $at->format('l, F j, Y');
     }
 
     /**
@@ -140,7 +137,6 @@ class Hearing extends Model
         $start = $this->scheduled_at instanceof \Carbon\Carbon
             ? $this->scheduled_at->copy()
             : \Carbon\Carbon::parse($this->scheduled_at);
-        $end = $start->copy()->addMinutes(HearingCalendar::DURATION_MINUTES);
 
         // Future date
         if ($start->toDateString() > $now->toDateString()) {
@@ -153,15 +149,11 @@ class Hearing extends Model
         }
 
         // Today
-        if ($now->lt($start)) {
-            return 'Today';
-        }
-
-        if ($now->between($start, $end)) {
+        if ($this->started_at && ! $this->ended_at) {
             return 'On-going';
         }
 
-        return 'Completed';
+        return 'Today';
     }
 
     /**
@@ -173,37 +165,26 @@ class Hearing extends Model
     }
 
     /**
-     * When the appointment is EXPECTED to be over: 2 hours (120 minutes) on.
+     * No artificial 2-hour end duration.
      */
     public function getScheduledEndAtAttribute(): ?string
     {
-        if (! $this->scheduled_at) {
-            return null;
-        }
-        $at = $this->scheduled_at instanceof \Carbon\Carbon
-            ? $this->scheduled_at->copy()
-            : \Carbon\Carbon::parse($this->scheduled_at);
-
-        return $at->copy()->addMinutes(HearingCalendar::MINUTES_PER_SITTING)->toDateTimeString();
+        return null;
     }
 
     /**
-     * Formatted scheduled end time, e.g. "10:00 AM"
+     * No artificial 2-hour formatted end time.
      */
     public function getScheduledEndAtFormattedAttribute(): ?string
     {
-        if (! $this->scheduled_at) {
-            return null;
-        }
-        $at = $this->scheduled_at instanceof \Carbon\Carbon
-            ? $this->scheduled_at->copy()
-            : \Carbon\Carbon::parse($this->scheduled_at);
-
-        return $at->copy()->addMinutes(HearingCalendar::MINUTES_PER_SITTING)->format('g:i A');
+        return null;
     }
 
     /**
-     * Formatted hearing time range, e.g. "8:00 AM – 10:00 AM"
+     * Formatted hearing time for Summons and Notice of Hearing:
+     * 1-hour interval, lunch break 12:00 PM - 1:00 PM:
+     * Slot 1: 8:00 AM, Slot 2: 9:00 AM, Slot 3: 10:00 AM, Slot 4: 11:00 AM,
+     * Slot 5: 1:00 PM, Slot 6: 2:00 PM, Slot 7: 3:00 PM, Slot 8: 4:00 PM
      */
     public function getScheduleTimeRangeAttribute(): ?string
     {
@@ -215,10 +196,43 @@ class Hearing extends Model
             ? $this->scheduled_at->copy()
             : \Carbon\Carbon::parse($this->scheduled_at);
 
-        $start = $at->format('g:i A');
-        $end = $this->scheduled_end_at_formatted;
+        $h = (int) $at->format('G');
+        $m = (int) $at->format('i');
 
-        return "{$start} – {$end}";
+        $standardMap = [
+            8 => '8:00 AM',
+            9 => '9:00 AM',
+            10 => '10:00 AM',
+            11 => '11:00 AM',
+            13 => '1:00 PM',
+            14 => '2:00 PM',
+            15 => '3:00 PM',
+            16 => '4:00 PM',
+        ];
+
+        if (isset($standardMap[$h]) && $m === 0) {
+            return $standardMap[$h];
+        }
+
+        $slots = [
+            '8:00 AM',
+            '9:00 AM',
+            '10:00 AM',
+            '11:00 AM',
+            '1:00 PM',
+            '2:00 PM',
+            '3:00 PM',
+            '4:00 PM',
+        ];
+
+        $dateStr = $at->toDateString();
+        $index = static::whereDate('scheduled_at', $dateStr)
+            ->where('hearing_type', $this->hearing_type)
+            ->where('id', '<', $this->id)
+            ->where('status', 'Scheduled')
+            ->count();
+
+        return $slots[$index % count($slots)] ?? $at->format('g:i A');
     }
 
     /**

@@ -54,7 +54,7 @@ const PortalProfile = lazyRoute(() => import("../features/portal/pages/Profile")
 // Shared core (staff)
 const LuponRecords = lazyRoute(() => import("../features/portal/pages/LuponRecords"));
 const PortalFileComplaint = lazyRoute(() => import("../features/portal/pages/FileComplaint"));
-const PortalVawcReport = lazyRoute(() => import("../features/portal/pages/VawcReport"));
+const PortalVawcRecords = lazyRoute(() => import("../features/portal/pages/VawcRecords"));
 const PortalHealthRecords = lazyRoute(() => import("../features/portal/pages/HealthRecords"));
 const ResidentList = lazyRoute(() => import("../features/resident/pages/ResidentList"));
 const ResidentCreate = lazyRoute(() => import("../features/resident/pages/ResidentCreate"));
@@ -241,11 +241,17 @@ export default function App() {
             <Route path="lupon/history" element={<LuponRecords key="history" />} />
             {/* The address the old single list lived at. */}
             <Route path="lupon/cases" element={<Navigate to="/resident/lupon/filed" replace />} />
-            {/* Filing one, and the reference numbers it gives back. Not
-                under lupon/ with the cases: a complaint begun here is not
-                a case, and the sidebar should not imply it is. */}
-            <Route path="file-complaint" element={<PortalFileComplaint />} />
-            <Route path="vawc-report" element={<PortalVawcReport />} />
+            {/* Online complaints — filed and followed under Lupon Records */}
+            <Route path="lupon/complaints" element={<PortalFileComplaint />} />
+            <Route path="file-complaint" element={<Navigate to="/resident/lupon/complaints" replace />} />
+            {/* VAWC Records — 4 dedicated sub-routes matching the sidebar dropdown */}
+            <Route path="vawc" element={<PortalVawcRecords key="vawc" />} />
+            <Route path="vawc/reports" element={<PortalVawcRecords key="reports" />} />
+            <Route path="vawc/cases" element={<PortalVawcRecords key="cases" />} />
+            <Route path="vawc/bpo" element={<PortalVawcRecords key="bpo" />} />
+            <Route path="vawc/tracking" element={<PortalVawcRecords key="tracking" />} />
+            {/* Redirect old single page to the reports view */}
+            <Route path="vawc-report" element={<Navigate to="/resident/vawc/reports" replace />} />
             {/* Read only — the page says so, and the API offers no writer. */}
             <Route path="health" element={<PortalHealthRecords />} />
             <Route path="announcements" element={<PortalAnnouncements />} />
@@ -330,8 +336,8 @@ export default function App() {
             element={
               <Guarded
                 staffOnly
-                allowedOffices={["Main Office"]}
-                allowedRoles={["Punong Barangay"]}
+                allowedOffices={["Main Office", "Admin"]}
+                allowedRoles={["Punong Barangay", "Admin"]}
                 deniedRoles={["Clerk"]}
               />
             }
@@ -355,7 +361,7 @@ export default function App() {
 
           {/* Certificates & clearances — the clerk runs the counter end to
               end; the PB/Secretary only sign the printed paper. */}
-          <Route element={<Guarded staffOnly allowedOffices={["Main Office"]} allowedRoles={["Punong Barangay"]} />}>
+          <Route element={<Guarded staffOnly allowedOffices={["Main Office"]} allowedRoles={["Punong Barangay"]} deniedRoles={["Secretary"]} />}>
             <Route path="/certificates" element={<CertificateList />} />
             <Route path="/certificates/report" element={<CertificateReport />} />
             {/* Lupon fees, taken at the Clerk's counter. The Lupon asks;
@@ -372,15 +378,16 @@ export default function App() {
 
           {/* VAWC Office — isolated */}
           <Route element={<Guarded staffOnly allowedOffices={["VAWC"]} />}>
-            <Route path="/vawc/cases" element={<VawcCasesList />} />
+            <Route path="/vawc/cases" element={<VawcCasesList key="active" initialStatus="Active" />} />
+            <Route path="/vawc/cases/closed" element={<VawcCasesList key="closed" initialStatus="Closed" />} />
             <Route path="/vawc/cases/:id" element={<ByRecord><VawcCaseDetail /></ByRecord>} />
             <Route path="/vawc/documents" element={<VawcDocuments />} />
             <Route path="/vawc/reports" element={<VawcReports />} />
             <Route path="/vawc/online-reports" element={<VawcOnlineReports />} />
           </Route>
 
-          {/* Lupon — Lupon office + Punong Barangay */}
-          <Route element={<Guarded staffOnly allowedOffices={["Lupon"]} allowedRoles={["Punong Barangay"]} />}>
+          {/* Lupon — Lupon office + Main Office (PB & Secretary), Admin; denies Clerk */}
+          <Route element={<Guarded staffOnly allowedOffices={["Lupon", "Main Office", "Admin"]} allowedRoles={["Punong Barangay", "Secretary", "Admin"]} deniedRoles={["Clerk"]} />}>
             <Route path="/lupon/cases" element={<LuponCasesList />} />
             {/* The queue in front of the docket. Same guard, because
                 accepting one of these IS filing a case. */}
@@ -476,7 +483,7 @@ export default function App() {
 
           {/* Service guides (AI KB) & administrative records — Main Office / PB / Admin
               (the Clerk is limited to requests & certificates) */}
-          <Route element={<Guarded staffOnly allowedOffices={["Main Office"]} allowedRoles={["Punong Barangay"]} deniedRoles={["Clerk"]} />}>
+          <Route element={<Guarded staffOnly allowedOffices={["Main Office", "Admin"]} allowedRoles={["Punong Barangay", "Admin"]} deniedRoles={["Clerk"]} />}>
             <Route path="/records" element={<AdministrativeRecords />} />
           </Route>
 

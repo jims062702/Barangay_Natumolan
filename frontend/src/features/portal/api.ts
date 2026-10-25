@@ -38,6 +38,9 @@ export const portalApi = {
   /* Their VAWC reports to the VAW Desk: sent, and where each stands. */
   vawcReports: (...args: QueryArgs) =>
     api.get("/portal/vawc-reports", ...args),
+  /* Complete VAWC records: online complaints, confidential cases, BPO orders, tracking */
+  vawcRecords: (...args: QueryArgs) =>
+    api.get("/portal/vawc-records", ...args),
   sendVawcReport: (...args: BodyArgs) =>
     api.post("/portal/vawc-reports", ...args),
   residentCard: (...args: QueryArgs) =>

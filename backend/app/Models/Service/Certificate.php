@@ -86,7 +86,17 @@ class Certificate extends Model
 
     /* total_amount: the fee plus the stamp — the figure the resident actually
        pays, so no screen has to add the two together and risk forgetting one. */
-    protected $appends = ['photo_url', 'total_amount'];
+    protected $appends = ['photo_url', 'total_amount', 'reason_for_cancellation'];
+
+    public function getReasonForCancellationAttribute(): ?string
+    {
+        return $this->cancel_reason;
+    }
+
+    public function setReasonForCancellationAttribute(?string $value): void
+    {
+        $this->attributes['cancel_reason'] = $value;
+    }
 
     /**
      * The counter photograph, for the clearance that carries one.

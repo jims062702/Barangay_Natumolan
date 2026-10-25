@@ -45,8 +45,7 @@ class PaymentController extends BaseController
         $case->refresh();
 
         if ($case->current_stage === CaseFile::CLOSED_UNPAID) {
-            return $this->error('The ' . FilingFeeDeadlines::DAYS . ' days to pay the filing fee ended on '
-                . FilingFeeDeadlines::dueWords($case->payment_due_at) . ', so the case was closed unpaid. '
+            return $this->error('The filing fee was not paid, so the case was closed unpaid. '
                 . 'The complainant may file the complaint again.', 422);
         }
 

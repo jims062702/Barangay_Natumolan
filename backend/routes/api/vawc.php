@@ -62,6 +62,7 @@ Route::prefix('vawc')->middleware('office:VAWC')->group(function () {
     Route::post('cases/{case}/followup', [FollowupController::class, 'store']);
     Route::get('cases/{case}/documents', [DocumentController::class, 'forCase']);
     Route::post('cases/{case}/documents', [DocumentController::class, 'store']);
+    Route::get('cases/{case}/documents/{document}/file', [DocumentController::class, 'file']);
     Route::get('cases/{case}/access-logs', [AccessLogController::class, 'forCase']);
     Route::get('reports/statistics', [ReportController::class, 'statistics']);
     /* The printed forms: VAW-C Cases (names — logged per case), VAW Form 1,
@@ -74,6 +75,7 @@ Route::prefix('vawc')->middleware('office:VAWC')->group(function () {
     Route::get('online-reports', [OnlineReportController::class, 'index']);
     Route::get('online-reports/{report}', [OnlineReportController::class, 'show']);
     Route::get('online-reports/{report}/id', [OnlineReportController::class, 'validId']);
+    Route::get('online-reports/{report}/evidence/{index}', [OnlineReportController::class, 'evidence']);
     Route::post('online-reports/{report}/accept', [OnlineReportController::class, 'accept']);
     Route::post('online-reports/{report}/decline', [OnlineReportController::class, 'decline']);
 });

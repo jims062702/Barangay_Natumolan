@@ -68,7 +68,9 @@ export function CaseTable({ ctx }: { ctx: CaseRegistryState }) {
                   tone="primary"
                   to={`/vawc/cases/${c.id}`}
                 />
-                <RowAction label="Edit case" icon={FiEdit2} onClick={() => openEdit(c)} />
+                {c.status !== "Closed" && (
+                  <RowAction label="Edit case" icon={FiEdit2} onClick={() => openEdit(c)} />
+                )}
               </RowActions>
             ),
           },

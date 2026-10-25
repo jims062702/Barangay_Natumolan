@@ -1,9 +1,11 @@
+import { useState, useEffect } from "react";
 import DraftNotice from "../../../../shared/ui/DraftNotice";
 import Modal from "../../../../shared/ui/Modal";
 import FormField from "../../../../shared/ui/FormField";
+import { api } from "../../../../shared/lib/api";
 import { asDate, input, blankAttendee, ATTENDANCE } from "../../lib/sessions";
 import type { SessionRecordsState } from "../../hooks/useSessionRecords";
-import type { Attendee } from "../../types";
+import type { Attendee, Official } from "../../types";
 
 /**
  * Writing the record of a session: when, who attended, and what was taken up.
@@ -15,6 +17,17 @@ export function SessionEditor({ ctx }: { ctx: SessionRecordsState }) {
     status, setStatus, agenda, setAgenda, minutes, setMinutes, setAttendees, attendees,
     setAttendee, saving, draft,
   } = ctx;
+
+  const [officialsList, setOfficialsList] = useState<Official[]>([]);
+
+  useEffect(() => {
+    api.get<{ data: { barangay: Official[]; sk: Official[] } }>("/officials")
+      .then((res) => {
+        const bg = res.data?.data?.barangay ?? [];
+        setOfficialsList(bg);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <Modal
@@ -120,15 +133,74 @@ export function SessionEditor({ ctx }: { ctx: SessionRecordsState }) {
           The question asked of this record is "was this kagawad present",
           and a name buried in a sentence cannot answer it.
         */}
-        <div>
+        <div className="space-y-3">
+          <FormField
+            label="Attendance (officials)"
+            hint="Choose barangay officials from the dropdown to record their attendance, or add all council members"
+          >
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <select
+                value=""
+                onChange={(e) => {
+                  const id = Number(e.target.value);
+                  if (!id) return;
+                  const off = officialsList.find((o) => o.id === id);
+                  if (!off) return;
+                  if (!attendees.some((a) => a.name.toLowerCase() === off.name.toLowerCase())) {
+                    setAttendees((prev) => [
+                      ...prev,
+                      { name: off.name, position: off.position, attendance: "Present", remarks: null },
+                    ]);
+                  }
+                }}
+                className={input}
+              >
+                <option value="">Select an official to add…</option>
+                {officialsList.map((o) => {
+                  const alreadyAdded = attendees.some(
+                    (a) => a.name.toLowerCase() === o.name.toLowerCase()
+                  );
+                  return (
+                    <option key={o.id} value={o.id} disabled={alreadyAdded}>
+                      {o.name} ({o.position}){alreadyAdded ? " — already added" : ""}
+                    </option>
+                  );
+                })}
+              </select>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setAttendees((prev) => {
+                    const existingNames = new Set(prev.map((a) => a.name.toLowerCase()));
+                    const toAdd = officialsList
+                      .filter((o) => !existingNames.has(o.name.toLowerCase()))
+                      .map((o) => ({
+                        name: o.name,
+                        position: o.position,
+                        attendance: "Present" as const,
+                        remarks: null,
+                      }));
+                    return [...prev, ...toAdd];
+                  });
+                }}
+                className="whitespace-nowrap rounded-xl border border-gray bg-white px-3 py-2 text-xs font-semibold text-primary transition hover:border-primary cursor-pointer"
+              >
+                + Add all council officials
+              </button>
+            </div>
+          </FormField>
+
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-medium text-dark">Attendance</span>
+            <span className="text-sm font-medium text-dark">
+              Recorded Attendance ({attendees.length})
+            </span>
             <button
               type="button"
               onClick={() => setAttendees((l) => [...l, blankAttendee()])}
               className="cursor-pointer text-xs font-semibold text-primary hover:underline"
             >
-              + Add an official
+              + Add custom attendee
             </button>
           </div>
 

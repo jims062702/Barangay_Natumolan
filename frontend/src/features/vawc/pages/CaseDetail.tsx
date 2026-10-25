@@ -20,11 +20,9 @@ import { ProtectionCard, bpoActionFor, orderInEffect } from "../components/detai
 import { ProtectionOrderModal } from "../components/detail/ProtectionOrderModal";
 import { SafetyModal } from "../components/detail/SafetyModal";
 import { ReferralModal, ReferralsCard } from "../components/detail/Referrals";
-import { FollowupModal, FollowupsCard } from "../components/detail/Followups";
 import { AssessmentCard, AssessmentModal } from "../components/detail/Assessment";
 import { DialogueCard, DialogueModal } from "../components/detail/Dialogue";
 import { ChildWelfareCard, ChildWelfareModal } from "../components/detail/ChildWelfare";
-import { DocumentModal, DocumentsCard } from "../components/detail/Documents";
 import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
 
 /** Who reported it, in one line. */
@@ -74,9 +72,14 @@ export default function CaseDetail() {
     /* Closing does not end a BPO — it runs its fifteen days regardless — so
        the desk is told, rather than left to assume the case is finished. */
     const current = orderInEffect(caseData?.protection_orders ?? []);
-    const text = status === "Closed" && current
+    let text = status === "Closed" && current
       ? `A BPO is still in effect until ${formatDay(current.expires_on)}. Closing the case does not end it.`
       : undefined;
+
+    if (status === "Closed" && caseData?.agreement) {
+      const diagNote = `Dialogue was conducted with outcome: "${caseData.agreement.outcome}".`;
+      text = text ? `${text} ${diagNote}` : diagNote;
+    }
 
     if (!(await confirmAction({
       title: status === "Closed" ? "Close this case?" : "Reopen this case?",
@@ -109,8 +112,6 @@ export default function CaseDetail() {
       why: closed ?? (caseData.respondent_id ? undefined : "Name the respondent first."),
     },
     { label: "Create Referral", icon: ACTION_ICONS.referral, onSelect: () => setModal({ kind: "referral" }), disabled: !active, why: closed },
-    { label: "Record Follow-up", icon: ACTION_ICONS.followup, onSelect: () => setModal({ kind: "followup" }), disabled: !active, why: closed },
-    { label: "Add Confidential Document", icon: ACTION_ICONS.document, onSelect: () => setModal({ kind: "document" }), disabled: !active, why: closed },
     { label: "Update Safety Assessment", icon: ACTION_ICONS.safety, onSelect: () => setModal({ kind: "safety" }), disabled: !active, why: closed },
     active
       ? { label: "Close Case", icon: ACTION_ICONS.close, onSelect: () => updateStatus("Closed") }
@@ -201,21 +202,22 @@ export default function CaseDetail() {
           className="lg:col-span-2"
         />
 
-        <DialogueCard caseData={caseData} onEdit={() => setModal({ kind: "dialogue" })} active={active} />
+        <DialogueCard
+          caseData={caseData}
+          onEdit={() => setModal({ kind: "dialogue" })}
+          onCloseCase={() => updateStatus("Closed")}
+          active={active}
+        />
 
         {/* Only when the case has children or dependents. */}
         {hasChildren && (
-          <ChildWelfareCard caseData={caseData} onEdit={() => setModal({ kind: "children" })} active={active} />
+          <ChildWelfareCard
+            caseData={caseData}
+            onEdit={() => setModal({ kind: "children" })}
+            active={active}
+            className="lg:col-span-3"
+          />
         )}
-
-        <FollowupsCard
-          caseData={caseData}
-          onRecord={() => setModal({ kind: "followup" })}
-          active={active}
-          className={hasChildren ? "" : "lg:col-span-2"}
-        />
-
-        <DocumentsCard caseData={caseData} onAdd={() => setModal({ kind: "document" })} active={active} />
       </div>
 
       <ProtectionOrderModal caseId={caseData.id} modal={modal} onClose={close} onSaved={load} />
@@ -227,13 +229,11 @@ export default function CaseDetail() {
         onNeedsBpo={() => setModal({ kind: "bpo", mode: "new" })}
       />
       <ReferralModal caseId={caseData.id} open={modal?.kind === "referral"} onClose={close} onSaved={load} />
-      <FollowupModal caseData={caseData} open={modal?.kind === "followup"} onClose={close} onSaved={load} />
       <AssessmentModal caseData={caseData} open={modal?.kind === "assessment"} onClose={close} onSaved={load} />
       <DialogueModal caseData={caseData} open={modal?.kind === "dialogue"} onClose={close} onSaved={load} />
       {hasChildren && (
         <ChildWelfareModal caseData={caseData} open={modal?.kind === "children"} onClose={close} onSaved={load} />
       )}
-      <DocumentModal caseId={caseData.id} open={modal?.kind === "document"} onClose={close} onSaved={load} />
     </div>
   );
 }

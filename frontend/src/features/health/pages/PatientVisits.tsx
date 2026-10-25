@@ -104,11 +104,15 @@ export default function PatientVisits() {
 
   const create = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!patient) {
+      toast("Please search and select a patient from the resident list first.", "error");
+      return;
+    }
     if (!(await confirmAction({ title: "Record this patient visit?", confirmText: "Yes, record" }))) return;
     try {
       const saved = await healthApi.recordVisit(
-        itrPayload(draft, patient?.id),
-        { offline: { label: `Patient visit — ${patient ? patient.first_name + " " + patient.last_name : "unnamed patient"}` } },
+        itrPayload(draft, patient.id),
+        { offline: { label: `Patient visit — ${patient.first_name} ${patient.last_name}` } },
       );
       visitDraft.clear();
       setCreateOpen(false);
@@ -238,10 +242,9 @@ export default function PatientVisits() {
             <DraftNotice draft={visitDraft} />
             <button
               type="submit"
-              disabled={!patient}
-              className="w-full cursor-pointer rounded-full bg-primary py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark disabled:opacity-50"
+              className="w-full cursor-pointer rounded-full bg-primary py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
             >
-              Record consultation
+              {patient ? "Record consultation" : "Select a patient to record consultation"}
             </button>
           </div>
         </form>
