@@ -15,8 +15,9 @@ use Illuminate\Queue\SerializesModels;
  *
  * Carries the plain code, which exists only for the length of this send —
  * the row stores a hash, the same as the activation code does.
+ * Sent synchronously so the user receives their code immediately without queue lag.
  */
-class PasswordResetCode extends Mailable implements ShouldQueue
+class PasswordResetCode extends Mailable
 {
     use Queueable, SerializesModels;
 

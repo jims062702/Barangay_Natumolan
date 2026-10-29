@@ -13,8 +13,9 @@ use Illuminate\Queue\SerializesModels;
 /**
  * The one-time code that activates a portal account. Carries the plain code,
  * which exists only for the length of this send — the row stores a hash.
+ * Sent synchronously so the user receives their code immediately without queue lag.
  */
-class PortalActivationCode extends Mailable implements ShouldQueue
+class PortalActivationCode extends Mailable
 {
     use Queueable, SerializesModels;
 
