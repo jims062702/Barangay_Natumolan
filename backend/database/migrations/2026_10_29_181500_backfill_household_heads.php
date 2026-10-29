@@ -34,3 +34,4 @@ return new class extends Migration
         // Intentionally empty
     }
 };
+

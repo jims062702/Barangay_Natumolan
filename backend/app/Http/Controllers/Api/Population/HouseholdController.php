@@ -87,6 +87,16 @@ class HouseholdController extends BaseController
         return $this->success($page, 'Households retrieved');
     }
 
+    public function show(Household $household)
+    {
+        $household->load([
+            'head',
+            'residents' => fn ($q) => $q->whereNull('merged_into_id'),
+        ]);
+
+        return $this->success($household, 'Household details retrieved');
+    }
+
     public function store(StoreHouseholdRequest $request)
     {
         $validated = $request->validated();
@@ -265,6 +275,8 @@ class HouseholdController extends BaseController
             'new_household.house_type' => 'nullable|string',
             'reason' => 'nullable|string|max:255',
             'sync_address' => 'nullable|boolean',
+            'old_head_action' => 'nullable|string|in:retain,replace,unassign',
+            'replacement_head_id' => 'nullable|exists:residents,id',
         ]);
 
         $residents = Resident::whereIn('id', $validated['resident_ids'])->get();
@@ -288,6 +300,8 @@ class HouseholdController extends BaseController
 
             $oldHouseholdIds = [];
             $syncAddress = $validated['sync_address'] ?? true;
+            $oldHeadAction = $validated['old_head_action'] ?? 'retain';
+            $replacementHeadId = $validated['replacement_head_id'] ?? null;
 
             foreach ($residents as $resident) {
                 $oldHouseholdId = $resident->household_id;
@@ -295,13 +309,27 @@ class HouseholdController extends BaseController
                     $oldHouseholdIds[$oldHouseholdId] = true;
                     $oldHh = Household::find($oldHouseholdId);
 
-                    // If this resident was the head of their old household, record move out
+                    // If this resident was the head of their old household
                     if ($oldHh && (int) $oldHh->household_head_id === (int) $resident->id) {
-                        $oldHh->handOverTo(
-                            null,
-                            'Moved out',
-                            'Transferred to Household ' . $newHousehold->household_number . (!empty($validated['reason']) ? ": {$validated['reason']}" : '')
-                        );
+                        if ($oldHeadAction === 'replace' && $replacementHeadId) {
+                            $replacer = Resident::find($replacementHeadId);
+                            if ($replacer) {
+                                $oldHh->handOverTo(
+                                    $replacer,
+                                    'Replacement Head',
+                                    'Assigned new head as previous head (' . $resident->full_name . ') transferred to Household ' . $newHousehold->household_number
+                                );
+                            }
+                        } elseif ($oldHeadAction === 'unassign') {
+                            $oldHh->handOverTo(
+                                null,
+                                'Moved out',
+                                'Transferred to Household ' . $newHousehold->household_number . (!empty($validated['reason']) ? ": {$validated['reason']}" : '')
+                            );
+                        }
+                        // Note: If $oldHeadAction === 'retain' (or not unassigned/replaced),
+                        // the resident remains the household_head_id (property owner) of $oldHh.
+                        // In barangay records, a resident can own/head multiple households.
                     }
                 }
 

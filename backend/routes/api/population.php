@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('population')->middleware('office:Population,AdminRole')->group(function () {
     Route::get('households', [HouseholdController::class, 'index']);
+    Route::get('households/{household}', [HouseholdController::class, 'show']);
     Route::post('households', [HouseholdController::class, 'store']);
     Route::put('households/{household}', [HouseholdController::class, 'update']);
     Route::put('households/{household}/head', [HouseholdController::class, 'setHead']);

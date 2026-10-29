@@ -24,6 +24,8 @@ export const populationApi = {
     api.put(`/population/events/${eventId}/verify`, ...args),
   households: (...args: QueryArgs) =>
     api.get("/population/households", ...args),
+  household: (householdId: PathParam, ...args: QueryArgs) =>
+    api.get(`/population/households/${householdId}`, ...args),
   createHousehold: (...args: BodyArgs) =>
     api.post("/population/households", ...args),
   transferResident: (...args: BodyArgs) =>

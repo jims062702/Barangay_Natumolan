@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { FiEdit2, FiEye, FiPlus, FiRepeat, FiUserPlus, FiX } from "react-icons/fi";
 import { personName } from "../../../shared/lib/names";
 import { errorMessage } from "../../../shared/lib/api";
@@ -67,6 +67,50 @@ export default function HouseholdList() {
   const [transferSyncAddress, setTransferSyncAddress] = useState(true);
   const [transferring, setTransferring] = useState(false);
 
+  // Source Household Head handling state
+  const [oldHeadAction, setOldHeadAction] = useState<"retain" | "replace" | "unassign">("retain");
+  const [replacementHeadId, setReplacementHeadId] = useState<number | null>(null);
+  const [sourceRemainingMembers, setSourceRemainingMembers] = useState<Resident[]>([]);
+
+  const transferringHead = useMemo(() => {
+    return transferResidents.find((r) => {
+      if (viewing && viewing.id === r.household_id && viewing.head?.id === r.id) return true;
+      if (r.household && r.household.household_head_id === r.id) return true;
+      return false;
+    }) ?? null;
+  }, [transferResidents, viewing]);
+
+  useEffect(() => {
+    if (!transferringHead) {
+      setSourceRemainingMembers([]);
+      setReplacementHeadId(null);
+      return;
+    }
+
+    const houseId = transferringHead.household_id ?? (viewing?.head?.id === transferringHead.id ? viewing.id : null);
+    if (!houseId) return;
+
+    if (viewing && viewing.id === houseId) {
+      const remaining = (viewing.residents ?? []).filter(
+        (m) => !transferResidents.some((tr) => tr.id === m.id)
+      );
+      setSourceRemainingMembers(remaining);
+      if (remaining.length > 0) setReplacementHeadId(remaining[0].id);
+      return;
+    }
+
+    populationApi.household(houseId)
+      .then((res) => {
+        const h = res.data?.data as Household;
+        const remaining = (h?.residents ?? []).filter(
+          (m) => !transferResidents.some((tr) => tr.id === m.id)
+        );
+        setSourceRemainingMembers(remaining);
+        if (remaining.length > 0) setReplacementHeadId(remaining[0].id);
+      })
+      .catch(() => undefined);
+  }, [transferringHead, transferResidents, viewing]);
+
   const load = (silent = false) => {
     if (!silent) setLoading(true);
     populationApi.households({ params: { page } })
@@ -130,6 +174,8 @@ export default function HouseholdList() {
     setNewHouseholdType("Concrete");
     setTransferReason("");
     setTransferSyncAddress(true);
+    setOldHeadAction("retain");
+    setReplacementHeadId(null);
     setTransferModalOpen(true);
   };
 
@@ -171,6 +217,11 @@ export default function HouseholdList() {
       }
     }
 
+    if (transferringHead && oldHeadAction === "replace" && !replacementHeadId && sourceRemainingMembers.length > 0) {
+      toast("Please select a replacement Household Head for the previous household.", "error");
+      return;
+    }
+
     const namesList = transferResidents.length <= 2
       ? transferResidents.map((r) => personName(r)).join(" and ")
       : `${personName(transferResidents[0])} and ${transferResidents.length - 1} other residents`;
@@ -201,6 +252,8 @@ export default function HouseholdList() {
         head_resident_id: assignedHeadId ?? undefined,
         reason: transferReason.trim() || undefined,
         sync_address: transferSyncAddress,
+        old_head_action: transferringHead ? oldHeadAction : undefined,
+        replacement_head_id: transferringHead && oldHeadAction === "replace" ? replacementHeadId : undefined,
       };
 
       if (destinationMode === "new") {
@@ -660,6 +713,123 @@ export default function HouseholdList() {
                       )}
                     </label>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* If any transferred resident is the head of their current household, ask what to do with the source household */}
+            {transferringHead && (
+              <div className="rounded-2xl border border-primary/30 bg-primary/[0.03] p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-primary/20 pb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] text-white font-bold">!</span>
+                    <h4 className="text-xs font-bold text-dark">
+                      Pamamahala ng Dating Household (Source Household)
+                    </h4>
+                  </div>
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                    Current Head: {personName(transferringHead)}
+                  </span>
+                </div>
+
+                <p className="text-[11px] text-gray-600 leading-relaxed">
+                  Si <strong className="text-dark">{personName(transferringHead)}</strong> ang kasalukuyang Household Head / may-ari ng kanilang dating household ({transferringHead.household?.household_number || "current household"}). Pumili kung anong gagawin sa dating household:
+                </p>
+
+                <div className="space-y-2">
+                  {/* Option 1: Retain ownership */}
+                  <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors ${
+                    oldHeadAction === "retain" ? "border-primary bg-primary/10 shadow-xs" : "border-gray/70 bg-white hover:border-gray"
+                  }`}>
+                    <input
+                      type="radio"
+                      name="old_head_action"
+                      value="retain"
+                      checked={oldHeadAction === "retain"}
+                      onChange={() => setOldHeadAction("retain")}
+                      className="mt-0.5 h-4 w-4 accent-primary cursor-pointer shrink-0"
+                    />
+                    <div>
+                      <p className="text-xs font-bold text-dark">
+                        Manatiling May-ari / Household Head si {personName(transferringHead)} sa dating household
+                      </p>
+                      <p className="text-[11px] text-gray-500 mt-0.5">
+                        Siya pa rin ang nakatalang may-ari ng dating tirahan kahit lumipat o magmay-ari ng bagong household. Ang isang residente ay maaaring magmay-ari ng isa o higit pang household (maraming ari-arian).
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Option 2: Replace with another member */}
+                  <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors ${
+                    oldHeadAction === "replace" ? "border-primary bg-primary/10 shadow-xs" : "border-gray/70 bg-white hover:border-gray"
+                  }`}>
+                    <input
+                      type="radio"
+                      name="old_head_action"
+                      value="replace"
+                      checked={oldHeadAction === "replace"}
+                      onChange={() => setOldHeadAction("replace")}
+                      className="mt-0.5 h-4 w-4 accent-primary cursor-pointer shrink-0"
+                    />
+                    <div className="w-full min-w-0">
+                      <p className="text-xs font-bold text-dark">
+                        Pumili ng bagong Household Head para sa dating household
+                      </p>
+                      <p className="text-[11px] text-gray-500 mt-0.5">
+                        Italaga ang pamumuno sa isa sa mga natitirang miyembro ng naturang household.
+                      </p>
+
+                      {oldHeadAction === "replace" && (
+                        <div className="mt-2.5 pt-2 border-t border-primary/20">
+                          {sourceRemainingMembers.length > 0 ? (
+                            <div>
+                              <label className="block text-[11px] font-bold text-dark mb-1">
+                                Bagong Household Head ng dating household:
+                              </label>
+                              <select
+                                value={replacementHeadId ?? ""}
+                                onChange={(e) => setReplacementHeadId(Number(e.target.value) || null)}
+                                className="w-full rounded-xl border border-gray bg-white px-3 py-2 text-xs text-dark outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                              >
+                                <option value="">-- Pumili ng kapalit na Household Head --</option>
+                                {sourceRemainingMembers.map((m) => (
+                                  <option key={m.id} value={m.id}>
+                                    {personName(m)} ({m.resident_number}) {m.gender ? `· ${m.gender}` : ""}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          ) : (
+                            <p className="text-[11px] text-amber-700 bg-amber-50 rounded-lg p-2 border border-amber-200">
+                              Walang ibang natitirang miyembro sa dating household upang italagang kapalit.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </label>
+
+                  {/* Option 3: Leave unassigned */}
+                  <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors ${
+                    oldHeadAction === "unassign" ? "border-primary bg-primary/10 shadow-xs" : "border-gray/70 bg-white hover:border-gray"
+                  }`}>
+                    <input
+                      type="radio"
+                      name="old_head_action"
+                      value="unassign"
+                      checked={oldHeadAction === "unassign"}
+                      onChange={() => setOldHeadAction("unassign")}
+                      className="mt-0.5 h-4 w-4 accent-primary cursor-pointer shrink-0"
+                    />
+                    <div>
+                      <p className="text-xs font-bold text-dark">
+                        Iwanang walang Household Head muna (No owner set)
+                      </p>
+                      <p className="text-[11px] text-gray-500 mt-0.5">
+                        Aalisin ang pagiging head sa dating household nang walang ipinapalit pansamantala.
+                      </p>
+                    </div>
+                  </label>
                 </div>
               </div>
             )}

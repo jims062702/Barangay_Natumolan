@@ -464,7 +464,8 @@ class ResidentController extends BaseController
             // address; a phone number sits inside the same staff-only gate.
             //
             // `gender` travels so a picker asked for mothers can show it.
-            ->get(['id', 'resident_number', 'record_type', 'life_status', 'gender', 'first_name', 'middle_name', 'last_name', 'suffix', 'birthdate', 'zone_purok', 'contact_number']);
+            ->with('household:id,household_number,household_head_id')
+            ->get(['id', 'resident_number', 'household_id', 'record_type', 'life_status', 'gender', 'first_name', 'middle_name', 'last_name', 'suffix', 'birthdate', 'zone_purok', 'contact_number']);
 
         return $this->success($residents, 'Search results');
     }
