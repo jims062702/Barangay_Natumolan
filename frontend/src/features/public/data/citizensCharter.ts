@@ -41,8 +41,6 @@ export interface CitizensCharterItem {
   steps: CharterStep[];
   totalFee: string;
   totalTime: string;
-  portalLink?: string;
-  portalActionLabel?: string;
 }
 
 export const CITIZENS_CHARTER_CATEGORIES = [
@@ -67,46 +65,44 @@ export const CITIZENS_CHARTERS: CitizensCharterItem[] = [
     office: "Office of the Barangay (Katarungang Pambarangay / Lupon Tagapamayapa)",
     classification: "Highly Technical",
     typeOfTransaction: "G2C – Government to Citizen",
-    whoMayAvail: "ALL (Residents and parties with disputes within Barangay Natumolan jurisdiction)",
+    whoMayAvail: "ALL (Residents and parties involved in disputes within Barangay Natumolan jurisdiction)",
     legalBasis: "Service is covered under Republic Act No. 7160 (Local Government Code of 1991).",
-    portalLink: "/portal/complaints",
-    portalActionLabel: "Mag-file ng Reklamo sa Lupon Online",
     systemProcessFlow: [
       {
         step: "1",
         title: "Online Complaint Filing / Counter Intake",
         description:
-          "Maaaring mag-file ang nagrereklamo sa pamamagitan ng Resident Portal (File Complaint) 24/7 mula sa bahay, o mag-walk-in sa Barangay Hall kung saan i-e-encode ng Lupon Clerk ang complaint form.",
+          "Complainants can file 24/7 through the Resident Portal (File Complaint) from home or walk in at the Barangay Hall where the Lupon Clerk records the complaint details.",
       },
       {
         step: "2",
         title: "Automated Docketing & Fee Recording",
         description:
-          "Awtomatikong binibigyan ng system ng natatanging KP Case Reference Number (hal. 2026-XX-XX-XX) ang reklamo at ini-isyu ang Official Receipt para sa filing fee (₱20.00).",
+          "The system automatically assigns a unique KP Case Docket Number (e.g., 2026-XX-XX-XX) and records the filing fee official receipt (₱20.00).",
       },
       {
         step: "3",
         title: "Digital Summons & Hearing Scheduling",
         description:
-          "Inilalabas ng kalihim ang pormal na patawag (Summons). Nakatala sa system calendar ang schedule ng Mediation hearing at may abiso sa portal at SMS.",
+          "The Secretary issues formal summons to the respondent. Hearing dates are registered in the calendar with real-time status tracking.",
       },
       {
         step: "4",
         title: "Mediation Session & Settlement Recording",
         description:
-          "Isasagawa ang pagdinig kasama ang Punong Barangay. Kapag nagkasundo, ang Kasunduan (Amicable Settlement) ay ini-encode at pinipirmahan sa logbook.",
+          "The Punong Barangay conducts mediation proceedings. Upon mutual agreement, the Amicable Settlement is digitally archived and signed in the KP logbook.",
       },
       {
         step: "5",
         title: "Digital Customer Satisfaction Survey (CSS)",
         description:
-          "Matapos ang proseso, direktang masasagot ng residente ang Customer Satisfaction Survey sa kanilang portal account o sa physical drop box sa barangay hall.",
+          "Upon completion, clients accomplish the Customer Satisfaction Survey directly on their portal dashboard or drop it into the feedback drop box.",
       },
     ],
     requirements: [
       {
         requirement: "Complaint's Form (1 original copy)",
-        whereToSecure: "Barangay Hall / Resident Portal (Automated digital complaint form)",
+        whereToSecure: "Barangay Hall / Resident Portal (Digital Complaint Form)",
       },
     ],
     steps: [
@@ -177,32 +173,30 @@ export const CITIZENS_CHARTERS: CitizensCharterItem[] = [
     typeOfTransaction: "G2C – Government to Client",
     whoMayAvail: "ALL (Complainants with disputes where barangay conciliation/mediation has failed)",
     legalBasis: "Service is covered under Republic Act No. 7160 (Katarungang Pambarangay Law).",
-    portalLink: "/portal/complaints",
-    portalActionLabel: "Subaybayan ang Lupon Case Status Online",
     systemProcessFlow: [
       {
         step: "1",
         title: "Requirement Submission & Verification",
         description:
-          "Isusumite ang complaint kasama ang blotter o kaugnay na dokumento. Naka-record ang bawat transaksyon sa Lupon Docket ng Barangay Management System.",
+          "Submit the complaint along with police blotter or supporting agreements. Each transaction is digitally tracked in the Lupon Case Docket.",
       },
       {
         step: "2",
         title: "Mediation at Punong Barangay Level",
         description:
-          "Isasagawa ang pagdinig sa loob ng 5 araw. Kung walang kasunduan, itatalaga ang Pangkat ng Tagapagsundo sa loob ng 3 araw.",
+          "Mediation hearing is conducted within 5 days. If no settlement is reached, the Pangkat ng Tagapagsundo is constituted within 3 days.",
       },
       {
         step: "3",
         title: "Conciliation by Pangkat ng Tagapagsundo",
         description:
-          "Pormal na conciliation session (45 minuto). Kung hindi pa rin magkasundo, pormal na itatala ang kabiguan ng pagkakasundo sa system.",
+          "Formal conciliation session (45 minutes). If both parties fail to reach an amicable agreement, the failure is formally documented in the docket.",
       },
       {
         step: "4",
         title: "Issuance of Certificate to File Action (CFA)",
         description:
-          "Awtomatikong bubuuin ng system ang opisyal na Certificate to File Action (KP Form 20) na may QR validation at opisyal na lagda ng Pangkat Secretary at Punong Barangay.",
+          "The system prepares the official Certificate to File Action (KP Form 20) with system series number and QR verification seal, signed by the Pangkat Secretary and Punong Barangay.",
       },
     ],
     requirements: [
@@ -275,32 +269,30 @@ export const CITIZENS_CHARTERS: CitizensCharterItem[] = [
     typeOfTransaction: "G2C – Government to Citizen",
     whoMayAvail: "All Solo Parents within Area of Responsibility / Concerned Parties with bilateral mutual agreements",
     legalBasis: "Service is covered under Republic Act No. 7160.",
-    portalLink: "/portal/requests/new",
-    portalActionLabel: "Mag-request ng Kasunduan Online",
     systemProcessFlow: [
       {
         step: "1",
         title: "Intake & Ownership Document Validation",
         description:
-          "Haharap ang magkabilang panig sa tanggapan ng barangay o magpapasa online ng kanilang patunay ng pagmamay-ari (Ownership Document).",
+          "Both parties present themselves at the Barangay Hall or submit mutual agreement proofs online through the portal.",
       },
       {
         step: "2",
         title: "System Preparation of Agreement Certificate",
         description:
-          "Ine-encode ng Kalihim ang buong detalye ng kasunduan sa system upang magkaroon ng digital archive at 3 opisyal na kopya.",
+          "The Secretary encodes agreement specifications into the system, producing 3 standardized official copies and digital record archiving.",
       },
       {
         step: "3",
         title: "Signing & Mutual Release",
         description:
-          "Pipirmahan ng magkabilang panig ang 3 kopya ng kasulatan sa harap ng opisyal at agarang ipapamahagi.",
+          "Both parties execute signatures on the 3 official copies before the authorized barangay official and receive their certified copies.",
       },
       {
         step: "4",
-        title: "Online / Drop Box Customer Satisfaction Survey",
+        title: "Customer Satisfaction Survey (CSS)",
         description:
-          "Pagsasagawa ng CSS upang masiguro ang maayos at patas na paglilingkod ng barangay.",
+          "Feedback is collected online or dropped in the feedback drop box to ensure quality service delivery.",
       },
     ],
     requirements: [
@@ -344,7 +336,7 @@ export const CITIZENS_CHARTERS: CitizensCharterItem[] = [
         personResponsible: "Barangay Secretary",
       },
     ],
-    totalFee: "None (Free)",
+    totalFee: "None (Free of Charge)",
     totalTime: "24 minutes",
   },
 
@@ -362,38 +354,36 @@ export const CITIZENS_CHARTERS: CitizensCharterItem[] = [
     typeOfTransaction: "G2C – Government to Citizen",
     whoMayAvail: "Barangay Natumolan Residents",
     legalBasis: "Service is covered under Republic Act No. 7160 and Republic Act No. 11261 (First Time Jobseekers Assistance Act).",
-    portalLink: "/portal/requests/new",
-    portalActionLabel: "Mag-request ng Certification Online",
     systemProcessFlow: [
       {
         step: "1",
         title: "Online Filing via Resident Portal or Counter",
         description:
-          "Pipiliin ng residente ang partikular na Certificate type (hal. Residency, Indigency, Late Birth, Titling) at ilalagay ang layunin. Instant ang pagpapadala nang hindi kailangang pumila nang matagal.",
+          "Residents choose their specific certificate type (Residency, Indigency, Late Birth, Titling, etc.) and state the purpose online 24/7 without waiting in physical queues.",
       },
       {
         step: "2",
         title: "Automated Population Registry Verification",
         description:
-          "Kusang sinusuri ng system kung ang humihiling ay rehistradong residente sa RBIM Census Masterlist ng Barangay Natumolan at kung tama ang kanyang Purok/Zone.",
+          "The system immediately cross-checks the applicant against the RBIM Census Masterlist, confirming residency, address, and Purok/Zone credentials.",
       },
       {
         step: "3",
         title: "Digital Processing & Barangay Seal",
         description:
-          "Ini-imprenta at inilalagay ang opisyal na selyo at serye ng sertipikasyon, at pinipirmahan ng Punong Barangay o Officer of the Day.",
+          "The document is formatted with official serial numbering and official seal, submitted for signature by the Punong Barangay or Officer-in-Charge.",
       },
       {
         step: "4",
-        title: "Real-time Ready to Claim Notification & Pickup",
+        title: "Real-time Notification & Express Pickup",
         description:
-          "Makatatanggap ang residente ng abiso sa email/SMS at portal kapag 'Ready to Claim' na. Pupunta lamang sa Barangay Hall para magbayad (kung may bayad) at kunin ang dokumento.",
+          "Residents receive an automated SMS/email and portal notification when 'Ready to Claim'. Pickup is fast and verified with official receipt.",
       },
       {
         step: "5",
-        title: "Instant Digital Feedback (CSS)",
+        title: "Digital Customer Satisfaction Survey (CSS)",
         description:
-          "Matapos matanggap ang sertipikasyon, magbibigay ng ratings at komento sa pamamagitan ng portal CSS o physical drop box.",
+          "Rate and review the service easily through the portal feedback module or in the Barangay Hall drop box.",
       },
     ],
     requirements: [
@@ -413,12 +403,12 @@ export const CITIZENS_CHARTERS: CitizensCharterItem[] = [
       { item: "Garage: Residential", fee: "₱130.00" },
       { item: "Garage: Commercial", fee: "₱530.00" },
       { item: "Other Certification Fees", fee: "₱60.00" },
-      { item: "Certification of Common-Law", fee: "LIBRE / NONE" },
-      { item: "Certification of Oneness", fee: "LIBRE / NONE" },
-      { item: "Certification of Attestation", fee: "LIBRE / NONE" },
-      { item: "Certification of Oath of Undertaking", fee: "LIBRE / NONE" },
-      { item: "Certification of Indigency", fee: "LIBRE / NONE" },
-      { item: "Certification for First Time Job Seeker (RA 11261)", fee: "LIBRE / NONE" },
+      { item: "Certification of Common-Law", fee: "FREE / NONE" },
+      { item: "Certification of Oneness", fee: "FREE / NONE" },
+      { item: "Certification of Attestation", fee: "FREE / NONE" },
+      { item: "Certification of Oath of Undertaking", fee: "FREE / NONE" },
+      { item: "Certification of Indigency", fee: "FREE / NONE" },
+      { item: "Certification for First Time Job Seeker (RA 11261)", fee: "FREE / NONE" },
     ],
     steps: [
       {
@@ -434,7 +424,7 @@ export const CITIZENS_CHARTERS: CitizensCharterItem[] = [
         stepNumber: 2,
         clientStep: "Pay the fees for the Barangay Certification according to purpose and request Official Receipt",
         agencyAction: "Issued an Official Receipt according to its purpose (Exempt for Indigency & First Time Jobseekers)",
-        fee: "Ayon sa layunin (₱0 – ₱530.00)",
+        fee: "According to purpose (₱0.00 – ₱530.00)",
         processingTime: "10 minutes",
         personResponsible: "Barangay Treasurer / Barangay Clerk / Barangay Record Keeper",
       },
@@ -455,7 +445,7 @@ export const CITIZENS_CHARTERS: CitizensCharterItem[] = [
         personResponsible: "Barangay Secretary / Barangay Clerk",
       },
     ],
-    totalFee: "Depende sa layunin (Libre hanggang ₱530.00)",
+    totalFee: "Dependent on purpose (Free up to ₱530.00)",
     totalTime: "40 minutes",
   },
 
@@ -472,39 +462,37 @@ export const CITIZENS_CHARTERS: CitizensCharterItem[] = [
     classification: "Simple",
     typeOfTransaction: "G2C – Government to Citizen",
     whoMayAvail: "Barangay Natumolan Residents",
-    legalBasis: "Service is covered under Republic Act No. 7160 (Local Government Code).",
-    portalLink: "/portal/requests/new",
-    portalActionLabel: "Mag-request ng Barangay Clearance Online",
+    legalBasis: "Service is covered under Republic Act No. 7160 (Local Government Code of 1991).",
     systemProcessFlow: [
       {
         step: "1",
         title: "24/7 Online Application via Portal",
         description:
-          "Pumili ng layunin (Employment, ID, Loan, License, Abroad, atbp.) sa Resident Portal o lumapit sa counter. May instant transaction reference code na ibinibigay ang system.",
+          "Select the purpose (Employment, ID, Loan, Driver's License, Abroad, etc.) on the Resident Portal or visit the counter. The system generates an instant transaction code.",
       },
       {
         step: "2",
         title: "Digital Registry & Records Cross-Check",
         description:
-          "Kusang sinusuri ng system ang rekord ng residente at tinitiyak na walang nakabinbing pananagutan sa Lupon o VAWC desk.",
+          "The system verifies the resident record, confirming active registration and ensuring no pending dispute hold or administrative blocker.",
       },
       {
         step: "3",
         title: "Document Generation & Official Seal",
         description:
-          "Inilalabas ng Clerk ang opisyal na format ng Barangay Clearance kalakip ang QR verification code at opisyal na selyo bago pirmahan ng Punong Barangay o Officer of the Day.",
+          "The Clerk produces the clearance with official serial number and QR verification seal, signed by the Punong Barangay or Officer of the Day.",
       },
       {
         step: "4",
         title: "SMS & Portal Notification / Fast Counter Pickup",
         description:
-          "Agad na makatatanggap ang residente ng SMS/Portal alert kapag handa na. Pagdating sa Barangay Hall, ipe-presenta lamang ang reference code, magbabayad ng naaayong halaga na may Official Receipt, at kukunin ang clearance nang walang abala.",
+          "Residents receive SMS/portal notification once ready. Present the transaction code at the counter, pay the corresponding fee with Official Receipt, and claim the document.",
       },
       {
         step: "5",
         title: "Customer Satisfaction Survey (CSS)",
         description:
-          "Madaling maisusumite ang grado at feedback sa pamamagitan ng portal o sa feedback drop box.",
+          "Accomplish the customer feedback ratings seamlessly through the portal or physical drop box.",
       },
     ],
     requirements: [
@@ -562,7 +550,7 @@ export const CITIZENS_CHARTERS: CitizensCharterItem[] = [
         personResponsible: "Barangay Secretary / Barangay Clerk",
       },
     ],
-    totalFee: "₱60.00 hanggang ₱130.00",
+    totalFee: "₱60.00 to ₱130.00",
     totalTime: "40 minutes",
   },
 
@@ -581,38 +569,36 @@ export const CITIZENS_CHARTERS: CitizensCharterItem[] = [
     whoMayAvail:
       "Women and their children who are victims of violence under Republic Act No. 9262: The wife or former wife; Girlfriend or Ex-Girlfriend; Children (legitimate or illegitimate, within or outside the household).",
     legalBasis: "Republic Act No. 9262 (Anti-Violence Against Women and Their Children Act of 2004).",
-    portalLink: "/portal/vawc-report",
-    portalActionLabel: "Magsumite ng Kumpidensyal na VAWC Report Online",
     systemProcessFlow: [
       {
         step: "1",
         title: "Confidential Online Report or Direct Walk-in",
         description:
-          "Maaaring magsumite ng ligtas at kumpidensyal na ulat sa Resident Portal (VAWC Incident Report) o direktang lumapit nang pribado sa VAWC Desk Officer sa Barangay Hall.",
+          "Submit a secure and confidential report through the Resident Portal (VAWC Incident Report) or approach the VAWC Desk Officer in complete privacy at the Barangay Hall.",
       },
       {
         step: "2",
         title: "Urgent Assessment & Digital Intake",
         description:
-          "Agad na ini-interview ng sinanay na VAWC Desk Officer ang biktima upang magawa ang opisyal na Intake Form nang may buong pag-iingat sa kanyang proteksyon at privacy.",
+          "The trained VAWC Desk Officer immediately interviews the victim, completes the official Intake Form, and ensures prioritized safety safeguards.",
       },
       {
         step: "3",
         title: "Preparation & Signing of Barangay Protection Order (BPO)",
         description:
-          "Inihahanda ang BPO sa loob ng 10 minuto at agarang pinipirmahan ng Punong Barangay o Officer of the Day (5 minuto).",
+          "The BPO is prepared within 10 minutes and promptly signed by the Punong Barangay or Officer of the Day (5 minutes).",
       },
       {
         step: "4",
         title: "Serving the Order to Respondent",
         description:
-          "Inihahatid at pormal na isisilbi ng VAWC Desk Officer kasama ang Barangay Tanod ang Barangay Protection Order sa inirereklamong respondent sa loob ng 1 oras.",
+          "The VAWC Desk Officer accompanied by Barangay Tanod serves the Barangay Protection Order to the respondent within 1 hour.",
       },
       {
         step: "5",
         title: "Confidential Follow-up & Feedback",
         description:
-          "Pagsubaybay sa kaligtasan ng biktima at pagsagot sa Customer Satisfaction Survey sa ligtas na paraan.",
+          "Continued protection monitoring and confidential feedback submission through the portal or secure drop box.",
       },
     ],
     requirements: [
@@ -631,7 +617,7 @@ export const CITIZENS_CHARTERS: CitizensCharterItem[] = [
         clientStep: "Submit the Requirements (Confidential Intake / Online Report)",
         agencyAction:
           "1.1 Conduct assessment thru Interview and accomplish the Intake Form (10 mins); 1.2 Prepare the Barangay Protection Order based on Intake Form (10 mins); 1.3 Sign the Barangay Protection Order (5 mins)",
-        fee: "None (Libre alinsunod sa RA 9262)",
+        fee: "None (Exempt under RA 9262)",
         processingTime: "25 minutes",
         personResponsible: "Barangay VAWC Desk Officer / Punong Barangay or SB Member Officer of the Day",
       },
@@ -652,7 +638,7 @@ export const CITIZENS_CHARTERS: CitizensCharterItem[] = [
         personResponsible: "Barangay VAWC Desk Officer",
       },
     ],
-    totalFee: "None (Walang Bayad)",
+    totalFee: "None (Free of Charge)",
     totalTime: "1 hour and 30 minutes",
   },
 
@@ -670,38 +656,36 @@ export const CITIZENS_CHARTERS: CitizensCharterItem[] = [
     typeOfTransaction: "G2B – Government to Business",
     whoMayAvail: "Concessionaires / Operators / Proponents of development and resource projects",
     legalBasis: "Sangguniang Barangay Regular Legislative Session Procedures & Environmental Guidelines.",
-    portalLink: "/#contact",
-    portalActionLabel: "Makipag-ugnayan sa Sangguniang Barangay",
     systemProcessFlow: [
       {
         step: "1",
         title: "Formal Letter of Intent & Document Submission",
         description:
-          "Isusumite ng proponent ang kumpletong environmental compliance certificates, development plan, at clearances sa tanggapan ng Sangguniang Barangay.",
+          "Proponents submit complete environmental compliance certificates, site development plans, and clearances to the Sangguniang Barangay office.",
       },
       {
         step: "2",
         title: "First Reading in Regular Legislative Session",
         description:
-          "Itatakda ng Kalihim ang panukalang resolusyon sa agenda ng regular session para sa Unang Pagbasa (First Reading).",
+          "The Secretary schedules the proposed resolution on the regular session agenda for First Reading within 2 weeks.",
       },
       {
         step: "3",
         title: "Ocular Inspection & Joint Committee Review",
         description:
-          "Pagsasagawa ng ocular inspection kasama ang MENRO, PENRO, at Solid Waste Management committee upang suriin ang kaligtasan sa kapaligiran.",
+          "Ocular site inspection is conducted with MENRO, PENRO, and Solid Waste Management committees to assess environmental safety.",
       },
       {
         step: "4",
         title: "Second & Third Reading / Final Council Enactment",
         description:
-          "Pormal na deliberasyon, pagboto, at pagpapatibay ng Sangguniang Barangay sa Resolution of No Objection.",
+          "Formal council deliberation, voting, and enactment of the Resolution of No Objection.",
       },
       {
         step: "5",
         title: "Official Digital Release & Archive",
         description:
-          "Paglalabas ng certified true copy ng naaprubahang resolusyon na may legislative docket series number.",
+          "Release of the certified true copy of the enacted resolution with official legislative series tracking.",
       },
     ],
     requirements: [
@@ -754,8 +738,7 @@ export const CITIZENS_CHARTERS: CitizensCharterItem[] = [
         personResponsible: "Barangay Secretary",
       },
     ],
-    totalFee: "None (Walang Bayad)",
+    totalFee: "None (Free of Charge)",
     totalTime: "37 days and 15 minutes",
   },
 ];
-

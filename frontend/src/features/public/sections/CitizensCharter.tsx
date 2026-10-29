@@ -14,12 +14,16 @@ import {
 } from "react-icons/fi";
 import SectionTitle from "../components/SectionTitle";
 import Reveal from "../../../shared/ui/Reveal";
+import { useAuth } from "../../../shared/auth/AuthContext";
 import {
   CITIZENS_CHARTER_CATEGORIES,
   CITIZENS_CHARTERS,
 } from "../data/citizensCharter";
 
 export default function CitizensCharter() {
+  const { user, isAuthenticated } = useAuth();
+  const isResident = user?.role === "Resident";
+
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [openIds, setOpenIds] = useState<Set<string>>(new Set(["05-barangay-clearance"]));
 
@@ -47,16 +51,127 @@ export default function CitizensCharter() {
     ? CITIZENS_CHARTERS.filter((c) => c.category === selectedCategory)
     : CITIZENS_CHARTERS;
 
+  /**
+   * Smart redirection and label based on whether the user is logged in or a guest:
+   * - Guest (Not logged in): Redirect to the public Resident ID upload verification page (/request-certificate, /file-complaint, /vawc-complaint).
+   * - Logged-in Resident: Redirect to their Resident Portal dashboard / dedicated filing section.
+   * - Logged-in Staff: Redirect to their respective office management module.
+   */
+  const getActionForCharter = (charterId: string) => {
+    if (isAuthenticated) {
+      if (isResident) {
+        switch (charterId) {
+          case "05-barangay-clearance":
+            return {
+              url: "/resident/requests?type=Barangay%20Clearance",
+              label: "Request Clearance via Portal",
+            };
+          case "04-barangay-certification":
+            return {
+              url: "/resident/requests?type=Barangay%20Certification",
+              label: "Request Certification via Portal",
+            };
+          case "01-amicable-settlement":
+          case "02-file-action":
+            return {
+              url: "/resident/lupon/complaints",
+              label: "File Lupon Complaint via Portal",
+            };
+          case "03-issuance-agreement":
+            return {
+              url: "/resident/requests",
+              label: "Request Agreement via Portal",
+            };
+          case "06-vawc-bpo":
+            return {
+              url: "/resident/vawc/reports",
+              label: "Submit VAWC Report via Portal",
+            };
+          case "07-barangay-resolution":
+          default:
+            return {
+              url: "/#contact",
+              label: "Contact Sangguniang Barangay",
+            };
+        }
+      } else {
+        // Staff / Administrator logged in
+        switch (charterId) {
+          case "05-barangay-clearance":
+          case "04-barangay-certification":
+          case "03-issuance-agreement":
+            return {
+              url: "/certificates",
+              label: "Open Certificates Desk",
+            };
+          case "01-amicable-settlement":
+          case "02-file-action":
+            return {
+              url: "/lupon/cases",
+              label: "Open Lupon Docket",
+            };
+          case "06-vawc-bpo":
+            return {
+              url: "/vawc",
+              label: "Open VAWC Desk",
+            };
+          case "07-barangay-resolution":
+          default:
+            return {
+              url: "/dashboard",
+              label: "Open Office Dashboard",
+            };
+        }
+      }
+    }
+
+    // Guest / Not signed in: Direct to the public service page requiring Barangay Resident ID upload
+    switch (charterId) {
+      case "05-barangay-clearance":
+        return {
+          url: "/request-certificate?type=Barangay%20Clearance",
+          label: "Request Clearance (Upload Resident ID)",
+        };
+      case "04-barangay-certification":
+        return {
+          url: "/request-certificate?type=Barangay%20Certification",
+          label: "Request Certification (Upload Resident ID)",
+        };
+      case "01-amicable-settlement":
+      case "02-file-action":
+        return {
+          url: "/file-complaint",
+          label: "File Complaint (Upload Resident ID)",
+        };
+      case "03-issuance-agreement":
+        return {
+          url: "/request-certificate",
+          label: "Request Online (Upload Resident ID)",
+        };
+      case "06-vawc-bpo":
+        return {
+          url: "/vawc-complaint",
+          label: "File VAWC Report (Upload Resident ID)",
+        };
+      case "07-barangay-resolution":
+      default:
+        return {
+          url: "/#contact",
+          label: "Contact Sangguniang Barangay",
+        };
+    }
+  };
+
   return (
     <section id="charter" className="pattern pattern-dots bg-secondary py-20 lg:py-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionTitle
           eyebrow="Official Service Standards"
           title="Citizen's Charter"
-          subtitle="Ang opisyal na gabay sa mga serbisyo, proseso, kaukulang bayarin, at takdang panahon ng pagproseso ng Barangay Natumolan — alinsunod sa RA 7160 at RA 11032, kalakip ang aming pinahusay na Digital System Process Flow."
+          subtitle="The official guide to services, procedures, checklist of requirements, fees, and standard processing times of Barangay Natumolan — compliant with Republic Act No. 7160 and Republic Act No. 11032 (Ease of Doing Business Act), featuring our Modernized Digital System Process Flow."
         />
 
-        {/* System Process Flow Overview Banner */}
+        {/* Modernized System Process Flow Overview Banner */}
         <Reveal delay={0.04}>
           <div className="mb-10 overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/5 via-white to-primary/10 p-6 shadow-sm sm:p-8">
             <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -65,11 +180,11 @@ export default function CitizensCharter() {
                   <FiLayers className="h-3.5 w-3.5" /> E-Barangay Modernization
                 </span>
                 <h3 className="mt-2 text-xl font-bold text-dark sm:text-2xl">
-                  Pinabilis na Digital System Process Flow
+                  Modernized Digital System Process Flow
                 </h3>
               </div>
               <p className="max-w-md text-xs text-gray-500 sm:text-right sm:text-sm">
-                Hindi na kailangang magtiis sa mahabang pila. Maaaring i-request ang mga dokumento online o mag-walk in sa Barangay Hall.
+                Fast, paperless, and transparent. Residents can file requests online 24/7 or walk in directly at the Barangay Hall counter.
               </p>
             </div>
 
@@ -79,8 +194,8 @@ export default function CitizensCharter() {
                   1
                 </div>
                 <h4 className="text-sm font-bold text-dark">Online Filing / Counter Intake</h4>
-                <p className="mt-1 text-xs text-gray-500">
-                  Mag-login sa Resident Portal o lumapit sa counter. Instant na ibinibigay ang reference code.
+                <p className="mt-1 text-xs text-gray-500 leading-relaxed">
+                  Submit requests via the Resident Portal from home or visit the counter. An instant transaction reference code is issued.
                 </p>
               </div>
 
@@ -89,8 +204,8 @@ export default function CitizensCharter() {
                   2
                 </div>
                 <h4 className="text-sm font-bold text-dark">Automated Registry Verification</h4>
-                <p className="mt-1 text-xs text-gray-500">
-                  Awtomatikong bina-validate ng system ang rekord ng residente at inilalagay sa First-Come, First-Served queue.
+                <p className="mt-1 text-xs text-gray-500 leading-relaxed">
+                  System automatically cross-checks the RBIM Population Registry masterlist and queues transactions in First-Come, First-Served order.
                 </p>
               </div>
 
@@ -99,8 +214,8 @@ export default function CitizensCharter() {
                   3
                 </div>
                 <h4 className="text-sm font-bold text-dark">Official Seal & Digital Approval</h4>
-                <p className="mt-1 text-xs text-gray-500">
-                  Ini-imprenta kalakip ang QR verification at opisyal na selyo bago pirmahan ng Punong Barangay / opisyal.
+                <p className="mt-1 text-xs text-gray-500 leading-relaxed">
+                  The document is encoded with QR verification code and official barangay seal, then signed by the Punong Barangay / authorized official.
                 </p>
               </div>
 
@@ -109,15 +224,15 @@ export default function CitizensCharter() {
                   4
                 </div>
                 <h4 className="text-sm font-bold text-dark">Real-time Notification & Claiming</h4>
-                <p className="mt-1 text-xs text-gray-500">
-                  May SMS/Email alert kapag Ready to Claim. Mabilis na kukunin at magsasagot ng online CSS feedback.
+                <p className="mt-1 text-xs text-gray-500 leading-relaxed">
+                  Residents receive real-time SMS / email notifications once 'Ready to Claim'. Fast pickup at the counter and digital Customer Satisfaction Survey (CSS).
                 </p>
               </div>
             </div>
           </div>
         </Reveal>
 
-        {/* Category Filter Tabs (tulad ng sa News & Announcements) */}
+        {/* Category Filter Tabs */}
         <Reveal delay={0.06}>
           <div className="mb-8 flex flex-wrap items-center justify-center gap-2">
             {CITIZENS_CHARTER_CATEGORIES.map((cat) => {
@@ -150,7 +265,7 @@ export default function CitizensCharter() {
           {/* Toggle All controls */}
           <div className="mb-6 flex items-center justify-between text-xs text-gray-500">
             <span>
-              Ipinapakita: <strong className="text-dark">{filteredCharters.length}</strong> sa 7 Citizen's Charters
+              Showing: <strong className="text-dark">{filteredCharters.length}</strong> of 7 Citizen's Charters
             </span>
             <div className="flex items-center gap-3">
               <button
@@ -158,7 +273,7 @@ export default function CitizensCharter() {
                 onClick={expandAll}
                 className="cursor-pointer font-medium text-primary hover:underline"
               >
-                Buksan Lahat
+                Expand All
               </button>
               <span>·</span>
               <button
@@ -166,7 +281,7 @@ export default function CitizensCharter() {
                 onClick={collapseAll}
                 className="cursor-pointer font-medium text-gray-500 hover:text-dark hover:underline"
               >
-                Isara Lahat
+                Collapse All
               </button>
             </div>
           </div>
@@ -176,6 +291,7 @@ export default function CitizensCharter() {
         <div className="space-y-4">
           {filteredCharters.map((charter, index) => {
             const isOpen = openIds.has(charter.id);
+            const action = getActionForCharter(charter.id);
 
             return (
               <Reveal key={charter.id} delay={index * 0.04}>
@@ -273,16 +389,16 @@ export default function CitizensCharter() {
 
                       {/* System Process Flow for this Charter */}
                       <div className="mb-8 rounded-xl border border-primary/20 bg-primary/[0.03] p-5">
-                        <div className="mb-3 flex items-center justify-between">
+                        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <h4 className="flex items-center gap-2 text-sm font-bold text-primary sm:text-base">
                             <FiCheckCircle className="h-4 w-4" /> Integrated System Process Flow
                           </h4>
-                          {charter.portalLink && (
+                          {action.url && (
                             <Link
-                              to={charter.portalLink}
-                              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-primary-dark"
+                              to={action.url}
+                              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-primary-dark"
                             >
-                              <span>{charter.portalActionLabel ?? "I-proseso sa Portal"}</span>
+                              <span>{action.label}</span>
                               <FiExternalLink className="h-3 w-3" />
                             </Link>
                           )}
@@ -325,7 +441,7 @@ export default function CitizensCharter() {
                         </div>
                       </div>
 
-                      {/* Optional Fees Schedule (e.g. Clearance / Certification breakdown) */}
+                      {/* Optional Fees Schedule */}
                       {charter.feesSchedule && charter.feesSchedule.length > 0 && (
                         <div className="mb-8">
                           <h4 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-dark">
@@ -338,7 +454,7 @@ export default function CitizensCharter() {
                                 className="flex items-center justify-between rounded-lg border border-gray/60 bg-gray-50/70 p-3 text-xs"
                               >
                                 <span className="font-medium text-dark">{f.item}</span>
-                                <span className={`font-bold tabular-nums ${f.fee.includes("LIBRE") || f.fee.includes("NONE") ? "text-emerald-600" : "text-primary"}`}>
+                                <span className={`font-bold tabular-nums ${f.fee.includes("FREE") || f.fee.includes("NONE") ? "text-emerald-600" : "text-primary"}`}>
                                   {f.fee}
                                 </span>
                               </div>
@@ -400,7 +516,7 @@ export default function CitizensCharter() {
                                   {charter.totalTime}
                                 </td>
                                 <td className="px-4 py-3.5 text-xs text-gray-500 font-normal">
-                                  Completed in accordance with standards
+                                  Compliant with RA 7160 and RA 11032
                                 </td>
                               </tr>
                             </tfoot>
@@ -424,4 +540,3 @@ export default function CitizensCharter() {
     </section>
   );
 }
-
