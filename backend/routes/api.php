@@ -32,15 +32,9 @@ require __DIR__ . '/api/chat.php';
 | Signed in — staff and residents
 |--------------------------------------------------------------------------
 */
+Route::get('pulse', PulseController::class)->middleware('throttle:240,1');
+
 Route::middleware('auth:sanctum')->group(function () {
-    /*
-    | "Has anything changed?" — asked about once a second by every open tab.
-    |
-    | Counters only, no records, so it needs no gate beyond being signed in.
-    | Throttled high because it is MEANT to be asked often; one call is a
-    | single indexed read of a table with a dozen rows.
-    */
-    Route::get('pulse', PulseController::class)->middleware('throttle:240,1');
 
     require __DIR__ . '/api/account.php';
 

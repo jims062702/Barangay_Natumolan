@@ -11,10 +11,15 @@ let ctx: AudioContext | null = null;
 
 function getCtx(): AudioContext | null {
   if (typeof window === "undefined") return null;
-  const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AC) return null;
-  if (!ctx) ctx = new AC();
-  return ctx;
+  if (ctx) return ctx;
+  try {
+    const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AC) return null;
+    ctx = new AC();
+    return ctx;
+  } catch {
+    return null;
+  }
 }
 
 // Browsers start the AudioContext suspended until the user interacts with the
@@ -23,11 +28,17 @@ function getCtx(): AudioContext | null {
 if (typeof window !== "undefined" && !(window as unknown as { __bnSoundInit?: boolean }).__bnSoundInit) {
   (window as unknown as { __bnSoundInit?: boolean }).__bnSoundInit = true;
   const resume = () => {
-    const c = getCtx();
-    if (c && c.state === "suspended") c.resume().catch(() => {});
+    try {
+      const c = getCtx();
+      if (c && c.state === "suspended") {
+        c.resume().catch(() => {});
+      }
+    } catch {
+      // Audio autoplay policy handled quietly
+    }
   };
-  window.addEventListener("pointerdown", resume);
-  window.addEventListener("keydown", resume);
+  window.addEventListener("click", resume, { once: true, passive: true });
+  window.addEventListener("keydown", resume, { once: true, passive: true });
 }
 
 // --- Mute preference (with a tiny pub/sub so both toggles stay in sync) ---

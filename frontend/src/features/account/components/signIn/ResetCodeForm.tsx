@@ -18,11 +18,13 @@ export function ResetCodeForm({ ctx }: { ctx: SignInState }) {
         </span>
       </div>
 
-      <label className="block">
+      <label htmlFor="reset-code" className="block">
         <span className="mb-1.5 block text-sm font-medium text-dark">
           Verification code
         </span>
         <input
+          id="reset-code"
+          name="code"
           value={resetCode}
           onChange={(e) => setResetCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
           className={`${inputClasses} text-center font-mono text-2xl tracking-[0.5em]`}

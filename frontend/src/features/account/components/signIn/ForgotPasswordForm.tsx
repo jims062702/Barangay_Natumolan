@@ -15,9 +15,11 @@ export function ForgotPasswordForm({ ctx }: { ctx: SignInState }) {
         Office can set a password for you at the counter.
       </p>
 
-      <label className="block">
+      <label htmlFor="forgot-email" className="block">
         <span className="mb-1.5 block text-sm font-medium text-dark">Email</span>
         <input
+          id="forgot-email"
+          name="email"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}

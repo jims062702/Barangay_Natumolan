@@ -54,6 +54,12 @@ async function ask() {
      a bad connection — that turns one request a second into a queue. */
   if (inFlight || document.hidden || listeners.size === 0) return;
 
+  /* If there is no active session, never fire pulse requests. */
+  if (!localStorage.getItem("authToken")) {
+    stop();
+    return;
+  }
+
   /*
    * Nobody is there. Stop asking — and let the token start ageing, which is
    * the whole mechanism behind the three-hour sign-out.
@@ -123,6 +129,14 @@ function stop() {
   document.removeEventListener("visibilitychange", ask);
   /* Dropped, so the next page to subscribe takes a fresh baseline rather
      than firing on a change that happened while nobody was watching. */
+  versions = null;
+}
+
+/** Immediately stops all polling and removes watchers (e.g. on user sign-out). */
+export function stopPulse() {
+  stop();
+  listeners.clear();
+  inFlight = false;
   versions = null;
 }
 

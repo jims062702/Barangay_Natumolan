@@ -13,9 +13,11 @@ export function SignInForm({ ctx }: { ctx: SignInState }) {
 
   return (
     <form onSubmit={handleSubmit} className="mt-6 space-y-5">
-      <label className="block">
+      <label htmlFor="login-email" className="block">
         <span className="mb-1.5 block text-sm font-medium text-dark">Email</span>
         <input
+          id="login-email"
+          name="email"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -26,10 +28,12 @@ export function SignInForm({ ctx }: { ctx: SignInState }) {
         />
       </label>
 
-      <label className="block">
+      <label htmlFor="login-password" className="block">
         <span className="mb-1.5 block text-sm font-medium text-dark">Password</span>
         <div className="relative">
           <input
+            id="login-password"
+            name="password"
             type={showPassword ? "text" : "password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}

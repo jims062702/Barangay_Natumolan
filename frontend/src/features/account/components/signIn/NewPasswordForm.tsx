@@ -13,10 +13,12 @@ export function NewPasswordForm({ ctx }: { ctx: SignInState }) {
 
   return (
     <form onSubmit={useCode} className="mt-6 space-y-5">
-      <label className="block">
+      <label htmlFor="new-password" className="block">
         <span className="mb-1.5 block text-sm font-medium text-dark">New password</span>
         <div className="relative">
           <input
+            id="new-password"
+            name="newPassword"
             type={showPassword ? "text" : "password"}
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
@@ -46,12 +48,14 @@ export function NewPasswordForm({ ctx }: { ctx: SignInState }) {
         </div>
       </label>
 
-      <label className="block">
+      <label htmlFor="new-password-again" className="block">
         <span className="mb-1.5 block text-sm font-medium text-dark">
           New password again
         </span>
         <div className="relative">
           <input
+            id="new-password-again"
+            name="newPasswordAgain"
             type={showPassword ? "text" : "password"}
             value={newPasswordAgain}
             onChange={(e) => setNewPasswordAgain(e.target.value)}

@@ -35,9 +35,11 @@ export function ActivationForm({ ctx, activation }: {
           </span>
         </div>
 
-        <label className="block">
+        <label htmlFor="activation-new-email" className="block">
           <span className="mb-1.5 block text-sm font-medium text-dark">New email address</span>
           <input
+            id="activation-new-email"
+            name="newEmail"
             type="email"
             value={newEmail}
             onChange={(e) => setNewEmail(e.target.value)}
@@ -79,9 +81,11 @@ export function ActivationForm({ ctx, activation }: {
         </span>
       </div>
 
-      <label className="block">
+      <label htmlFor="activation-code" className="block">
         <span className="mb-1.5 block text-sm font-medium text-dark">Verification code</span>
         <input
+          id="activation-code"
+          name="code"
           value={code}
           onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
           className={`${inputClasses} text-center font-mono text-2xl tracking-[0.5em]`}

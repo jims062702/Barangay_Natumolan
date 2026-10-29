@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { isAxiosError } from "axios";
 import { clearAllDrafts, setDraftOwner } from "../lib/formDraft";
 import { isOffline } from "../offline/connectivity";
+import { stopPulse } from "../hooks/usePulse";
 import {
   cachedProfile,
   forgetOfflineGrant,
@@ -253,6 +254,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    /* Stop background polling immediately so no 401s occur on sign-out */
+    stopPulse();
+
     /* First, before the server is even asked: the next person at this desk
        must not see this office's dashboard skeleton. */
     try {
