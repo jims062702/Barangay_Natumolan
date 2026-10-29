@@ -18,6 +18,9 @@ import type { LuponCase, LuponHearing } from "../../types";
 import { useAuth } from "../../../../shared/auth/AuthContext";
 import { worksSitting } from "../../lib/hearings";
 import { MinutesModal } from "../hearings/MinutesModal";
+import { luponApi } from "../../api";
+import { toast } from "../../../../shared/lib/toast";
+import { errorMessage } from "../../../../shared/lib/api";
 
 /**
  * Computes dynamic hearing status:
@@ -92,6 +95,23 @@ export function HearingsCard({ ctx, caseData }: { ctx: LuponCaseState; caseData:
   // Show more / Show less state for compact height
   const [showAllPb, setShowAllPb] = useState(false);
   const [showAllLupon, setShowAllLupon] = useState(false);
+  const [referring, setReferring] = useState(false);
+
+  const handleReferToSecretary = async () => {
+    if (!window.confirm("Are you sure you want to refer this case to Secretary / Lupon? Remaining Punong Barangay mediation hearings will be cancelled and the case will advance to Lupon conciliation.")) {
+      return;
+    }
+    setReferring(true);
+    try {
+      const res = await luponApi.referToSecretary(caseData.id);
+      toast(res.data.message || "Case referred to Secretary successfully.", "success");
+      ctx.load();
+    } catch (err) {
+      toast(errorMessage(err), "error");
+    } finally {
+      setReferring(false);
+    }
+  };
 
   const openMinutes = (hearing: LuponHearing, mode: "view" | "edit") => {
     setSelectedHearing(hearing);
@@ -432,6 +452,28 @@ export function HearingsCard({ ctx, caseData }: { ctx: LuponCaseState; caseData:
           )}
         </div>
       </div>
+
+      {/* 3. REFER TO SECRETARY (when >= 1 mediation hearing completed & unsettled) */}
+      {completedPbCount >= 1 && !isLuponStage && !isSettled && !isCfa && (
+        <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-bold text-dark">Refer Case to Secretary / Lupon</p>
+              <p className="text-[11px] text-gray-500">
+                Mediation hearing held without settlement. Punong Barangay can refer this case to Secretary so remaining mediation hearings are stood down and the case moves to Lupon conciliation.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={referring}
+              onClick={handleReferToSecretary}
+              className="shrink-0 cursor-pointer rounded-full bg-primary px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-primary-dark disabled:opacity-60"
+            >
+              {referring ? "Referring…" : "Refer to Secretary"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 4. FOOTER ACTIONS */}
       {isPb && !isSettled && !isCfa && (

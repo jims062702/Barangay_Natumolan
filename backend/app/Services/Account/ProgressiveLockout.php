@@ -20,6 +20,7 @@ class ProgressiveLockout
 {
     public const ACTION_LOGIN = 'login';
     public const ACTION_ACTIVATION_OTP = 'activation-otp';
+    public const ACTION_FORGOT_PASSWORD = 'forgot-password';
 
     /** Lockout durations in seconds: 15 minutes, 1 hour, 24 hours. */
     public const TIER_DURATIONS = [
@@ -95,14 +96,11 @@ class ProgressiveLockout
         }
 
         $currentTier = (int) ($state['tier'] ?? 0);
+        $attempts = (int) ($state['attempts'] ?? 0) + 1;
 
-        // If the account was previously locked (Tier >= 1) and the lock period has passed,
-        // any subsequent single failure immediately escalates to the next tier:
-        // Tier 1 -> Tier 2 (1 hour)
-        // Tier 2 -> Tier 3 (24 hours)
-        // Tier 3 -> Tier 3 (24 hours)
-        if ($currentTier >= 1) {
-            $nextTier = min(3, $currentTier + 1);
+        // 5 requests per tier before triggering or escalating lockout
+        if ($attempts >= $maxAttempts) {
+            $nextTier = min(3, max(1, $currentTier + 1));
             $duration = self::TIER_DURATIONS[$nextTier];
             $lockedUntil = $now + $duration;
 
@@ -123,34 +121,10 @@ class ProgressiveLockout
             ];
         }
 
-        // At Tier 0: count up to $maxAttempts
-        $attempts = (int) ($state['attempts'] ?? 0) + 1;
-
-        if ($attempts >= $maxAttempts) {
-            // Reached initial max failures -> Trigger Tier 1 (15 minutes)
-            $duration = self::TIER_DURATIONS[1];
-            $lockedUntil = $now + $duration;
-
-            $newState = [
-                'attempts' => 0,
-                'tier' => 1,
-                'locked_until' => $lockedUntil,
-            ];
-
-            Cache::put($key, $newState, now()->addSeconds($duration + 48 * 3600));
-
-            return [
-                'locked' => true,
-                'seconds' => $duration,
-                'attempts_left' => 0,
-                'tier' => 1,
-            ];
-        }
-
-        // Tier 0, not locked yet
+        // Not locked yet: record attempt in current tier
         $newState = [
             'attempts' => $attempts,
-            'tier' => 0,
+            'tier' => $currentTier,
             'locked_until' => null,
         ];
 
@@ -161,7 +135,7 @@ class ProgressiveLockout
             'locked' => false,
             'seconds' => 0,
             'attempts_left' => max(0, $maxAttempts - $attempts),
-            'tier' => 0,
+            'tier' => $currentTier,
         ];
     }
 

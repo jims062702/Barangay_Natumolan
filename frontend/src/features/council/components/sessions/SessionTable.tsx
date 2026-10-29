@@ -68,7 +68,7 @@ export function SessionTable({ ctx }: { ctx: SessionRecordsState }) {
                     onClick={() => adopt(s)}
                     className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-dark"
                   >
-                    <FiCheckCircle className="h-3.5 w-3.5" aria-hidden="true" /> Adopt
+                    <FiCheckCircle className="h-3.5 w-3.5" aria-hidden="true" /> Accept / Adopt
                   </button>
                 )}
               </div>

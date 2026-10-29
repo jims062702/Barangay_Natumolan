@@ -294,10 +294,10 @@ export default function CitizensCharter() {
             const action = getActionForCharter(charter.id);
 
             return (
-              <div
-                key={charter.id}
-                className="overflow-hidden rounded-2xl border border-gray/70 bg-white shadow-xs transition-shadow hover:shadow-md"
-              >
+              <Reveal key={charter.id} delay={0.02}>
+                <div
+                  className="overflow-hidden rounded-2xl border border-gray/70 bg-white shadow-xs transition-shadow hover:shadow-md"
+                >
                   {/* Accordion Header / Trigger Button */}
                   <button
                     type="button"
@@ -534,6 +534,7 @@ export default function CitizensCharter() {
                     </div>
                   )}
                 </div>
+              </Reveal>
             );
           })}
         </div>

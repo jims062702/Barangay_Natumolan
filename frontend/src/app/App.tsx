@@ -321,7 +321,7 @@ export default function App() {
 
           {/* Appointments sit behind the front desk but not with the Clerk,
               whose remit is requests & certificates (mirrors deny_role:Clerk). */}
-          <Route element={<Guarded staffOnly allowedOffices={["Main Office"]} allowedRoles={["Punong Barangay", "Admin"]} deniedRoles={["Clerk"]} />}>
+          <Route element={<Guarded staffOnly allowedOffices={["Main Office"]} allowedRoles={["Punong Barangay", "Secretary", "Admin"]} deniedRoles={["Clerk"]} />}>
             {/* The secretary's own record, which the PB reads and adopts. */}
             <Route path="/sessions" element={<Sessions />} />
           </Route>
@@ -337,7 +337,7 @@ export default function App() {
               <Guarded
                 staffOnly
                 allowedOffices={["Main Office", "Admin"]}
-                allowedRoles={["Punong Barangay", "Admin"]}
+                allowedRoles={["Punong Barangay", "Secretary", "Admin"]}
                 deniedRoles={["Clerk"]}
               />
             }
@@ -404,7 +404,7 @@ export default function App() {
             reach the hearings without being given the docket behind them —
             which is why this is its own guard rather than a wider Lupon one.
           */}
-          <Route element={<Guarded staffOnly allowedOffices={["Lupon", "Main Office"]} allowedRoles={["Punong Barangay"]} deniedRoles={["Clerk"]} />}>
+          <Route element={<Guarded staffOnly allowedOffices={["Lupon", "Main Office"]} allowedRoles={["Punong Barangay", "Secretary"]} deniedRoles={["Clerk"]} />}>
             <Route path="/lupon/hearings" element={<LuponHearings key="all" />} />
             {/* What has been forwarded to this desk and has no sitting yet.
                 Its own address because it is the first thing the Secretary

@@ -11,7 +11,7 @@ export function ActivationForm({ ctx, activation }: {
 }) {
   const {
     submitCode, code, setCode, loading, resend, cancelActivation,
-    newEmail, setNewEmail, submitNewEmail,
+    newEmail, setNewEmail, submitNewEmail, resendCooldown,
   } = ctx;
 
   /*
@@ -109,10 +109,14 @@ export function ActivationForm({ ctx, activation }: {
         <button
           type="button"
           onClick={resend}
-          disabled={loading}
-          className="cursor-pointer font-semibold text-primary hover:underline disabled:opacity-60"
+          disabled={resendCooldown > 0 || loading}
+          className={`font-semibold transition-colors ${
+            resendCooldown > 0 || loading
+              ? "cursor-not-allowed text-gray-400"
+              : "cursor-pointer text-primary hover:underline"
+          }`}
         >
-          Send another code
+          {resendCooldown > 0 ? `Send another code (${resendCooldown}s)` : "Send another code"}
         </button>
         <button
           type="button"

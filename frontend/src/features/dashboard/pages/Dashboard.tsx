@@ -29,7 +29,7 @@ export default function Dashboard() {
     case "Admin":
       return <AdminDashboard />;
     default:
-      // Main Office — includes the PB executive view.
-      return <MainOfficeDashboard executive={user.role === "Punong Barangay"} />;
+      // Main Office — Secretary and Punong Barangay share the same executive dashboard.
+      return <MainOfficeDashboard executive={user.role === "Punong Barangay" || user.role === "Secretary"} />;
   }
 }

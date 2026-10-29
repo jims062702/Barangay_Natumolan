@@ -66,6 +66,8 @@ export const luponApi = {
   /* The complainant takes the complaint back, and the case closes. */
   withdrawCase: (caseId: PathParam | undefined, ...args: BodyArgs) =>
     api.post(`/lupon/cases/${caseId}/withdraw`, ...args),
+  referToSecretary: (caseId: PathParam | undefined, ...args: BodyArgs) =>
+    api.post(`/lupon/cases/${caseId}/refer-to-secretary`, ...args),
   /* Certified to file action: the complainant may go to court. */
   certifyToFileAction: (caseId: PathParam | undefined, ...args: BodyArgs) =>
     api.post(`/lupon/cases/${caseId}/cfa`, ...args),

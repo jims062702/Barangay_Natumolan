@@ -8,6 +8,7 @@ import Card from "../../../shared/ui/Card";
 import { formatBirthdate, birthdateNote } from "../../../shared/lib/birthdate";
 import PageHeader from "../../../shared/ui/PageHeader";
 import { inputClasses } from "../../../shared/ui/FormField";
+import PhoneInput from "../../../shared/ui/PhoneInput";
 import type { Family, User } from "../../../shared/types";
 import FamilyPanel from "../../resident/components/FamilyPanel";
 import ChangePasswordCard from "../../account/components/ChangePasswordCard";
@@ -145,6 +146,8 @@ function EditableRow({
                 </option>
               ))}
             </select>
+          ) : label === "Contact Number" ? (
+            <PhoneInput value={draft} onChange={setDraft} />
           ) : (
             <input
               value={draft}

@@ -102,7 +102,7 @@ class AppServiceProvider extends ServiceProvider
             $email = $account($request);
 
             return [
-                Limit::perMinutes(10, 5)->by('reset-request:' . $email),
+                Limit::perMinutes(1, 30)->by('reset-request:' . $email),
                 Limit::perMinutes(10, 60)->by('reset-from:' . $request->ip()),
             ];
         });

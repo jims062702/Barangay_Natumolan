@@ -1,6 +1,7 @@
 import { FiX } from "react-icons/fi";
 import ChoiceGroup from "../../../../shared/ui/ChoiceGroup";
 import FormField, { inputClasses } from "../../../../shared/ui/FormField";
+import PhoneInput from "../../../../shared/ui/PhoneInput";
 import { RELATIONS, wordChoices, CHILD_WORDS, PARENT_WORDS, isAdopted, parentWord, BLANK_OTHER_PARENT } from "./relations";
 import { OtherParentFields } from "./OtherParentFields";
 import ResidentFormFields from "../ResidentFormFields";
@@ -252,10 +253,9 @@ export function HouseholdMemberCard({ ctx, index, member }: {
             </select>
           </FormField>
           <FormField label="Contact Number">
-            <input
+            <PhoneInput
               value={member.form.contact_number}
-              onChange={(e) => patchMember(index, { contact_number: e.target.value })}
-              className={inputClasses}
+              onChange={(val) => patchMember(index, { contact_number: val })}
             />
           </FormField>
           <FormField label="Where they live" hint="Town or city is enough.">

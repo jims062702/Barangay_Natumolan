@@ -182,17 +182,6 @@ export function menuFor(user: User): MenuSection[] {
     { label: "Punong Barangay Hearings Calendar", to: "/lupon/hearings/calendar", icon: FiCalendar },
   ];
 
-  const secretariat: MenuItem[] = [
-    { label: "Barangay Sessions", to: "/sessions", icon: FiBookOpen },
-    { label: "Hearing & Mediation", to: "/lupon/hearings", icon: FiCalendar, children: secretaryHearingRoom },
-    /* Every office in one return — Lupon, VAWC, Health, Population and the
-       Clerk's certificates. The Secretary was copying figures off separate
-       screens onto paper, which is where a transcription error becomes a
-       submitted report. Only the Secretary and the PB have this entry; each
-       office keeps a Reports page of its own. */
-    { label: "Consolidated Reports", to: "/reports/consolidated", icon: FiBarChart2 },
-  ];
-
   /*
    * The Clerk works certificates, and nothing else.
    *
@@ -228,63 +217,20 @@ export function menuFor(user: User): MenuSection[] {
 
   switch (user.office) {
     case "Main Office":
-      if (user.role === "Punong Barangay") {
-        /*
-         * The Punong Barangay presides, and that is the whole menu.
-         *
-         * Certificates, the chat desk, administrative records, the session
-         * record and the KP docket all came off: each is an office's own
-         * work, and putting them here made the PB a second pair of hands on
-         * six desks rather than the one person who sits at the mediation
-         * table. What is left is the table: the sittings they conduct, the
-         * settlements that come out of them, and the reports on both.
-         */
-        sections.push({
-          heading: "Sangguniang Barangay",
-          items: [
-            { label: "Barangay Sessions", to: "/sessions", icon: FiBookOpen },
-          ],
-        });
-        sections.push({
-          heading: "Lupon Tagapamayapa",
-          items: [
-            /*
-             * ONE SCREEN, AND IT WRITES NOTHING.
-             *
-             * They preside; the Barangay Secretary keeps the record. Six
-             * list views with an Actions column offered them work they are
-             * refused, so what is left is the month itself: which days the
-             * hall sits, at what hour, who is coming, and the case behind
-             * each one to read before walking into the room.
-             */
-            { label: "Punong Barangay Hearings Calendar", to: "/lupon/hearings/calendar", icon: FiCalendar },
-            { label: "Settlements", to: "/lupon/settlements", icon: FiFileText },
-            /*
-             * No "Reports & Archives" here. Consolidated Reports below is
-             * the return the Punong Barangay signs, and it already carries
-             * the Lupon's figures along with every other office's — two
-             * entries to the same numbers is two places to look and one
-             * place to be told a different total.
-             */
-          ],
-        });
-        /* The return the PB signs, read before signing it. */
-        sections.push({
-          heading: "Barangay-wide",
-          items: [
-            { label: "Consolidated Reports", to: "/reports/consolidated", icon: FiBarChart2 },
-          ],
-        });
-      } else {
-        /*
-         * The Secretary keeps the record of what was decided, and nothing
-         * else. Appointments, Records Verification and the chat desk all
-         * belong to the front counter; administrative records came off with
-         * them. What is left is the session minutes, the hearings they take
-         * the minutes of, and the reports drawn from both.
-         */
-        sections.push({ heading: "Secretariat", items: secretariat });
-      }
+      /*
+       * Secretary and Punong Barangay share the exact same interface:
+       * Barangay Sessions, Hearing & Mediation calendar and records, Settlements,
+       * and Consolidated Reports.
+       */
+      sections.push({
+        heading: "Secretariat & Council",
+        items: [
+          { label: "Barangay Sessions", to: "/sessions", icon: FiBookOpen },
+          { label: "Hearing & Mediation", to: "/lupon/hearings", icon: FiCalendar, children: secretaryHearingRoom },
+          { label: "Settlements", to: "/lupon/settlements", icon: FiFileText },
+          { label: "Consolidated Reports", to: "/reports/consolidated", icon: FiBarChart2 },
+        ],
+      });
       break;
 
     // Deliberately no general Referrals/Reports entry: the VAWC Desk keeps its

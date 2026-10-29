@@ -1,6 +1,7 @@
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { FiSend } from "react-icons/fi";
 import Button from "../../../shared/ui/Button";
+import PhoneInput from "../../../shared/ui/PhoneInput";
 import { errorMessage } from "../../../shared/lib/api";
 import { publicApi } from "../api";
 
@@ -102,14 +103,9 @@ export default function ContactForm() {
           <label htmlFor="phone" className={labelClasses}>
             Phone Number <span className="font-normal text-gray-400">(Optional)</span>
           </label>
-          <input
-            id="phone"
-            name="phone"
-            type="tel"
-            placeholder="+63 900 000 0000"
+          <PhoneInput
             value={form.phone}
-            onChange={handleChange}
-            className={inputClasses}
+            onChange={(val) => setForm((prev) => ({ ...prev, phone: val }))}
           />
         </div>
         <div>

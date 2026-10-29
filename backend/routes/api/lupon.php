@@ -162,6 +162,7 @@ Route::prefix('lupon')->middleware(['office:Lupon,PB,Secretary,Main Office,Admin
     Route::get('cases/{case}', [CaseController::class, 'show']);
     /* Only for a case with no respondent yet — see CaseController::nameRespondents(). */
     Route::post('cases/{case}/respondents', [CaseController::class, 'nameRespondents']);
+    Route::post('cases/{case}/refer-to-secretary', [CaseController::class, 'referToSecretary']);
     Route::post('cases/{case}/hearings', [HearingController::class, 'store']);
     Route::put('cases/{case}/hearings/{hearing}', [HearingController::class, 'recordOutcome']);
     Route::post('cases/{case}/mediation', [ProceedingController::class, 'mediation']);

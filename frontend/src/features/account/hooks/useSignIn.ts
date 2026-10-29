@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth, homePathFor } from "../../../shared/auth/AuthContext";
 import { errorMessage } from "../../../shared/lib/api";
@@ -45,8 +45,17 @@ export function useSignIn() {
   const [resetCode, setResetCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordAgain, setNewPasswordAgain] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
   const { login, activate } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -60,6 +69,7 @@ export function useSignIn() {
       if (result.kind === "needs-activation") {
         setActivation({ email: result.email });
         setCode("");
+        setResendCooldown(60);
         setNotice(
           result.otpSent
             ? result.message
@@ -92,6 +102,7 @@ export function useSignIn() {
   };
 
   const resend = async () => {
+    if (resendCooldown > 0 || loading) return;
     setError("");
     setNotice("");
     setLoading(true);
@@ -99,6 +110,7 @@ export function useSignIn() {
       const response = await authApi.resendActivation({ email, password });
       setNotice(response.data.message);
       setCode("");
+      setResendCooldown(60);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -159,6 +171,26 @@ export function useSignIn() {
       const response = await authApi.forgotPassword({ email });
       setNotice(response.data.message);
       setForgot("code");
+      setResetCode("");
+      setResendCooldown(60);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resendResetCode = async () => {
+    if (resendCooldown > 0 || loading) return;
+    setLoading(true);
+    setError("");
+    setNotice("");
+
+    try {
+      const response = await authApi.forgotPassword({ email });
+      setNotice(response.data.message || `A new 6-digit code has been sent to ${email}.`);
+      setResetCode("");
+      setResendCooldown(60);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -235,7 +267,7 @@ export function useSignIn() {
     notice, setNotice, loading, setLoading, activation, setActivation, code, setCode, forgot,
     setForgot, resetCode, setResetCode, newPassword, setNewPassword, newPasswordAgain,
     setNewPasswordAgain, login, activate, navigate, handleSubmit, submitCode, resend,
-    cancelActivation, askForCode, checkCode, useCode, leaveForgot,
+    cancelActivation, askForCode, checkCode, useCode, leaveForgot, resendResetCode, resendCooldown,
     newEmail, setNewEmail, submitNewEmail,
   };
 }

@@ -19,8 +19,10 @@ import { PageLoading } from "../../../shared/ui/PageLoad";
 export default function Sessions() {
   const ctx = useSessionRecords();
   const {
-    total, period, windowLabel, years, periodCounts, changePeriod, startNew,
+    total, period, windowLabel, years, periodCounts, changePeriod, startNew, user,
   } = ctx;
+
+  const canCreate = user?.role === "Secretary" || user?.role === "Admin";
 
   if (ctx.pageLoad.state !== "ready") return <PageLoading load={ctx.pageLoad} onRetry={() => ctx.load()} />;
 
@@ -30,13 +32,15 @@ export default function Sessions() {
         title="Barangay Sessions"
         subtitle="Minutes and attendance for every sitting of the Sangguniang Barangay"
         actions={
-          <button
-            type="button"
-            onClick={startNew}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
-          >
-            <FiPlus className="h-4 w-4" aria-hidden="true" /> Record a session
-          </button>
+          canCreate ? (
+            <button
+              type="button"
+              onClick={startNew}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
+            >
+              <FiPlus className="h-4 w-4" aria-hidden="true" /> Record a session
+            </button>
+          ) : undefined
         }
       />
 

@@ -1,5 +1,6 @@
 import ChoiceGroup from "../../../../shared/ui/ChoiceGroup";
 import FormField, { inputClasses } from "../../../../shared/ui/FormField";
+import PhoneInput from "../../../../shared/ui/PhoneInput";
 import ResidentPicker from "../ResidentPicker";
 import type { ResidentIntakeState } from "../../hooks/useResidentIntake";
 import type { OtherParent, OtherParentKind } from "./types";
@@ -124,10 +125,9 @@ export function OtherParentFields({ ctx, parent, patch }: {
             </select>
           </FormField>
           <FormField label="Contact Number">
-            <input
+            <PhoneInput
               value={parent.contact_number}
-              onChange={(e) => patch({ contact_number: e.target.value })}
-              className={inputClasses}
+              onChange={(val) => patch({ contact_number: val })}
             />
           </FormField>
           <FormField label="Where they live" hint="Town or city is enough.">

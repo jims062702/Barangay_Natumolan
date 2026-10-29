@@ -306,4 +306,65 @@ class CaseController extends BaseController
 
         return $this->success($case->fresh(), 'Respondent set: ' . $names . '.');
     }
+
+    /**
+     * Refer case from Punong Barangay mediation stage to Secretary / Lupon conciliation.
+     * Allowed only if at least 1 mediation hearing has been completed and case is not settled.
+     * Cancels any remaining scheduled Punong Barangay hearings, freeing up the queue for subsequent cases.
+     */
+    public function referToSecretary(Request $request, CaseFile $case)
+    {
+        $user = auth()->user();
+        $allowed = ['Punong Barangay', 'Secretary', 'Admin'];
+        if ($user && !in_array($user->role, $allowed, true) && !in_array($user->office, ['Main Office', 'Lupon', 'Admin'], true)) {
+            return $this->error('You are not authorized to refer this case.', 403);
+        }
+
+        if (in_array($case->current_stage, ['Settled', 'Repudiated', 'CFA', 'Withdrawn', 'Closed — Unpaid', 'Closed Unpaid'], true)) {
+            return $this->error('This case is already ' . strtolower($case->current_stage) . ' and cannot be referred.', 422);
+        }
+
+        $completedMediation = $case->hearings()
+            ->where('hearing_type', 'Mediation')
+            ->where('status', 'Completed')
+            ->count();
+
+        if ($completedMediation < 1) {
+            return $this->error(
+                'The Punong Barangay must conduct at least 1 mediation hearing before referring the case to the Secretary / Lupon.',
+                422
+            );
+        }
+
+        DB::transaction(function () use ($case, $completedMediation) {
+            // Cancel remaining scheduled mediation hearings
+            $case->hearings()
+                ->where('hearing_type', 'Mediation')
+                ->where('status', 'Scheduled')
+                ->update([
+                    'status' => 'Cancelled',
+                    'cancellation_reason' => 'Referred by Punong Barangay to Secretary / Lupon conciliation.',
+                ]);
+
+            // Update case stage to For Lupon Summons
+            $note = 'Referred by Punong Barangay to Secretary on ' . now()->toDateString() . ' after ' . $completedMediation . ' mediation hearing(s).';
+            $case->update([
+                'current_stage' => 'For Lupon Summons',
+                'notes' => trim(($case->notes ? $case->notes . "\n" : '') . $note),
+            ]);
+
+            FilingFeeDeadlines::record($case, 'referred_to_lupon', $note);
+            \App\Support\ChangeLog::bump('lupon_cases');
+            \App\Support\ChangeLog::bump('lupon_hearings');
+        });
+
+        return $this->success(
+            $case->fresh()->load([
+                'hearings' => fn ($q) => $q->orderBy('scheduled_at', 'asc'),
+                'complainant',
+                'respondents',
+            ]),
+            'Case successfully referred to Secretary / Lupon. Remaining Punong Barangay mediation hearings have been removed from the schedule.'
+        );
+    }
 }

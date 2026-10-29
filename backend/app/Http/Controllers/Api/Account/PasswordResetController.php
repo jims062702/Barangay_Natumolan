@@ -42,22 +42,31 @@ class PasswordResetController extends BaseController
         $validated = $request->validated();
 
         $email = strtolower(trim($validated['email']));
+
+        /* Progressive lockout: 5 requests -> 15 min -> 1 hr -> 24 hrs */
+        if ($remaining = ProgressiveLockout::check(ProgressiveLockout::ACTION_FORGOT_PASSWORD, $email)) {
+            return $this->error(
+                'Too many password reset requests for this account. Try again in ' .
+                    ProgressiveLockout::formatRemaining($remaining) . '.',
+                429
+            );
+        }
+
         $user = User::whereRaw('LOWER(email) = ?', [$email])->first();
 
         /*
-         * An address nobody has is said out loud.
-         *
-         * This is a deliberate trade, made by the barangay: the quiet version
-         * gives the same reply either way, which stops somebody discovering
-         * WHICH residents have accounts one address at a time. The cost of
-         * the quiet version is a resident who mistyped their own email
-         * sitting in front of a code screen that will never receive one.
-         *
-         * The mitigation moves to the rate limiter instead — five asks per
-         * account and sixty per connection every ten minutes make discovery
-         * by guessing slow enough to be useless.
+         * An address nobody has: count failure towards lockout, then report error.
          */
         if (! $user) {
+            $failure = ProgressiveLockout::recordFailure(ProgressiveLockout::ACTION_FORGOT_PASSWORD, $email, 5);
+            if ($failure['locked']) {
+                return $this->error(
+                    'Too many password reset requests. Try again in ' .
+                        ProgressiveLockout::formatRemaining($failure['seconds']) . '.',
+                    429
+                );
+            }
+
             return $this->error('That email is not on any Barangay Natumolan account. Check the spelling, or ask the Population Office which address is on your record.', 404);
         }
 
@@ -70,6 +79,16 @@ class PasswordResetController extends BaseController
             if ($age === null || $age < 18) {
                 return $this->error('The resident portal account is only for residents aged 18 and above. Password resets cannot be requested for residents aged 17 and below.', 403);
             }
+        }
+
+        /* Valid user: record request attempt towards the 5-request ladder */
+        $attempt = ProgressiveLockout::recordFailure(ProgressiveLockout::ACTION_FORGOT_PASSWORD, $email, 5);
+        if ($attempt['locked']) {
+            return $this->error(
+                'Too many password reset requests. Try again in ' .
+                    ProgressiveLockout::formatRemaining($attempt['seconds']) . '.',
+                429
+            );
         }
 
         $code = $this->codes->issue($email);
@@ -141,6 +160,7 @@ class PasswordResetController extends BaseController
 
         $this->codes->forget($email);
         ProgressiveLockout::recordSuccess(ProgressiveLockout::ACTION_LOGIN, $email);
+        ProgressiveLockout::recordSuccess(ProgressiveLockout::ACTION_FORGOT_PASSWORD, $email);
 
         return $this->success(null, 'Your password has been changed. Sign in with it now.');
     }

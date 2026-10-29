@@ -6,7 +6,7 @@ import type { SignInState } from "../../hooks/useSignIn";
  * Forgotten password, step two: the code, and nothing else.
  */
 export function ResetCodeForm({ ctx }: { ctx: SignInState }) {
-  const { checkCode, email, resetCode, setResetCode, loading, setForgot, leaveForgot } = ctx;
+  const { checkCode, email, resetCode, setResetCode, loading, leaveForgot, resendResetCode, resendCooldown } = ctx;
 
   return (
     <form onSubmit={checkCode} className="mt-6 space-y-5">
@@ -47,10 +47,15 @@ export function ResetCodeForm({ ctx }: { ctx: SignInState }) {
       <div className="flex items-center justify-between text-xs">
         <button
           type="button"
-          onClick={() => setForgot("ask")}
-          className="cursor-pointer font-semibold text-primary hover:underline"
+          onClick={resendResetCode}
+          disabled={resendCooldown > 0 || loading}
+          className={`font-semibold transition-colors ${
+            resendCooldown > 0 || loading
+              ? "cursor-not-allowed text-gray-400"
+              : "cursor-pointer text-primary hover:underline"
+          }`}
         >
-          Send another code
+          {resendCooldown > 0 ? `Send another code (${resendCooldown}s)` : "Send another code"}
         </button>
         <button
           type="button"
