@@ -29,7 +29,7 @@ class PortalAccount
      *
      * @return array{created: bool, user: ?User, password: ?string, reason: ?string}
      */
-    public static function provision(Resident $resident, ?int $createdBy = null): array
+    public static function provision(Resident $resident, ?int $createdBy = null, bool $sendEmail = true): array
     {
         $skip = fn (string $reason) => ['created' => false, 'user' => null, 'password' => null, 'reason' => $reason];
 
@@ -74,7 +74,9 @@ class PortalAccount
             'created_by' => $createdBy,
         ]);
 
-        self::sendWelcome($user, $resident, $password);
+        if ($sendEmail) {
+            self::sendWelcome($user, $resident, $password);
+        }
 
         return ['created' => true, 'user' => $user, 'password' => $password, 'reason' => null];
     }
@@ -86,13 +88,24 @@ class PortalAccount
      */
     private static function sendWelcome(User $user, Resident $resident, string $password): void
     {
-        try {
-            Mail::to($user->email)->send(new PortalAccountCreated($resident, $password));
-        } catch (\Throwable $e) {
-            Log::warning('Portal welcome email failed', [
-                'resident_id' => $resident->id,
-                'error' => $e->getMessage(),
-            ]);
+        $send = function () use ($user, $resident, $password) {
+            try {
+                if (function_exists('fastcgi_finish_request')) {
+                    @fastcgi_finish_request();
+                }
+                Mail::to($user->email)->send(new PortalAccountCreated($resident, $password));
+            } catch (\Throwable $e) {
+                Log::warning('Portal welcome email failed', [
+                    'resident_id' => $resident->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        };
+
+        if (app()->runningInConsole()) {
+            $send();
+        } else {
+            app()->terminating($send);
         }
     }
 }

@@ -10,6 +10,7 @@ use App\Models\Chat\Conversation;
 use App\Models\Household\Household;
 use App\Models\Resident\Marriage;
 use App\Models\Resident\Resident;
+use App\Models\Account\User;
 use App\Services\Content\LandingCache;
 use App\Services\Account\PortalAccount;
 use Illuminate\Http\JsonResponse;
@@ -88,7 +89,7 @@ class ResidentController extends BaseController
             ]);
         }
 
-        $residents = $query->paginate(20);
+        $residents = $query->orderBy('resident_number')->paginate(20);
 
         /*
          * What to call each partner, worked out for the whole page at once.
@@ -279,7 +280,12 @@ class ResidentController extends BaseController
             'civil_status' => 'nullable|string',
             /* The resident's own — see the note on store(). */
             'contact_number' => 'nullable|string',
-            'email' => ['nullable', 'email', Rule::unique('residents', 'email')->ignore($resident->id)],
+            'email' => [
+                'nullable',
+                'email',
+                Rule::unique('residents', 'email')->ignore($resident->id),
+                Rule::unique('users', 'email')->ignore($resident->account?->id),
+            ],
             'household_id' => 'nullable|exists:households,id',
             'zone_purok' => 'string',
             'residency_status' => 'in:Permanent,Temporary,Migrant',
@@ -300,6 +306,24 @@ class ResidentController extends BaseController
         }
         $resident->save();
 
+        // Keep the portal user account in sync with the resident personal information
+        $account = User::where('resident_id', $resident->id)->first();
+        if ($account) {
+            $accountName = trim(($resident->first_name ?? '') . ' ' . ($resident->last_name ?? ''));
+            $userUpdates = [];
+            if ($accountName !== '' && $account->name !== $accountName) {
+                $userUpdates['name'] = $accountName;
+            }
+            if ($resident->email && $account->email !== $resident->email) {
+                $userUpdates['email'] = $resident->email;
+            }
+            if ($userUpdates !== []) {
+                $account->update($userUpdates);
+            }
+        } elseif ($resident->email && $resident->birthdate && $resident->birthdate->age >= 18 && !$resident->isNonResident()) {
+            PortalAccount::provision($resident, auth()->id());
+        }
+
         /*
          * And the age brackets with it. Only the classification used to
          * follow a corrected birthdate, so a record fixed from 2021 to 1995
@@ -308,7 +332,11 @@ class ResidentController extends BaseController
          */
         $resident->reconcileAgeData();
 
-        $resident->load(['household', 'sectors' => fn ($q) => $q->where('is_active', true)]);
+        $resident->load([
+            'household',
+            'sectors' => fn ($q) => $q->where('is_active', true),
+            'account:id,email,resident_id,is_active,activated_at',
+        ]);
         LandingCache::clearStats(); // is_active/purok may have changed the counts
 
         return $this->success($resident, 'Resident updated successfully');

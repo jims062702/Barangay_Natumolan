@@ -46,15 +46,22 @@ ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
 try:
     if os.path.exists(KEY_FILE):
-        ssh.connect(VPS_HOST, username=VPS_USER, key_filename=KEY_FILE, timeout=10)
+        ssh.connect(VPS_HOST, username=VPS_USER, key_filename=KEY_FILE, timeout=60, banner_timeout=60, auth_timeout=60, compress=True)
     else:
-        ssh.connect(VPS_HOST, username=VPS_USER, password=VPS_PASS, timeout=10)
+        ssh.connect(VPS_HOST, username=VPS_USER, password=VPS_PASS, timeout=60, banner_timeout=60, auth_timeout=60, compress=True)
 except Exception:
-    ssh.connect(VPS_HOST, username=VPS_USER, password=VPS_PASS, timeout=10)
+    ssh.connect(VPS_HOST, username=VPS_USER, password=VPS_PASS, timeout=60, banner_timeout=60, auth_timeout=60, compress=True)
 
-sftp = ssh.open_sftp()
-sftp.put(archive_name, f"/root/{archive_name}")
-sftp.close()
+print("  Streaming archive over SSH...")
+stdin, stdout, stderr = ssh.exec_command(f"cat > /root/{archive_name}")
+with open(archive_name, "rb") as f:
+    while chunk := f.read(32768):
+        stdin.write(chunk)
+stdin.close()
+status = stdout.channel.recv_exit_status()
+if status != 0:
+    print(f"[X] Failed to upload archive. Remote stderr: {stderr.read().decode()}")
+    sys.exit(1)
 
 if os.path.exists(archive_name):
     os.remove(archive_name)
@@ -67,8 +74,10 @@ php artisan migrate --force
 php artisan route:clear
 php artisan route:cache
 php artisan config:cache
+php artisan residents:provision-accounts
 chown -R www-data:www-data /var/www/barangay_natumolan/frontend/dist /var/www/barangay_natumolan/backend/storage /var/www/barangay_natumolan/backend/bootstrap/cache
 systemctl reload nginx
+systemctl reload php8.3-fpm
 rm -f /root/server_update.tar.gz
 echo '--- UPDATE_COMPLETE ---'
 """

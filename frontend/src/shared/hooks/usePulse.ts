@@ -17,7 +17,7 @@ import { systemApi } from "../lib/systemApi";
  * four subscribed panels makes one request a second between them, not four.
  */
 
-const INTERVAL_MS = 1000;
+const INTERVAL_MS = 3000;
 
 /*
  * How long a person may sit still before the pulse stops.

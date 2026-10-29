@@ -7,6 +7,8 @@ use App\Models\Population\Zone;
 use App\Models\Resident\Marriage;
 use App\Models\Rbim\CensusMember;
 use App\Models\Resident\Resident;
+use App\Models\Account\User;
+use App\Services\Account\PortalAccount;
 use App\Support\Nationality;
 use App\Support\XlsxReader;
 use Carbon\Carbon;
@@ -694,7 +696,41 @@ final class RegisterImport
         Household::whereIn('id', Resident::whereNotNull('household_id')->distinct()->pluck('household_id'))
             ->each(fn (Household $h) => $h->update(['total_members' => $h->residents()->count()]));
 
-        return compact('created', 'updated', 'skipped', 'households', 'couples', 'heads', 'children', 'tagged');
+        /*
+         * Auto-provision portal accounts for imported/updated residents who have an
+         * email and are eligible (age >= 18, bona fide), or sync their existing user email.
+         */
+        $provisioned = 0;
+        foreach ($written as $person) {
+            if (!$person || !$person->email) {
+                continue;
+            }
+
+            // Sync user account if email or name changed
+            $account = User::where('resident_id', $person->id)->first();
+            if ($account) {
+                $accountName = trim(($person->first_name ?? '') . ' ' . ($person->last_name ?? ''));
+                $userUpdates = [];
+                if ($accountName !== '' && $account->name !== $accountName) {
+                    $userUpdates['name'] = $accountName;
+                }
+                if ($account->email !== $person->email) {
+                    $userUpdates['email'] = $person->email;
+                }
+                if ($userUpdates !== []) {
+                    $account->update($userUpdates);
+                }
+                continue;
+            }
+
+            // Provision portal account for eligible resident (bona fide, aged 18+)
+            $res = PortalAccount::provision($person, auth()->id(), sendEmail: false);
+            if ($res['created']) {
+                $provisioned++;
+            }
+        }
+
+        return compact('created', 'updated', 'skipped', 'households', 'couples', 'heads', 'children', 'tagged', 'provisioned');
     }
 
     /**
