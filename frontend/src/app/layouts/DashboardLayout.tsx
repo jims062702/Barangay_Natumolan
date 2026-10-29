@@ -197,13 +197,13 @@ export default function DashboardLayout() {
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <NotificationsBell />
-            <div className="hidden text-right sm:block">
-              <p className="text-sm font-semibold leading-tight text-dark">{user.name}</p>
-              <p className="text-xs text-gray-500">{user.role}</p>
+            <div className="min-w-0 max-w-[105px] text-right xs:max-w-[150px] sm:max-w-none">
+              <p className="truncate text-xs font-semibold leading-tight text-dark sm:text-sm">{user.name}</p>
+              <p className="truncate text-[10px] text-gray-500 sm:text-xs">{user.role}</p>
             </div>
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-sm font-bold text-white">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white sm:h-10 sm:w-10 sm:text-sm">
               {user.name.charAt(0)}
             </span>
             <button
@@ -211,9 +211,9 @@ export default function DashboardLayout() {
               onClick={handleLogout}
               aria-label="Logout"
               title="Logout"
-              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-danger/10 hover:text-danger"
+              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-danger/10 hover:text-danger sm:h-10 sm:w-10"
             >
-              <FiLogOut className="h-5 w-5" />
+              <FiLogOut className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
             </button>
           </div>
         </header>

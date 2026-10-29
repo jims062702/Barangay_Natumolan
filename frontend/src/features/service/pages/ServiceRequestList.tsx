@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { errorMessage } from "../../../shared/lib/api";
 import { toast } from "../../../shared/lib/toast";
 import { confirmAction } from "../../../shared/lib/confirm";
@@ -49,6 +49,8 @@ export default function ServiceRequestList() {
   // So the footer can say WHICH rows are on screen, not only the page.
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const isSearchChange = useRef(false);
   /* Its skeleton until the first answer — see PageLoad. */
   const pageLoad = usePageLoad();
 
@@ -63,7 +65,13 @@ export default function ServiceRequestList() {
    */
   const load = (silent = false) => {
     if (!silent) setLoading(true);
-    serviceApi.serviceRequests({ params: { page, status: statusFilter || undefined } })
+    serviceApi.serviceRequests({
+      params: {
+        page,
+        status: statusFilter || undefined,
+        search: search.trim() || undefined,
+      },
+    })
       .then((r) => {
         setRows(r.data.data.data ?? []);
         setLastPage(r.data.data.last_page ?? 1);
@@ -76,9 +84,14 @@ export default function ServiceRequestList() {
   };
 
   useEffect(() => {
-    load();
+    const delay = isSearchChange.current ? 250 : 0;
+    isSearchChange.current = false;
+    const timer = setTimeout(() => {
+      load();
+    }, delay);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, statusFilter]);
+  }, [page, statusFilter, search]);
 
   // Live updates: new online requests and PB decisions appear automatically.
   useAutoRefresh(() => load(true), REFRESH.staff);
@@ -283,6 +296,12 @@ export default function ServiceRequestList() {
           numbered
           total={total}
           searchable
+          searchValue={search}
+          onSearch={(val) => {
+            isSearchChange.current = true;
+            setSearch(val);
+            setPage(1);
+          }}
           searchPlaceholder="Search by Name, Request Number, Service or Purpose…"
           getSearchText={(r) =>
             `${r.request_number} ${

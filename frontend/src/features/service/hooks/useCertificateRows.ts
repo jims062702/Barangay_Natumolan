@@ -23,6 +23,7 @@ export function useCertificateRows() {
 
   const [rows, setRows] = useState<Certificate[]>([]);
   const [statusFilter, setStatusFilter] = useState("");
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
   // So the footer can say WHICH rows are on screen, not only the page.
@@ -168,7 +169,7 @@ export function useCertificateRows() {
   const load = (silent = false) => {
     if (!silent) setLoading(true);
 
-    serviceApi.certificates({ params: { page, status: statusFilter || undefined } })
+    serviceApi.certificates({ params: { page, status: statusFilter || undefined, search: search.trim() || undefined } })
       .then((r) => {
         const fetched = (r.data.data.data ?? []) as Certificate[];
 
@@ -234,9 +235,12 @@ export function useCertificateRows() {
       .finally(() => setLoading(false));
   };
   useEffect(() => {
-    load();
+    const timer = setTimeout(() => {
+      load();
+    }, 250);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, statusFilter]);
+  }, [page, statusFilter, search]);
   // Live updates: new online requests appear without a manual refresh.
   useAutoRefresh(() => load(true), REFRESH.staff);
   /*
@@ -290,7 +294,7 @@ export function useCertificateRows() {
 
   return {
     pageLoad,
-    rows, setRows, statusFilter, setStatusFilter, page, setPage, lastPage, setLastPage, total,
+    rows, setRows, statusFilter, setStatusFilter, search, setSearch, page, setPage, lastPage, setLastPage, total,
     setTotal, counts, setCounts, loading, setLoading, catalogue, setCatalogue, council,
     setCouncil, queuedRows, withPendingSteps, load,
   };

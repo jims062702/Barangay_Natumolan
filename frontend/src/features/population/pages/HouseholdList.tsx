@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { FiEdit2, FiEye, FiPlus, FiRepeat, FiUserPlus, FiX } from "react-icons/fi";
 import { personName } from "../../../shared/lib/names";
 import { errorMessage } from "../../../shared/lib/api";
@@ -37,6 +37,9 @@ export default function HouseholdList() {
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [zoneFilter, setZoneFilter] = useState("");
+  const isSearchChange = useRef(false);
   const pageLoad = usePageLoad();
 
   // Modal for editing existing households
@@ -113,7 +116,13 @@ export default function HouseholdList() {
 
   const load = (silent = false) => {
     if (!silent) setLoading(true);
-    populationApi.households({ params: { page } })
+    populationApi.households({
+      params: {
+        page,
+        search: search.trim() || undefined,
+        zone_purok: zoneFilter || undefined,
+      },
+    })
       .then((r) => {
         setRows(r.data.data.data ?? []);
         setLastPage(r.data.data.last_page ?? 1);
@@ -125,9 +134,14 @@ export default function HouseholdList() {
   };
 
   useEffect(() => {
-    load();
+    const delay = isSearchChange.current ? 250 : 0;
+    isSearchChange.current = false;
+    const timer = setTimeout(() => {
+      load();
+    }, delay);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [page, search, zoneFilter]);
 
   useAutoRefresh(() => load(true), REFRESH.staff);
   usePulse("households", () => load(true));
@@ -424,13 +438,24 @@ export default function HouseholdList() {
           numbered
           total={total}
           searchable
+          searchValue={search}
+          onSearch={(val) => {
+            isSearchChange.current = true;
+            setSearch(val);
+            setPage(1);
+          }}
           searchPlaceholder="Search by Household Number, Owner, Street or Zone / Purok…"
-          getSearchText={(h) =>
-            `${h.household_number} ${h.zone_purok ?? ""} ${h.street_address ?? ""} ${
-              h.head ? `${h.head.first_name} ${h.head.last_name}` : ""
-            }`
-          }
-          filters={[{ label: "Zone / Purok", getValue: (h) => h.zone_purok ?? "" }]}
+          filters={[
+            {
+              label: "Zone / Purok",
+              value: zoneFilter,
+              options: zones,
+              onChange: (z) => {
+                setZoneFilter(z);
+                setPage(1);
+              },
+            },
+          ]}
           loading={loading}
           page={page}
           lastPage={lastPage}

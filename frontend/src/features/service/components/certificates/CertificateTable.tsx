@@ -14,7 +14,7 @@ import type { CertificateDeskState } from "../../hooks/useCertificateDesk";
  */
 export function CertificateTable({ ctx }: { ctx: CertificateDeskState }) {
   const {
-    setStatusFilter, setPage, statusFilter, counts, openDetail, actionsFor, rows, total,
+    setStatusFilter, setPage, statusFilter, search, setSearch, counts, openDetail, actionsFor, rows, total,
     loading, page, lastPage,
   } = ctx;
 
@@ -205,6 +205,11 @@ export function CertificateTable({ ctx }: { ctx: CertificateDeskState }) {
         numbered
         total={total}
         searchable
+        searchValue={search}
+        onSearch={(val) => {
+          setSearch(val);
+          setPage(1);
+        }}
         searchPlaceholder="Search by Name, Certificate Number, Reference Number or Certificate Type…"
         /*
           The purok and the number are searchable too, so a clerk ringing

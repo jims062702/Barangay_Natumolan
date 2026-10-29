@@ -55,6 +55,20 @@ class ServiceRequestController extends BaseController
             $query->where('resident_id', $request->resident_id);
         }
 
+        if ($request->filled('search')) {
+            $term = $request->search;
+            $query->where(function ($q) use ($term) {
+                $q->where('request_number', 'like', "%{$term}%")
+                  ->orWhere('service_type', 'like', "%{$term}%")
+                  ->orWhere('purpose', 'like', "%{$term}%")
+                  ->orWhereHas('resident', fn ($rq) =>
+                      $rq->where('first_name', 'like', "%{$term}%")
+                         ->orWhere('last_name', 'like', "%{$term}%")
+                         ->orWhere(\Illuminate\Support\Facades\DB::raw("CONCAT(first_name, ' ', last_name)"), 'like', "%{$term}%")
+                  );
+            });
+        }
+
         // First Come, First Served priority based on actual request/filing timestamp (created_at ASC, id ASC)
         if ($request->input('status') === 'Pending' || $request->input('order') === 'fcfs' || $request->input('sort') === 'fcfs') {
             $query->orderBy('created_at', 'asc')->orderBy('id', 'asc');

@@ -58,6 +58,21 @@ class CertificateController extends BaseController
             $query->whereHas('serviceRequest', fn ($q) => $q->where('transaction_code', $request->transaction_code));
         }
 
+        if ($request->filled('search')) {
+            $term = $request->search;
+            $query->where(function ($q) use ($term) {
+                $q->where('certificate_number', 'like', "%{$term}%")
+                  ->orWhere('reference_number', 'like', "%{$term}%")
+                  ->orWhere('certificate_type', 'like', "%{$term}%")
+                  ->orWhere('unlisted_person', 'like', "%{$term}%")
+                  ->orWhereHas('resident', fn ($rq) =>
+                      $rq->where('first_name', 'like', "%{$term}%")
+                         ->orWhere('last_name', 'like', "%{$term}%")
+                         ->orWhere(DB::raw("CONCAT(first_name, ' ', last_name)"), 'like', "%{$term}%")
+                  );
+            });
+        }
+
         // Counted before the status filter narrows it — see statusCounts.
         $counts = $this->statusCounts($query);
 

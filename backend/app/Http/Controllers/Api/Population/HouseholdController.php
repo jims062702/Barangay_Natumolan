@@ -51,7 +51,13 @@ class HouseholdController extends BaseController
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('household_number', 'like', "%{$search}%")
-                  ->orWhere('street_address', 'like', "%{$search}%");
+                  ->orWhere('street_address', 'like', "%{$search}%")
+                  ->orWhere('zone_purok', 'like', "%{$search}%")
+                  ->orWhereHas('head', function ($hq) use ($search) {
+                      $hq->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhere(DB::raw("CONCAT(first_name, ' ', last_name)"), 'like', "%{$search}%");
+                  });
             });
         }
 

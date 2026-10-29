@@ -12,9 +12,13 @@ export interface Column<T> {
 export interface FilterDef<T> {
   label: string;
   /** The row's value for this filter (compared against the chosen option). */
-  getValue: (row: T) => string;
+  getValue?: (row: T) => string;
   /** Explicit options; if omitted, the unique values in the data are used. */
   options?: string[];
+  /** Controlled value when managed by parent / server. */
+  value?: string;
+  /** Controlled change handler when managed by parent / server. */
+  onChange?: (val: string) => void;
 }
 
 /**
@@ -148,6 +152,26 @@ export default function DataTable<T>({
   const serverSearch = onSearch !== undefined;
   const query = serverSearch ? (searchValue ?? "") : localQuery;
   const setQuery = serverSearch ? onSearch : setLocalQuery;
+
+  const handleQueryChange = (val: string) => {
+    setQuery(val);
+    if (page !== undefined && page > 1 && onPageChange) {
+      onPageChange(1);
+    }
+  };
+
+  const handleFilterChange = (index: number, val: string) => {
+    const filter = filters?.[index];
+    if (filter?.onChange) {
+      filter.onChange(val);
+    } else {
+      setFilterValues((prev) => ({ ...prev, [index]: val }));
+    }
+    if (page !== undefined && page > 1 && onPageChange) {
+      onPageChange(1);
+    }
+  };
+
   // The "go to page" box, opened from the gap between page numbers.
   const [jumping, setJumping] = useState(false);
   const [jumpTo, setJumpTo] = useState("");
@@ -160,7 +184,9 @@ export default function DataTable<T>({
     () =>
       (filters ?? []).map((filter) =>
         filter.options ??
-        Array.from(new Set(rows.map((r) => filter.getValue(r)).filter(Boolean))).sort()
+        (filter.getValue
+          ? Array.from(new Set(rows.map((r) => filter.getValue!(r)).filter(Boolean))).sort()
+          : [])
       ),
     [filters, rows]
   );
@@ -173,8 +199,9 @@ export default function DataTable<T>({
       out = out.filter((r) => getSearchText(r).toLowerCase().includes(q));
     }
     (filters ?? []).forEach((filter, index) => {
+      if (filter.onChange !== undefined) return;
       const chosen = filterValues[index];
-      if (chosen) out = out.filter((r) => filter.getValue(r) === chosen);
+      if (chosen && filter.getValue) out = out.filter((r) => filter.getValue!(r) === chosen);
     });
     return out;
   }, [rows, query, filterValues, searchable, getSearchText, filters, serverSearch]);
@@ -182,7 +209,8 @@ export default function DataTable<T>({
   /* A SERVER search does not count as filtering: the pages it returns are
      pages of the results, so the pager is right to stay. */
   const filtering =
-    (!serverSearch && query.trim() !== "") || Object.values(filterValues).some(Boolean);
+    (!serverSearch && query.trim() !== "") ||
+    (filters ?? []).some((f, index) => f.onChange === undefined && Boolean(filterValues[index]));
 
   /*
    * On a phone the table is replaced by one card per row (see below). Action
@@ -235,7 +263,7 @@ export default function DataTable<T>({
           {searchable && (
             <SearchInput
               value={query}
-              onChange={setQuery}
+              onChange={handleQueryChange}
               placeholder={searchPlaceholder}
               className="w-full flex-1 sm:w-auto sm:min-w-56"
             />
@@ -243,10 +271,8 @@ export default function DataTable<T>({
           {(filters ?? []).map((filter, index) => (
             <select
               key={filter.label}
-              value={filterValues[index] ?? ""}
-              onChange={(e) =>
-                setFilterValues((prev) => ({ ...prev, [index]: e.target.value }))
-              }
+              value={filter.value !== undefined ? filter.value : (filterValues[index] ?? "")}
+              onChange={(e) => handleFilterChange(index, e.target.value)}
               aria-label={filter.label}
               className="w-full cursor-pointer rounded-full border border-gray bg-white px-4 py-2 text-sm text-dark outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/25 sm:w-auto"
             >

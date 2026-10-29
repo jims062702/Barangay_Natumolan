@@ -74,6 +74,19 @@ export function Sidebar({ compact, user, sections, setSidebarOpen, badges, activ
         </Link>
       </div>
 
+      {/* On mobile drawer, display logged-in user profile chip right beneath the logo */}
+      {!compact && (
+        <div className="mx-3 mb-3 flex items-center gap-2.5 rounded-xl bg-white/10 p-2.5 lg:hidden">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-primary">
+            {user.name.charAt(0)}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-semibold text-white">{user.name}</p>
+            <p className="truncate text-[10px] text-white/70">{user.role} · {user.office}</p>
+          </div>
+        </div>
+      )}
+
       <nav
         aria-label="Sidebar"
         className={`flex-1 space-y-5 overflow-y-auto pb-6 ${compact ? "px-2" : "px-3"}`}
