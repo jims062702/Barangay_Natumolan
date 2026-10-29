@@ -61,8 +61,8 @@ export default function Reveal({
   children,
   direction = "up",
   delay = 0,
-  duration = 0.6,
-  once = false,
+  duration = 0.4,
+  once = true,
   className = "",
   ...props
 }: RevealProps) {
@@ -75,7 +75,7 @@ export default function Reveal({
     <motion.div
       initial={{ opacity: 0, ...OFFSETS[effective] }}
       whileInView={{ opacity: 1, x: 0, y: 0 }}
-      viewport={{ once, amount: 0.2 }}
+      viewport={{ once, amount: 0.02, margin: "0px 0px 50px 0px" }}
       transition={{ duration, delay, ease: "easeOut" }}
       className={className}
       {...props}

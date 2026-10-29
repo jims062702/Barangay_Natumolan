@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Route;
 | Public: nobody who cannot sign in can be asked to be signed in first.
 */
 
-Route::post('auth/login', [AuthController::class, 'login']);
+Route::post('auth/login', [AuthController::class, 'login'])->name('login');
 /*
 | First sign-in for a resident portal account. The account is created for
 | them when they are registered, so it stays inert until they enter the code

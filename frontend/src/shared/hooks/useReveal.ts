@@ -64,7 +64,7 @@ export function useReveal<T extends HTMLElement>(options: {
           setShown(false);
         }
       },
-      { threshold: amount, rootMargin: "50px 0px 50px 0px" }
+      { threshold: amount, rootMargin: "150px 0px 150px 0px" }
     );
 
     observer.observe(el);

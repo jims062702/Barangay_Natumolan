@@ -289,13 +289,15 @@ export default function CitizensCharter() {
 
         {/* Accordion List */}
         <div className="space-y-4">
-          {filteredCharters.map((charter, index) => {
+          {filteredCharters.map((charter) => {
             const isOpen = openIds.has(charter.id);
             const action = getActionForCharter(charter.id);
 
             return (
-              <Reveal key={charter.id} delay={index * 0.04}>
-                <div className="overflow-hidden rounded-2xl border border-gray/70 bg-white shadow-xs transition-shadow hover:shadow-md">
+              <div
+                key={charter.id}
+                className="overflow-hidden rounded-2xl border border-gray/70 bg-white shadow-xs transition-shadow hover:shadow-md"
+              >
                   {/* Accordion Header / Trigger Button */}
                   <button
                     type="button"
@@ -532,7 +534,6 @@ export default function CitizensCharter() {
                     </div>
                   )}
                 </div>
-              </Reveal>
             );
           })}
         </div>
