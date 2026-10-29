@@ -51,7 +51,8 @@ final class DeskNotifier
             $title,
             Str::limit($preview, 140),
             'chat',
-            $conversation->id
+            $conversation->id,
+            "/chat?id={$conversation->id}"
         );
     }
 }

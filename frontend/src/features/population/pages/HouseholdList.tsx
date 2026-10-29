@@ -711,7 +711,7 @@ export default function HouseholdList() {
                   selected={transferTargetHousehold}
                   onSelect={setTransferTargetHousehold}
                   onAddNew={() => setDestinationMode("new")}
-                  placeholder="Search existing household by number, purok, or owner…"
+                  placeholder="Select destination household…"
                 />
 
                 {transferTargetHousehold && (

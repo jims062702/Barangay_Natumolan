@@ -122,32 +122,32 @@ class Notification extends Model
     }
 
     /** Notify every active Punong Barangay (certificate decisions, etc.). */
-    public static function notifyPunongBarangay(string $type, string $subject, string $message, ?string $entityType = null, ?int $entityId = null): void
+    public static function notifyPunongBarangay(string $type, string $subject, string $message, ?string $entityType = null, ?int $entityId = null, ?string $link = null): void
     {
         $ids = User::where('is_active', true)->where('role', 'Punong Barangay')->pluck('id');
-        self::notifyUsers($ids, $type, $subject, $message, $entityType, $entityId);
+        self::notifyUsers($ids, $type, $subject, $message, $entityType, $entityId, $link);
     }
 
     /** Notify the Main Office front desk (clerks/secretary — not the PB). */
-    public static function notifyFrontDesk(string $type, string $subject, string $message, ?string $entityType = null, ?int $entityId = null): void
+    public static function notifyFrontDesk(string $type, string $subject, string $message, ?string $entityType = null, ?int $entityId = null, ?string $link = null): void
     {
         $ids = User::where('is_active', true)
             ->where('office', 'Main Office')
             ->where('role', '!=', 'Punong Barangay')
             ->pluck('id');
-        self::notifyUsers($ids, $type, $subject, $message, $entityType, $entityId);
+        self::notifyUsers($ids, $type, $subject, $message, $entityType, $entityId, $link);
     }
 
     /**
      * Notify the Population Office — the one desk that may add somebody to
      * the register, told when another desk served somebody who is not on it.
      */
-    public static function notifyPopulation(string $type, string $subject, string $message, ?string $entityType = null, ?int $entityId = null): void
+    public static function notifyPopulation(string $type, string $subject, string $message, ?string $entityType = null, ?int $entityId = null, ?string $link = null): void
     {
         $ids = User::where('is_active', true)
             ->where('office', 'Population')
             ->pluck('id');
-        self::notifyUsers($ids, $type, $subject, $message, $entityType, $entityId);
+        self::notifyUsers($ids, $type, $subject, $message, $entityType, $entityId, $link);
     }
 
     /**
@@ -159,11 +159,11 @@ class Notification extends Model
      * the case and looking. An officer who has to keep checking is an officer
      * who checks late.
      */
-    public static function notifyLupon(string $type, string $subject, string $message, ?string $entityType = null, ?int $entityId = null): void
+    public static function notifyLupon(string $type, string $subject, string $message, ?string $entityType = null, ?int $entityId = null, ?string $link = null): void
     {
         $ids = User::where('is_active', true)
             ->where('office', 'Lupon')
             ->pluck('id');
-        self::notifyUsers($ids, $type, $subject, $message, $entityType, $entityId);
+        self::notifyUsers($ids, $type, $subject, $message, $entityType, $entityId, $link);
     }
 }

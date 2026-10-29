@@ -31,4 +31,6 @@ export interface AppNotification {
   created_at: string;
   /** The page the notice is about — the bell opens it. Null: it leads nowhere. */
   link?: string | null;
+  related_entity_type?: string | null;
+  related_entity_id?: number | null;
 }

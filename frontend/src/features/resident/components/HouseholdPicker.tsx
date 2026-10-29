@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { FiChevronDown, FiSearch, FiX } from "react-icons/fi";
+import { FiChevronDown, FiX } from "react-icons/fi";
 import { inputClasses } from "../../../shared/ui/FormField";
 import SearchInput from "../../../shared/ui/SearchInput";
 import type { Household } from "../../../shared/types";
@@ -118,7 +118,7 @@ export default function HouseholdPicker({ value, selected, onSelect, onAddNew, p
         className={`${inputClasses} flex w-full cursor-pointer items-center justify-between gap-2 text-left`}
       >
         <span className={`truncate ${selected ? "text-dark" : "text-gray-400"}`}>
-          {selected ? householdLabel(selected) : placeholder ?? "Search by household number, street or owner…"}
+          {selected ? householdLabel(selected) : placeholder ?? "Select destination household…"}
         </span>
         <span className="flex shrink-0 items-center gap-1">
           {selected && (
@@ -137,8 +137,7 @@ export default function HouseholdPicker({ value, selected, onSelect, onAddNew, p
 
       {open && (
         <div className="absolute z-30 mt-1 w-full rounded-2xl border border-gray bg-white p-2 shadow-lg">
-          <div className="relative mb-2">
-            <FiSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <div className="mb-2">
             <SearchInput
               value={query}
               onChange={setQuery}

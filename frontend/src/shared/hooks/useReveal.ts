@@ -22,7 +22,7 @@ export function useReveal<T extends HTMLElement>(options: {
   /** How much of it has to be showing before it starts. */
   amount?: number;
 } = {}) {
-  const { once = false, amount = 0.12 } = options;
+  const { once = true, amount = 0 } = options;
 
   const ref = useRef<T | null>(null);
   const [shown, setShown] = useState(false);
@@ -64,7 +64,7 @@ export function useReveal<T extends HTMLElement>(options: {
           setShown(false);
         }
       },
-      { threshold: amount }
+      { threshold: amount, rootMargin: "50px 0px 50px 0px" }
     );
 
     observer.observe(el);

@@ -237,7 +237,7 @@ export default function DataTable<T>({
               value={query}
               onChange={setQuery}
               placeholder={searchPlaceholder}
-              className="flex-1 sm:min-w-56"
+              className="w-full flex-1 sm:w-auto sm:min-w-56"
             />
           )}
           {(filters ?? []).map((filter, index) => (

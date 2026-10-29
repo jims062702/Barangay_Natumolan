@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FiClipboard, FiDownload, FiEye, FiTrash2, FiUpload } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { errorMessage } from "../../../shared/lib/api";
@@ -156,9 +156,13 @@ export default function ResidentList() {
     }
   };
 
+  const isSearchChange = useRef(false);
+
   useEffect(() => {
-    setLoading(true);
+    const delay = isSearchChange.current ? 150 : 0;
+    isSearchChange.current = false;
     const timer = setTimeout(() => {
+      setLoading(true);
       residentApi.residents({
           params: {
             page,
@@ -177,7 +181,7 @@ export default function ResidentList() {
         .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
         .catch(() => undefined)
         .finally(() => setLoading(false));
-    }, 300);
+    }, delay);
     return () => clearTimeout(timer);
   }, [page, search, purok, gender, sector, tick]);
 
@@ -240,17 +244,18 @@ export default function ResidentList() {
 
       <UnfinishedCensuses />
 
-      <Card>
+      <Card still>
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <SearchInput
             value={search}
             onChange={(value) => {
+              isSearchChange.current = true;
               setSearch(value);
               setPage(1);
             }}
             placeholder="Search by Name or Resident Number…"
             label="Search residents"
-            className="max-w-sm flex-1"
+            className="w-full sm:w-auto sm:max-w-sm sm:flex-1"
           />
           <select
             value={purok}

@@ -1,5 +1,6 @@
 import NeedsConnection, { useNeedsConnection } from "../../../shared/offline/NeedsConnection";
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { FiCheckCircle, FiCornerUpLeft, FiUser } from "react-icons/fi";
 import { errorMessage } from "../../../shared/lib/api";
 import { toast } from "../../../shared/lib/toast";
@@ -106,6 +107,29 @@ export default function LiveChat() {
   const waitingRef = useRef<number | null>(null);
   // …or when a resident this Clerk is with writes in a thread not on screen.
   const unreadRef = useRef<number | null>(null);
+
+  const [searchParams] = useSearchParams();
+  const paramId = searchParams.get("id");
+
+  useEffect(() => {
+    if (paramId) {
+      const num = Number(paramId);
+      if (!Number.isNaN(num) && num > 0) {
+        setActiveId(num);
+        shownId.current = num;
+        chatApi.deskConversation(num).then((response) => {
+          const conv = response.data?.data?.conversation;
+          if (conv) {
+            setActive(conv);
+            setMessages(response.data?.data?.messages ?? []);
+            if (conv.status === "Waiting") setFilter("Waiting");
+            else if (conv.status === "Active") setFilter("Active");
+            else if (conv.status === "Closed") setFilter("Closed");
+          }
+        }).catch(() => undefined);
+      }
+    }
+  }, [paramId]);
 
   const loadList = async () => {
     try {

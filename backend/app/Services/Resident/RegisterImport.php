@@ -849,7 +849,7 @@ final class RegisterImport
         foreach ($rows as $row) {
             $person = $written[$row['line']] ?? null;
 
-            if (! $person || $row['problems'] !== [] || ($row['relationship'] ?? null) === null) {
+            if (! $person || $row['problems'] !== []) {
                 continue;
             }
 
@@ -861,15 +861,29 @@ final class RegisterImport
         }
 
         foreach ($byHouse as $householdId => $members) {
-            $headLines = array_values(array_filter($members, fn ($m) => $m['row']['relationship'] === 1));
+            $headLines = array_values(array_filter($members, fn ($m) => ($m['row']['relationship'] ?? null) === 1));
 
-            /* Nobody marked Head, or two people both marked Head: the sheet
-               has not said who heads this household, so nothing is linked. */
-            if (count($headLines) !== 1) {
-                continue;
+            $headRow = null;
+            $head = null;
+
+            if (count($headLines) > 0) {
+                ['row' => $headRow, 'person' => $head] = $headLines[0];
+            } elseif (count($members) > 0) {
+                // Fallback: pick the first adult (age >= 18) or the oldest/first member
+                $adults = array_values(array_filter($members, function ($m) {
+                    $bday = $m['person']->birthdate;
+                    return $bday && $bday->age >= 18;
+                }));
+                if (count($adults) > 0) {
+                    ['row' => $headRow, 'person' => $head] = $adults[0];
+                } else {
+                    ['row' => $headRow, 'person' => $head] = $members[0];
+                }
             }
 
-            ['row' => $headRow, 'person' => $head] = $headLines[0];
+            if (! $head) {
+                continue;
+            }
 
             $household = Household::find($householdId);
 
@@ -880,7 +894,7 @@ final class RegisterImport
                 $count['heads']++;
             }
 
-            $spouseLine = collect($members)->first(fn ($m) => $m['row']['relationship'] === 2
+            $spouseLine = collect($members)->first(fn ($m) => ($m['row']['relationship'] ?? null) === 2
                 && $m['person']->id !== $head->id);
             $spouse = $spouseLine['person'] ?? null;
 
@@ -907,7 +921,7 @@ final class RegisterImport
             }
 
             foreach ($members as ['row' => $row, 'person' => $child]) {
-                if (! in_array($row['relationship'], self::CHILD_OF_HEAD, true) || $child->id === $head->id) {
+                if (! in_array($row['relationship'] ?? null, self::CHILD_OF_HEAD, true) || $child->id === $head->id) {
                     continue;
                 }
 

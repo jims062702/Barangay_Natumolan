@@ -78,9 +78,33 @@ export function NotificationsBell() {
       prevUnread.current = Math.max(0, prevUnread.current - 1);
       accountApi.markNotificationRead(n.id).catch(() => undefined);
     }
-    if (n.link) {
+
+    let targetLink = n.link;
+    if (!targetLink) {
+      const type = n.notification_type ?? "";
+      const entity = n.related_entity_type ?? "";
+      const sub = (n.subject ?? "").toLowerCase();
+
+      if (type === "chat_waiting" || entity === "chat" || sub.includes("live chat")) {
+        targetLink = n.related_entity_id ? `/chat?id=${n.related_entity_id}` : "/chat";
+      } else if (
+        type === "new_request" ||
+        entity === "certificate" ||
+        entity === "service_request" ||
+        sub.includes("request") ||
+        sub.includes("certificate")
+      ) {
+        targetLink = "/services";
+      } else if (type === "online_complaint" || entity === "complaint" || sub.includes("complaint")) {
+        targetLink = "/lupon/complaints";
+      } else if (type === "vawc_online_report" || entity === "vawc" || sub.includes("vawc")) {
+        targetLink = "/vawc/online-reports";
+      }
+    }
+
+    if (targetLink) {
       setOpen(false);
-      navigate(n.link);
+      navigate(targetLink);
     }
   };
 
