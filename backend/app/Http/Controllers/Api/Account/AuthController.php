@@ -81,7 +81,7 @@ class AuthController extends BaseController
             $age = $user->resident->birthdate?->age;
             if ($age === null || $age < 18) {
                 return $this->error(
-                    'Ang resident portal account ay para lamang sa mga residenteng may edad 18 pataas. Hindi pa maaaring ma-open o ma-access ang account para sa 17 anyos pababa.',
+                    'The resident portal account is only for residents aged 18 and above. Accounts cannot be opened or accessed by residents aged 17 and below.',
                     403
                 );
             }
@@ -162,7 +162,7 @@ class AuthController extends BaseController
             $age = $user->resident->birthdate?->age;
             if ($age === null || $age < 18) {
                 return $this->error(
-                    'Ang resident portal account ay para lamang sa mga residenteng may edad 18 pataas. Hindi pa maaaring ma-open o ma-activate ang account para sa 17 anyos pababa.',
+                    'The resident portal account is only for residents aged 18 and above. Accounts cannot be opened or activated by residents aged 17 and below.',
                     403
                 );
             }
@@ -376,11 +376,15 @@ class AuthController extends BaseController
             return $this->error('Current password is incorrect', 400);
         }
 
-        $user->update([
-            'password' => Hash::make($validated['new_password']),
-        ]);
+        $user->setPassword($validated['new_password'], $user->id);
 
-        return $this->success(null, 'Password changed successfully');
+        $currentToken = $user->currentAccessToken();
+        $token = $currentToken ? null : $user->createToken('api_token')->plainTextToken;
+
+        return $this->success(
+            ['token' => $token],
+            'Password changed successfully'
+        );
     }
 
     public function refreshToken()

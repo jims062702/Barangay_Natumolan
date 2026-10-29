@@ -91,12 +91,20 @@ class MaternalHealthController extends BaseController
             return $this->success($this->motherView($latest), 'Mother found');
         }
 
+        $latestHeight = \AppModels\Health\Visit::where('patient_id', $mother->id)
+            ->whereNotNull('height_cm')
+            ->where('height_cm', '>', 0)
+            ->orderByDesc('visit_date')
+            ->orderByDesc('id')
+            ->value('height_cm');
+
         return $this->success([
             'mother' => $this->person($mother),
             'current' => null,
             'selected' => null,
             'pregnancies' => [],
             'next_pregnancy_number' => 1,
+            'latest_height_cm' => $latestHeight ? (float) $latestHeight : null,
         ], 'Mother found');
     }
 
@@ -336,7 +344,24 @@ class MaternalHealthController extends BaseController
             ->orderByDesc('visit_date')->orderByDesc('id')->get();
         $visitNumbers = $this->register->visitNumbers([$selected->id]);
 
+        $latestHeight = \App\Models\Health\PrenatalVisit::whereIn('pregnancy_id', $all->pluck('id'))
+            ->whereNotNull('height_cm')
+            ->where('height_cm', '>', 0)
+            ->orderByDesc('visit_date')
+            ->orderByDesc('id')
+            ->value('height_cm');
+
+        if (!$latestHeight) {
+            $latestHeight = \App\Models\Health\Visit::where('patient_id', $selected->mother_id)
+                ->whereNotNull('height_cm')
+                ->where('height_cm', '>', 0)
+                ->orderByDesc('visit_date')
+                ->orderByDesc('id')
+                ->value('height_cm');
+        }
+
         return [
+            'latest_height_cm' => $latestHeight ? (float) $latestHeight : null,
             'mother' => $this->person($selected->mother),
             'current' => $current,
             'selected' => $selectedRow,

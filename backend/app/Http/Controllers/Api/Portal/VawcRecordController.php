@@ -49,20 +49,28 @@ class VawcRecordController extends PortalController
                 'next_step' => OnlineReports::nextStep($r),
             ]);
 
-        // 2. VAWC Cases where this resident is survivor OR reporting resident
+        // 2. VAWC Cases where this resident is survivor, reporting resident, OR respondent
         $cases = CaseFile::where(function ($q) use ($residentId) {
                 $q->where('survivor_id', $residentId)
-                  ->orWhere('reported_by_resident_id', $residentId);
+                  ->orWhere('reported_by_resident_id', $residentId)
+                  ->orWhere('respondent_id', $residentId);
             })
             ->with(['officer', 'respondent', 'protectionOrders', 'referrals', 'followups', 'agreement'])
             ->orderByDesc('created_at')
             ->get();
 
         $caseList = $cases->map(function (CaseFile $c) use ($residentId) {
+            $myRole = 'Reporting Party';
+            if ($c->survivor_id === $residentId) {
+                $myRole = 'Survivor / Complainant';
+            } elseif ($c->respondent_id === $residentId) {
+                $myRole = 'Respondent';
+            }
+
             return [
                 'id' => $c->id,
                 'case_code' => $c->case_code,
-                'my_role' => $c->survivor_id === $residentId ? 'Survivor / Complainant' : 'Reporting Party',
+                'my_role' => $myRole,
                 'reported_by_type' => $c->reported_by_type,
                 'relationship_to_offender' => $c->relationship_to_offender,
                 'violence_type' => $c->violence_type,

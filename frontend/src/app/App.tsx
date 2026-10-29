@@ -321,7 +321,7 @@ export default function App() {
 
           {/* Appointments sit behind the front desk but not with the Clerk,
               whose remit is requests & certificates (mirrors deny_role:Clerk). */}
-          <Route element={<Guarded staffOnly allowedOffices={["Main Office"]} allowedRoles={["Punong Barangay"]} deniedRoles={["Clerk"]} />}>
+          <Route element={<Guarded staffOnly allowedOffices={["Main Office"]} allowedRoles={["Punong Barangay", "Admin"]} deniedRoles={["Clerk"]} />}>
             {/* The secretary's own record, which the PB reads and adopts. */}
             <Route path="/sessions" element={<Sessions />} />
           </Route>

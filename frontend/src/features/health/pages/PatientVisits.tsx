@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { FiPlus, FiPrinter } from "react-icons/fi";
+import { FiEye, FiPlus, FiPrinter } from "react-icons/fi";
 import { errorMessage } from "../../../shared/lib/api";
 import { toast } from "../../../shared/lib/toast";
 import { confirmAction } from "../../../shared/lib/confirm";
@@ -32,6 +32,7 @@ export default function PatientVisits() {
   const pageLoad = usePageLoad();
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [viewingVisit, setViewingVisit] = useState<HealthVisit | null>(null);
   const [patient, setPatient] = useState<Resident | null>(null);
   /*
    * ONE DRAFT, not twenty useStates.
@@ -199,6 +200,18 @@ export default function PatientVisits() {
                   "—"
                 ),
             },
+            {
+              header: "Actions",
+              render: (v: HealthVisit) => (
+                <button
+                  type="button"
+                  onClick={() => setViewingVisit(v)}
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-gray bg-white px-3 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
+                >
+                  <FiEye className="h-3.5 w-3.5" /> View
+                </button>
+              ),
+            },
           ]}
           rows={rows}
           rowKey={(v) => v.id}
@@ -224,6 +237,167 @@ export default function PatientVisits() {
         fetal heart tone, the age of gestation or the presentation — which,
         for that patient, are the whole examination.
       */}
+      {/* View Visit Modal */}
+      <Modal
+        open={!!viewingVisit}
+        onClose={() => setViewingVisit(null)}
+        title="Patient Visit Details"
+        size="wide"
+      >
+        {viewingVisit && (
+          <div className="space-y-6">
+            <div className="rounded-xl border border-gray bg-secondary/30 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray/50 pb-3">
+                <div>
+                  <h3 className="text-base font-bold text-dark">
+                    {viewingVisit.patient ? `${viewingVisit.patient.first_name} ${viewingVisit.patient.last_name}` : "Unknown Patient"}
+                  </h3>
+                  {viewingVisit.patient?.resident_number && (
+                    <p className="text-xs text-gray-500">ID: {viewingVisit.patient.resident_number}</p>
+                  )}
+                </div>
+                <div className="text-right">
+                  <span className="inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                    {new Date(viewingVisit.visit_date).toLocaleDateString("en-PH", {
+                      weekday: "short",
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}
+                    {viewingVisit.visit_time ? ` · ${viewingVisit.visit_time}` : ""}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-4 text-xs sm:grid-cols-4">
+                <div>
+                  <span className="text-gray-400">Blood Pressure:</span>
+                  <p className="font-semibold text-dark">{viewingVisit.blood_pressure || "—"}</p>
+                </div>
+                <div>
+                  <span className="text-gray-400">Temperature:</span>
+                  <p className="font-semibold text-dark">{viewingVisit.temperature ? `${viewingVisit.temperature}°C` : "—"}</p>
+                </div>
+                <div>
+                  <span className="text-gray-400">Heart Rate:</span>
+                  <p className="font-semibold text-dark">{viewingVisit.heart_rate ? `${viewingVisit.heart_rate} bpm` : "—"}</p>
+                </div>
+                <div>
+                  <span className="text-gray-400">Respiratory Rate:</span>
+                  <p className="font-semibold text-dark">{viewingVisit.respiratory_rate ? `${viewingVisit.respiratory_rate} cpm` : "—"}</p>
+                </div>
+                <div>
+                  <span className="text-gray-400">O2 Saturation:</span>
+                  <p className="font-semibold text-dark">{viewingVisit.oxygen_saturation ? `${viewingVisit.oxygen_saturation}%` : "—"}</p>
+                </div>
+                <div>
+                  <span className="text-gray-400">Height:</span>
+                  <p className="font-semibold text-dark">{viewingVisit.height_cm ? `${viewingVisit.height_cm} cm` : "—"}</p>
+                </div>
+                <div>
+                  <span className="text-gray-400">Weight:</span>
+                  <p className="font-semibold text-dark">{viewingVisit.weight_kg ? `${viewingVisit.weight_kg} kg` : "—"}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Reason for Visit</label>
+                <p className="mt-0.5 rounded-lg border border-gray bg-white p-2.5 text-sm font-medium text-dark">
+                  {viewingVisit.visit_reason || "—"}
+                </p>
+              </div>
+
+              {viewingVisit.chief_complaints && (
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Chief Complaints</label>
+                  <p className="mt-0.5 whitespace-pre-wrap rounded-lg border border-gray bg-white p-2.5 text-sm text-dark">
+                    {viewingVisit.chief_complaints}
+                  </p>
+                </div>
+              )}
+
+              {viewingVisit.symptoms && (
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Symptoms</label>
+                  <p className="mt-0.5 whitespace-pre-wrap rounded-lg border border-gray bg-white p-2.5 text-sm text-dark">
+                    {viewingVisit.symptoms}
+                  </p>
+                </div>
+              )}
+
+              {viewingVisit.consultation_notes && (
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Consultation Notes / Findings</label>
+                  <p className="mt-0.5 whitespace-pre-wrap rounded-lg border border-gray bg-white p-2.5 text-sm text-dark">
+                    {viewingVisit.consultation_notes}
+                  </p>
+                </div>
+              )}
+
+              {viewingVisit.treatment_advice && (
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Treatment / Advice</label>
+                  <p className="mt-0.5 whitespace-pre-wrap rounded-lg border border-gray bg-white p-2.5 text-sm text-dark">
+                    {viewingVisit.treatment_advice}
+                  </p>
+                </div>
+              )}
+
+              {viewingVisit.medication && (
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Prescribed Medication</label>
+                  <p className="mt-0.5 whitespace-pre-wrap rounded-lg border border-gray bg-white p-2.5 text-sm text-dark">
+                    {viewingVisit.medication}
+                  </p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Referral Status</label>
+                  <div className="mt-0.5 rounded-lg border border-gray bg-white p-2.5 text-sm">
+                    {viewingVisit.referral_recommended ? (
+                      <span className="font-semibold text-warning">
+                        Referred {viewingVisit.referral_destination ? `to ${viewingVisit.referral_destination}` : ""}
+                      </span>
+                    ) : (
+                      <span className="text-gray-500">No referral required</span>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Follow-up Schedule</label>
+                  <div className="mt-0.5 rounded-lg border border-gray bg-white p-2.5 text-sm font-medium text-dark">
+                    {viewingVisit.followup_schedule
+                      ? new Date(viewingVisit.followup_schedule).toLocaleDateString("en-PH")
+                      : "None scheduled"}
+                  </div>
+                </div>
+              </div>
+
+              {viewingVisit.provider?.name && (
+                <p className="text-right text-xs text-gray-400">
+                  Recorded by: <span className="font-medium text-dark">{viewingVisit.provider.name}</span>
+                </p>
+              )}
+            </div>
+
+            <div className="flex justify-end border-t border-gray pt-4">
+              <button
+                type="button"
+                onClick={() => setViewingVisit(null)}
+                className="cursor-pointer rounded-full border border-gray px-5 py-2 text-sm font-semibold text-dark hover:border-primary/50"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
       <Modal
         open={createOpen}
         onClose={() => setCreateOpen(false)}

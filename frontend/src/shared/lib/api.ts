@@ -65,9 +65,41 @@ function queueable(config: InternalAxiosRequestConfig): boolean {
  * the user to /login. A 401 on a request that carried no token is left alone —
  * it is about that endpoint, not about who is signed in.
  */
+function normalizeStorageUrls<T>(data: T): T {
+  if (typeof Blob !== "undefined" && data instanceof Blob) {
+    return data;
+  }
+  if (typeof ArrayBuffer !== "undefined" && data instanceof ArrayBuffer) {
+    return data;
+  }
+  if (typeof FormData !== "undefined" && data instanceof FormData) {
+    return data;
+  }
+  if (typeof data === "string") {
+    if (data.startsWith("http://localhost:8000/storage/") || data.startsWith("http://127.0.0.1:8000/storage/")) {
+      return data.replace(/^http:\/\/(localhost|127\.0\.0\.1):8000/, "") as unknown as T;
+    }
+    return data;
+  }
+  if (Array.isArray(data)) {
+    return data.map(normalizeStorageUrls) as unknown as T;
+  }
+  if (data !== null && typeof data === "object") {
+    if (Object.prototype.toString.call(data) !== "[object Object]") {
+      return data;
+    }
+    const copy: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(data as Record<string, unknown>)) {
+      copy[key] = normalizeStorageUrls(val);
+    }
+    return copy as T;
+  }
+  return data;
+}
+
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000/api",
-  headers: { Accept: "application/json" },
+  baseURL: import.meta.env.VITE_API_URL || "/api",
+  headers: { Accept: "application/json", "X-Tunnel-Skip-Anti-Abuse-Page": "true" },
 });
 
 api.interceptors.request.use(async (config) => {
@@ -118,6 +150,10 @@ api.interceptors.response.use(
   (response) => {
     /* It came back, so the line is up. */
     noteReachable();
+
+    if (response.data) {
+      response.data = normalizeStorageUrls(response.data);
+    }
 
     /*
      * Kept for the next time there is no line.

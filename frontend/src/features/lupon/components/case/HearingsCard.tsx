@@ -9,14 +9,14 @@ import {
   FiLock,
   FiAlertCircle,
   FiChevronDown,
-  FiChevronUp,
+  FiChevronRight,
 } from "react-icons/fi";
 import Card from "../../../../shared/ui/Card";
 import { parseWallClock } from "../../../../shared/lib/datetime";
 import type { LuponCaseState } from "../../hooks/useLuponCase";
 import type { LuponCase, LuponHearing } from "../../types";
 import { useAuth } from "../../../../shared/auth/AuthContext";
-import { worksSitting, today } from "../../lib/hearings";
+import { worksSitting } from "../../lib/hearings";
 import { MinutesModal } from "../hearings/MinutesModal";
 
 /**
@@ -32,6 +32,16 @@ export function getHearingDisplayStatus(hearing: LuponHearing): {
   if (hearing.status === "Cancelled") {
     return { label: "Cancelled", tone: "bg-gray-100 text-gray-500 border border-gray-200" };
   }
+
+  const now = new Date();
+  const todayManila = now.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+  const hearingDate = hearing.scheduled_at ? hearing.scheduled_at.slice(0, 10) : "";
+
+  // Strictly check future date first: any hearing scheduled after today is ALWAYS Upcoming, NEVER Completed!
+  if (hearingDate && hearingDate > todayManila) {
+    return { label: "Upcoming", tone: "bg-purple-100 text-purple-700 border border-purple-200" };
+  }
+
   if (hearing.status === "Completed") {
     return { label: "Completed", tone: "bg-emerald-50 text-emerald-700 border border-emerald-200" };
   }
@@ -54,13 +64,6 @@ export function getHearingDisplayStatus(hearing: LuponHearing): {
     return { label: "Upcoming", tone: "bg-purple-100 text-purple-700 border border-purple-200" };
   }
 
-  const now = new Date();
-  const todayManila = now.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
-  const hearingDate = hearing.scheduled_at.slice(0, 10);
-
-  if (hearingDate > todayManila) {
-    return { label: "Upcoming", tone: "bg-purple-100 text-purple-700 border border-purple-200" };
-  }
   if (hearingDate < todayManila) {
     return { label: "Completed", tone: "bg-emerald-50 text-emerald-700 border border-emerald-200" };
   }
@@ -131,10 +134,8 @@ export function HearingsCard({ ctx, caseData }: { ctx: LuponCaseState; caseData:
       (hearing.proceedings_notes && hearing.proceedings_notes.trim())
     );
     const canEdit = worksSitting(user, hearing);
-    const isUpcoming =
-      hearing.status === "Scheduled" &&
-      hearing.scheduled_at &&
-      hearing.scheduled_at.slice(0, 10) > today();
+    const displayStatus = getHearingDisplayStatus(hearing);
+    const isUpcoming = displayStatus.label === "Upcoming";
 
     const hearingNumber = hearing.hearing_sequence ?? index + 1;
     const title =
@@ -154,7 +155,6 @@ export function HearingsCard({ ctx, caseData }: { ctx: LuponCaseState; caseData:
       : "";
 
     const scheduleDate = dateFormatted || hearing.formatted_schedule || "—";
-    const displayStatus = getHearingDisplayStatus(hearing);
 
     return (
       <li key={hearing.id} className="rounded-xl bg-secondary p-3 text-xs border border-gray/40">
@@ -226,7 +226,7 @@ export function HearingsCard({ ctx, caseData }: { ctx: LuponCaseState; caseData:
           )}
         </div>
 
-        {(hearing.status === "Scheduled" || (!isUpcoming && (hasMin || canEdit))) && (
+        {!isUpcoming && (hasMin || canEdit) && (
           <div className="mt-2 flex items-center justify-between gap-3 border-t border-gray-200/60 pt-1.5">
             <div className="flex items-center gap-3">
               {hasMin && (
@@ -353,8 +353,8 @@ export function HearingsCard({ ctx, caseData }: { ctx: LuponCaseState; caseData:
                     {showAllPb ? `Showing all ${pbHearings.length} hearings` : `Active: Hearing #${(pbHearings[activePbIndex]?.hearing_sequence ?? activePbIndex + 1)} (+${pbHearings.length - 1} other hearings)`}
                   </span>
                   <span className="flex items-center gap-1 text-[11px] text-primary">
-                    {showAllPb ? "Show less" : `Show all (${pbHearings.length})`}
-                    {showAllPb ? <FiChevronUp className="h-3 w-3" /> : <FiChevronDown className="h-3 w-3" />}
+                    {showAllPb ? "Show less" : "Show more"}
+                    {showAllPb ? <FiChevronDown className="h-3 w-3" /> : <FiChevronRight className="h-3 w-3" />}
                   </span>
                 </button>
               )}
@@ -423,8 +423,8 @@ export function HearingsCard({ ctx, caseData }: { ctx: LuponCaseState; caseData:
                     {showAllLupon ? `Showing all ${luponHearings.length} hearings` : `Active: Hearing #${(luponHearings[activeLuponIndex]?.hearing_sequence ?? activeLuponIndex + 1)} (+${luponHearings.length - 1} other hearings)`}
                   </span>
                   <span className="flex items-center gap-1 text-[11px] text-primary">
-                    {showAllLupon ? "Show less" : `Show all (${luponHearings.length})`}
-                    {showAllLupon ? <FiChevronUp className="h-3 w-3" /> : <FiChevronDown className="h-3 w-3" />}
+                    {showAllLupon ? "Show less" : "Show more"}
+                    {showAllLupon ? <FiChevronDown className="h-3 w-3" /> : <FiChevronRight className="h-3 w-3" />}
                   </span>
                 </button>
               )}
@@ -466,7 +466,8 @@ export function HearingsCard({ ctx, caseData }: { ctx: LuponCaseState; caseData:
 
       {selectedHearing && (
         <MinutesModal
-          hearing={selectedHearing}
+          hearing={{ ...selectedHearing, lupon_case: caseData || ctx.caseData }}
+          caseFile={caseData || ctx.caseData}
           isOpen={true}
           initialMode={minutesMode}
           onClose={() => setSelectedHearing(null)}

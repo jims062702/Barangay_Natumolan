@@ -6,6 +6,8 @@ import {
   FiPrinter,
   FiUser,
   FiCheck,
+  FiChevronDown,
+  FiChevronRight,
 } from "react-icons/fi";
 import Modal from "../../../../shared/ui/Modal";
 import StatusBadge from "../../../../shared/ui/StatusBadge";
@@ -35,6 +37,11 @@ export function CaseSchedulesModal({
   const { user } = useAuth();
   const [caseDetails, setCaseDetails] = useState<Partial<LuponCase> | null>(caseFor);
   const [loading, setLoading] = useState(false);
+  const [expandedHearings, setExpandedHearings] = useState<Record<number, boolean>>({});
+
+  const toggleHearing = (id: number) => {
+    setExpandedHearings((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const refreshCase = () => {
     if (caseFor?.id) {
@@ -60,13 +67,36 @@ export function CaseSchedulesModal({
 
   const c = caseDetails || caseFor;
   const rawHearings = [...(c.hearings ?? [])];
-  // Sort hearings chronologically
-  const hearings = rawHearings.sort(
-    (a, b) => (parseWallClock(a.scheduled_at)?.getTime() ?? 0) - (parseWallClock(b.scheduled_at)?.getTime() ?? 0)
-  );
+  // Sort Punong Barangay hearings first (#1 to #3)
+  const pbHearings = rawHearings
+    .filter((h) => h.hearing_type === "Mediation" || (!h.hearing_type && (h.hearing_sequence ?? 0) <= 3))
+    .sort((a, b) => (a.hearing_sequence ?? 0) - (b.hearing_sequence ?? 0) || (parseWallClock(a.scheduled_at)?.getTime() ?? 0) - (parseWallClock(b.scheduled_at)?.getTime() ?? 0));
+
+  const pbCompletedCount = pbHearings.filter(
+    (h) => h.status === "Completed" || getHearingDisplayStatus(h).label === "Completed"
+  ).length;
+  const isLuponStage = ["For Lupon Summons", "Conciliation", "CFA"].includes(c.current_stage ?? "");
+  const isEligibleForLupon = pbCompletedCount >= 3 || isLuponStage;
+
+  // Lupon conciliation hearings are ONLY valid and displayed if eligible for Lupon stage!
+  const luponHearings = isEligibleForLupon
+    ? rawHearings
+        .filter((h) => h.hearing_type === "Conciliation" || (!pbHearings.includes(h) && (h.hearing_sequence ?? 0) > 3))
+        .sort((a, b) => (a.hearing_sequence ?? 0) - (b.hearing_sequence ?? 0) || (parseWallClock(a.scheduled_at)?.getTime() ?? 0) - (parseWallClock(b.scheduled_at)?.getTime() ?? 0))
+    : [];
+
+  const otherHearings = isEligibleForLupon
+    ? rawHearings.filter((h) => !pbHearings.includes(h) && !luponHearings.includes(h))
+    : [];
+
+  const hearings = isEligibleForLupon
+    ? [...pbHearings, ...luponHearings, ...otherHearings]
+    : [...pbHearings];
 
   const stageLabel =
-    c.current_stage === "Mediation" || c.current_stage === "For Summons"
+    !isEligibleForLupon
+      ? "Punong Barangay (Mediation)"
+      : c.current_stage === "Mediation" || c.current_stage === "For Summons"
       ? "Punong Barangay (Mediation)"
       : c.current_stage === "Conciliation" || c.current_stage === "For Lupon Summons"
       ? "Lupon (Conciliation)"
@@ -156,6 +186,10 @@ export function CaseSchedulesModal({
             <ul className="space-y-2.5">
               {hearings.map((h, idx) => {
                 const displayStatus = getHearingDisplayStatus(h);
+                const isUpcoming = displayStatus.label === "Upcoming";
+                const isCompleted = displayStatus.label === "Completed";
+                const isExpanded = !!expandedHearings[h.id];
+
                 const hearingNumber = h.hearing_sequence ?? idx + 1;
                 const title =
                   h.hearing_title ??
@@ -186,125 +220,165 @@ export function CaseSchedulesModal({
                     key={h.id}
                     className="rounded-xl border border-gray/50 bg-secondary/40 p-3.5 transition hover:border-primary/40 hover:bg-white text-xs"
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
+                    {/* ACCORDION HEADER */}
+                    <div
+                      className="flex flex-wrap items-center justify-between gap-2 cursor-pointer select-none"
+                      onClick={() => toggleHearing(h.id)}
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
                           #{hearingNumber}
                         </span>
                         <p className="font-bold text-sm text-dark">{title}</p>
-                      </div>
-
-                      {/* DYNAMIC STATUS BADGE */}
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${displayStatus.tone}`}
-                      >
-                        {displayStatus.label === "On-going" && (
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
-                        )}
-                        {displayStatus.label}
-                      </span>
-                    </div>
-
-                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-600">
-                      <div className="flex items-center gap-1.5 font-medium">
-                        <FiCalendar className="h-3.5 w-3.5 text-primary" />
-                        <span>{scheduleDate}</span>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border ${
-                            h.summons_issued
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : "bg-amber-50 text-amber-700 border-amber-200"
-                          }`}
-                        >
-                          {h.summons_status_summary ??
-                            (h.summons_issued ? "Summons issued" : "Summons prepared")}
+                        <span className="text-xs text-gray-500 font-medium ml-1">
+                          · {scheduleDate}
                         </span>
                       </div>
+
+                      <div className="flex items-center gap-2">
+                        {/* DYNAMIC STATUS BADGE */}
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${displayStatus.tone}`}
+                        >
+                          {displayStatus.label === "On-going" && (
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
+                          )}
+                          {displayStatus.label}
+                        </span>
+
+                        {/* SHOW MORE / SHOW LESS ACCORDION TOGGLE */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleHearing(h.id);
+                          }}
+                          className="inline-flex cursor-pointer items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10 transition"
+                        >
+                          <span>{isExpanded ? "Show less" : "Show more"}</span>
+                          {isExpanded ? (
+                            <FiChevronDown className="h-3.5 w-3.5" />
+                          ) : (
+                            <FiChevronRight className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      </div>
                     </div>
 
-                    {/* SUMMONS PARTY STATUS */}
-                    <div className="mt-2 flex flex-wrap items-center gap-3 rounded-lg bg-white/80 px-2.5 py-1.5 border border-gray/40 text-[11px] text-gray-600">
-                      <span>
-                        <strong className="text-dark">Complainant Notice:</strong>{" "}
-                        <span
-                          className={
-                            h.summons_issued
-                              ? "font-semibold text-emerald-600"
-                              : "font-semibold text-amber-600"
-                          }
-                        >
-                          {h.complainant_summons_status ?? (h.summons_issued ? "Issued" : "Prepared")}
-                        </span>
-                      </span>
-                      <span className="text-gray-300">|</span>
-                      <span>
-                        <strong className="text-dark">Respondent Summons:</strong>{" "}
-                        <span
-                          className={
-                            h.summons_issued
-                              ? "font-semibold text-emerald-600"
-                              : "font-semibold text-amber-600"
-                          }
-                        >
-                          {h.respondent_summons_status ?? (h.summons_issued ? "Issued" : "Prepared")}
-                        </span>
-                      </span>
-                    </div>
+                    {/* EXPANDED CONTENT */}
+                    {isExpanded && (
+                      <div className="mt-3 pt-2.5 border-t border-gray/40 space-y-2.5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-600">
+                          <div className="flex items-center gap-1.5 font-medium">
+                            <FiCalendar className="h-3.5 w-3.5 text-primary" />
+                            <span>{scheduleDate}</span>
+                          </div>
 
-                    {/* MINUTES & OUTCOME */}
-                    {(hasMin || h.outcome) && (
-                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-gray/30 pt-1.5 text-[11px]">
-                        {hasMin && (
-                          <span className="inline-flex items-center gap-1 text-emerald-700 font-medium">
-                            <FiCheck className="h-3 w-3" />
-                            Minutes recorded
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border ${
+                                h.summons_issued
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                  : "bg-amber-50 text-amber-700 border-amber-200"
+                              }`}
+                            >
+                              {h.summons_status_summary ??
+                                (h.summons_issued ? "Summons issued" : "Summons prepared")}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* SUMMONS PARTY STATUS */}
+                        <div className="flex flex-wrap items-center gap-3 rounded-lg bg-white/80 px-2.5 py-1.5 border border-gray/40 text-[11px] text-gray-600">
+                          <span>
+                            <strong className="text-dark">Complainant Notice:</strong>{" "}
+                            <span
+                              className={
+                                h.summons_issued
+                                  ? "font-semibold text-emerald-600"
+                                  : "font-semibold text-amber-600"
+                              }
+                            >
+                              {h.complainant_summons_status ?? (h.summons_issued ? "Issued" : "Prepared")}
+                            </span>
                           </span>
-                        )}
-                        {h.outcome && (
-                          <span className="font-semibold text-primary">
-                            Outcome: {h.outcome}
+                          <span className="text-gray-300">|</span>
+                          <span>
+                            <strong className="text-dark">Respondent Summons:</strong>{" "}
+                            <span
+                              className={
+                                h.summons_issued
+                                  ? "font-semibold text-emerald-600"
+                                  : "font-semibold text-amber-600"
+                              }
+                            >
+                              {h.respondent_summons_status ?? (h.summons_issued ? "Issued" : "Prepared")}
+                            </span>
                           </span>
+                        </div>
+
+                        {/* MINUTES & OUTCOME - ONLY IF NOT UPCOMING */}
+                        {!isUpcoming && (hasMin || h.outcome) && (
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray/30 pt-1.5 text-[11px]">
+                            {hasMin && (
+                              <span className="inline-flex items-center gap-1 text-emerald-700 font-medium">
+                                <FiCheck className="h-3 w-3" />
+                                Minutes recorded
+                              </span>
+                            )}
+                            {h.outcome && (
+                              <span className="font-semibold text-primary">
+                                Outcome: {h.outcome}
+                              </span>
+                            )}
+                          </div>
                         )}
+
+                        {/* ACTIONS ROW FOR THIS SITTING */}
+                        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray/40 pt-2">
+                          {/* Print summons again disappears when Completed */}
+                          {onPrintSummons && !isCompleted && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onClose();
+                                onPrintSummons({
+                                  ...h,
+                                  lupon_case: h.lupon_case ?? (c as LuponCase),
+                                  lupon_case_id: h.lupon_case_id ?? c.id,
+                                });
+                              }}
+                              className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-gray-300 bg-white px-3 py-1 text-[11px] font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 hover:text-dark"
+                            >
+                              <FiPrinter className="h-3 w-3 text-primary" />
+                              {h.summons_issued ? "Print summons again" : "Print summons"}
+                            </button>
+                          )}
+
+                          {/* No minutes buttons when Upcoming. When completed or past/today: show View Minutes or + Add Minutes */}
+                          {onOpenMinutes && !isUpcoming && (hasMin || mine) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onClose();
+                                onOpenMinutes(
+                                  {
+                                    ...h,
+                                    lupon_case: h.lupon_case ?? (c as LuponCase),
+                                    lupon_case_id: h.lupon_case_id ?? c.id,
+                                  },
+                                  hasMin ? "view" : "edit"
+                                );
+                              }}
+                              className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-gray-300 bg-white px-3 py-1 text-[11px] font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 hover:text-dark"
+                            >
+                              {hasMin ? <FiFileText className="h-3 w-3" /> : <FiPlus className="h-3 w-3" />}
+                              {hasMin ? "View Minutes" : "+ Add Minutes"}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )}
-
-                    {/* ACTIONS ROW FOR THIS SITTING */}
-                    <div className="mt-2.5 flex flex-wrap items-center justify-end gap-2 border-t border-gray/40 pt-2">
-                      {onPrintSummons && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onClose();
-                            onPrintSummons({
-                              ...h,
-                              lupon_case: h.lupon_case ?? caseFor,
-                              lupon_case_id: h.lupon_case_id ?? caseFor.id,
-                            });
-                          }}
-                          className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-gray-300 bg-white px-3 py-1 text-[11px] font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 hover:text-dark"
-                        >
-                          <FiPrinter className="h-3 w-3 text-primary" />
-                          {h.summons_issued ? "Print summons again" : "Print summons"}
-                        </button>
-                      )}
-
-                      {onOpenMinutes && (hasMin || mine) && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onClose();
-                            onOpenMinutes(h, hasMin ? "view" : "edit");
-                          }}
-                          className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-gray-300 bg-white px-3 py-1 text-[11px] font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 hover:text-dark"
-                        >
-                          {hasMin ? <FiFileText className="h-3 w-3" /> : <FiPlus className="h-3 w-3" />}
-                          {hasMin ? "View Minutes" : "Add Minutes"}
-                        </button>
-                      )}
-                    </div>
                   </li>
                 );
               })}

@@ -143,18 +143,18 @@ class HouseholdController extends BaseController
          * five others, with nobody asked why. Changing hands has its own
          * endpoint, which asks.
          */
-        $attemptedOwner = $validated['household_head_id'] ?? null;
+        $attemptedOwner = array_key_exists('household_head_id', $validated) ? $validated['household_head_id'] : false;
         unset($validated['household_head_id']);
 
         $household->update($validated);
 
-        if ($attemptedOwner && (int) $attemptedOwner !== (int) $household->household_head_id) {
-            return $this->error(
-                'Use the change-of-owner form to hand this house over — it records the '
-                    . 'previous owner and asks why. Editing the household details cannot '
-                    . 'change who owns it.',
-                422,
-                ['household_head_id' => ['Owner changes go through PUT households/{id}/head.']]
+        if ($attemptedOwner !== false && (int) $attemptedOwner !== (int) $household->household_head_id) {
+            $to = !empty($attemptedOwner) ? Resident::find($attemptedOwner) : null;
+            $household->handOverTo(
+                $to,
+                'Updated via Edit Household',
+                null,
+                now()->toDateString()
             );
         }
 

@@ -30,7 +30,7 @@ export function PortalAccountCard({ ctx, account, activated, resident }: {
   const toggleStatus = async () => {
     if (!account) return;
     if (isMinor && !account.is_active) {
-      toast("Hindi maaaring i-enable ang portal account ng residenteng 17 anyos pababa.", "error");
+      toast("Cannot enable sign-in for a resident aged 17 and below.", "error");
       return;
     }
     const confirmed = await confirmAction({
@@ -62,7 +62,7 @@ export function PortalAccountCard({ ctx, account, activated, resident }: {
           <div className="space-y-3">
             {isMinor && (
               <div className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs leading-relaxed text-dark">
-                <span className="font-semibold text-warning-dark">Bawal buksan (17 anyos pababa):</span> Ang residenteng ito ay {age !== null ? `${age} anyos` : "menor de edad"} pa lamang. Naka-restrict ang pag-open o pag-log in sa resident portal hanggang sa sumapit sa 18 taong gulang.
+                <span className="font-semibold text-warning-dark">Access Restricted (17 and below):</span> This resident is currently {age !== null ? `${age} years old` : "a minor"}. Portal sign-in is restricted until they reach 18 years of age.
               </div>
             )}
             <Row label="Login email" value={account.email} />
@@ -117,12 +117,12 @@ export function PortalAccountCard({ ctx, account, activated, resident }: {
             <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm text-dark">
               <div className="flex items-center gap-2 font-semibold text-warning-dark">
                 <span className="inline-block h-2.5 w-2.5 rounded-full bg-warning" />
-                Hindi Maaaring Gawan ng Portal Account (17 Anyos Pababa)
+                Portal Account Not Allowed (17 Years Old and Below)
               </div>
               <p className="mt-1.5 text-xs text-gray-600 leading-relaxed">
-                Ang residenteng ito ay <strong>{age !== null ? `${age} anyos` : "menor de edad"}</strong> pa lamang.
-                Ayon sa patakaran, ang resident portal account ay para lamang sa mga may edad <strong>18 pataas</strong>.
-                Kusang magiging kwalipikado at mabubuksan ang kanilang account pagtuntong nila ng kanilang ika-18 kaarawan.
+                This resident is currently <strong>{age !== null ? `${age} years old` : "a minor"}</strong>.
+                By policy, resident portal accounts are only available to residents aged <strong>18 and above</strong>.
+                Their account eligibility will automatically open once they celebrate their 18th birthday.
               </p>
             </div>
           </div>

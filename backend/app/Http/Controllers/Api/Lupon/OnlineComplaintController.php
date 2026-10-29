@@ -78,6 +78,7 @@ class OnlineComplaintController extends BaseController
          * Somebody who does not live here files as a non-resident.
          */
         $data['resident_id'] = null;
+        $isMinor = false;
         if ($data['filer_kind'] === 'Resident') {
             $check = $cards->verify($data['resident_card_code'] ?? null);
 
@@ -92,6 +93,7 @@ class OnlineComplaintController extends BaseController
             $data['complainant_address'] = ResidentCards::completeAddress($resident);
             $data['valid_id_type'] = FileOnlineComplaintRequest::RESIDENT_CARD;
             $data['valid_id_number'] = $resident->resident_number;
+            $isMinor = (bool) ($resident->birthdate?->age !== null && $resident->birthdate->age < 18);
         }
 
         $complaint = $filing->file($data, $request->file('valid_id'), $request->file('evidence') ?? []);
@@ -100,6 +102,7 @@ class OnlineComplaintController extends BaseController
         return $this->success([
             'reference_no' => $complaint->reference_no,
             'status' => $complaint->status,
+            'is_minor' => $isMinor,
         ], 'Your complaint was received as ' . $complaint->reference_no . '. Please visit the '
             . 'Barangay Office with the ID you uploaded. The complaint is verified there, any fee '
             . 'is paid there, and the Lupon accepts it into the Katarungang Pambarangay process '
@@ -125,7 +128,7 @@ class OnlineComplaintController extends BaseController
     {
         $term = trim((string) $request->input('q', ''));
 
-        $query = OnlineComplaint::with(['resident:id,first_name,middle_name,last_name', 'files', 'luponCase:id,case_number,case_classification,current_stage'])
+        $query = OnlineComplaint::with(['resident:id,first_name,middle_name,last_name,birthdate', 'files', 'luponCase:id,case_number,case_classification,current_stage'])
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
             ->when($request->filled('filer_kind'), fn ($q) => $q->where('filer_kind', $request->filer_kind))
             ->when($term !== '', function ($q) use ($term) {
@@ -155,6 +158,15 @@ class OnlineComplaintController extends BaseController
      */
     public function validId(OnlineComplaint $complaint)
     {
+        if (str_starts_with($complaint->valid_id_path, 'http://') || str_starts_with($complaint->valid_id_path, 'https://')) {
+            $resp = \Illuminate\Support\Facades\Http::get($complaint->valid_id_path);
+            if ($resp->successful()) {
+                return response($resp->body(), 200, [
+                    'Content-Type' => $resp->header('Content-Type') ?: 'image/jpeg',
+                ]);
+            }
+        }
+
         if (! Storage::disk('local')->exists($complaint->valid_id_path)) {
             return $this->notFound('The uploaded ID is no longer on file.');
         }
@@ -240,7 +252,7 @@ class OnlineComplaintController extends BaseController
         $today = ManilaTime::today();
 
         $case = CaseFile::create([
-            'case_number' => CaseFile::nextCaseNumber($today),
+            'case_number' => null, // Case number is generated once payment is confirmed
             /* Named by its nature — one field, as at the counter. */
             'case_title' => $validated['case_classification'],
             'case_classification' => $validated['case_classification'],
@@ -299,7 +311,7 @@ class OnlineComplaintController extends BaseController
 
         return $this->success(
             ['complaint' => $complaint->fresh('luponCase'), 'case' => $case->fresh()],
-            'Accepted as case ' . $case->case_number . '. The filing fee must be paid before a summons can be issued. It is confirmed on the case itself.'
+            'Complaint accepted. The filing fee must be paid before a case number and summons are issued. It is confirmed on the case itself.'
         );
     }
 

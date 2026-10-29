@@ -201,13 +201,10 @@ class CaseFile extends Model
     /** "Dela Cruz, Gasang" — every respondent, for lists and search. */
     public function getRespondentDisplayNamesAttribute(): string
     {
-        if (!$this->relationLoaded('respondents')) {
-            return '';
-        }
-
         return $this->respondents
             ->map(fn ($r) => trim($r->first_name . ' ' . $r->last_name))
-            ->implode(', ');
+            ->filter()
+            ->implode(', ') ?: '—';
     }
 
     /**
@@ -414,6 +411,46 @@ class CaseFile extends Model
      * states that the barangay's process was tried, and a court can refuse
      * one that says so before the Lupon ever sat.
      */
+    /**
+     * How many Punong Barangay mediation sessions have been held / taken place.
+     * Counts sessions that either have status 'Completed' OR whose scheduled date is today or in the past,
+     * even if the Secretary has not yet recorded the official minutes.
+     */
+    public function pbMediationSessionsHeldCount(): int
+    {
+        $today = \App\Support\ManilaTime::today();
+
+        $pbHearings = $this->relationLoaded('hearings')
+            ? $this->hearings->where('hearing_type', 'Mediation')
+            : $this->hearings()->where('hearing_type', 'Mediation')->get();
+
+        return $pbHearings->filter(function ($h) use ($today) {
+            if ($h->status === 'Completed') {
+                return true;
+            }
+            if ($h->scheduled_at) {
+                $date = $h->scheduled_at instanceof \Carbon\Carbon
+                    ? $h->scheduled_at->toDateString()
+                    : substr((string) $h->scheduled_at, 0, 10);
+                return $date <= $today;
+            }
+            return false;
+        })->count();
+    }
+
+    /**
+     * Whether the case has concluded its 3 Punong Barangay mediation sessions
+     * and is eligible to be forwarded to Lupon conciliation, even if minutes are pending.
+     */
+    public function isEligibleForLuponConciliation(): bool
+    {
+        if (in_array($this->current_stage, ['For Lupon Summons', 'Conciliation', 'CFA', 'Settled'], true)) {
+            return true;
+        }
+
+        return $this->pbMediationSessionsHeldCount() >= 3;
+    }
+
     public function conciliationWasTried(): bool
     {
         return $this->hearings()

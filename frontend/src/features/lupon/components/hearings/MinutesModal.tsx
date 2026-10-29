@@ -12,8 +12,11 @@ import { worksSitting, SESSION_OUTCOMES } from "../../lib/hearings";
 import { luponApi } from "../../api";
 import type { LuponHearing } from "../../types";
 
+import type { LuponCase } from "../../types";
+
 interface MinutesModalProps {
   hearing: LuponHearing | null;
+  caseFile?: LuponCase | null;
   isOpen: boolean;
   initialMode?: "view" | "edit";
   onClose: () => void;
@@ -22,6 +25,7 @@ interface MinutesModalProps {
 
 export function MinutesModal({
   hearing,
+  caseFile,
   isOpen,
   initialMode = "edit",
   onClose,
@@ -30,6 +34,7 @@ export function MinutesModal({
   const { user } = useAuth();
   const [mode, setMode] = useState<"view" | "edit">(initialMode);
   const [saving, setSaving] = useState(false);
+  const [fetchedCase, setFetchedCase] = useState<LuponCase | null>(null);
 
   const [complainantPresent, setComplainantPresent] = useState(true);
   const [respondentPresent, setRespondentPresent] = useState(true);
@@ -58,8 +63,28 @@ export function MinutesModal({
     if (hearing && isOpen) {
       setMode(initialMode);
       resetForm(hearing);
+
+      const directCase = (hearing.lupon_case || caseFile) as LuponCase | undefined;
+      if (directCase && (directCase.complainant_display_name || directCase.complainant_name || directCase.complainant)) {
+        setFetchedCase(directCase);
+      } else {
+        const cid = hearing.lupon_case_id || directCase?.id;
+        if (cid) {
+          luponApi.hearingCase(cid)
+            .then((r: any) => setFetchedCase(r.data.data))
+            .catch(() => undefined);
+        } else if (hearing.id) {
+          luponApi.hearing(hearing.id)
+            .then((r: any) => {
+              if (r.data.data?.lupon_case) {
+                setFetchedCase(r.data.data.lupon_case);
+              }
+            })
+            .catch(() => undefined);
+        }
+      }
     }
-  }, [hearing, isOpen, initialMode]);
+  }, [hearing, isOpen, initialMode, caseFile]);
 
   const formValues = {
     complainantPresent,
@@ -129,11 +154,26 @@ export function MinutesModal({
     }
   };
 
+  const activeCase = fetchedCase || (hearing.lupon_case as LuponCase | undefined) || caseFile;
+  const caseNumber = activeCase?.case_number || (activeCase?.id ? `Case #${activeCase.id}` : "");
+  const caseTitle = activeCase?.case_title || activeCase?.case_classification || "—";
+  const complainantName =
+    activeCase?.complainant_display_name ||
+    (activeCase?.complainant
+      ? `${activeCase.complainant.first_name} ${activeCase.complainant.last_name}`
+      : activeCase?.complainant_name) ||
+    "—";
+  const respondentNames =
+    activeCase?.respondent_display_names ||
+    (activeCase?.respondents && activeCase.respondents.length > 0
+      ? activeCase.respondents.map((r: any) => `${r.first_name} ${r.last_name}`).join(", ")
+      : "—");
+
   return (
     <Modal
       open={isOpen}
       onClose={onClose}
-      title={`Hearing Minutes — ${hearing.lupon_case?.case_number ?? ""}`}
+      title={`Hearing Minutes${caseNumber ? ` — ${caseNumber}` : ""}`}
       size="wide"
     >
       <div className="space-y-4">
@@ -141,10 +181,17 @@ export function MinutesModal({
         <div className="grid gap-3 rounded-xl bg-secondary px-4 py-3 sm:grid-cols-2 text-sm">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Case</p>
-            <p className="font-semibold text-dark">{hearing.lupon_case?.case_title ?? "—"}</p>
-            <p className="mt-0.5 text-xs text-gray-500">
-              {hearing.lupon_case?.complainant_display_name ?? "—"} vs. {hearing.lupon_case?.respondent_display_names ?? "—"}
-            </p>
+            <p className="font-semibold text-dark">{caseTitle}</p>
+            <div className="mt-1 text-xs text-gray-600 space-y-0.5">
+              <p>
+                <span className="font-semibold text-dark">Complainant:</span>{" "}
+                <span className="text-primary font-medium">{complainantName}</span>
+              </p>
+              <p>
+                <span className="font-semibold text-dark">Respondent:</span>{" "}
+                <span className="text-dark">{respondentNames}</span>
+              </p>
+            </div>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Schedule &amp; Status</p>

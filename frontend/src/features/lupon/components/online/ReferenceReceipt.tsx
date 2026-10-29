@@ -1,4 +1,4 @@
-import { FiCheckCircle, FiCopy, FiHome, FiInfo } from "react-icons/fi";
+import { FiCheckCircle, FiCopy, FiHome, FiInfo, FiAlertTriangle } from "react-icons/fi";
 import { useState } from "react";
 
 /**
@@ -20,6 +20,7 @@ export interface FilingOutcome {
   status: string;
   /** The server's own sentence, which differs between those two cases. */
   message: string;
+  is_minor?: boolean;
 }
 
 export function ReferenceReceipt({ outcome }: { outcome: FilingOutcome }) {
@@ -77,6 +78,17 @@ export function ReferenceReceipt({ outcome }: { outcome: FilingOutcome }) {
         <FiInfo className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
         <p className="text-sm leading-relaxed text-dark">{outcome.message}</p>
       </div>
+      {outcome.is_minor && (
+        <div className="mt-5 flex gap-3 rounded-2xl border border-warning/40 bg-warning/10 p-4 text-amber-950">
+          <FiAlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" aria-hidden="true" />
+          <div className="text-xs leading-relaxed">
+            <p className="font-bold text-amber-900">Parent / Legal Guardian Required</p>
+            <p className="mt-0.5 text-amber-800">
+              Because you are 17 years old or below, you must bring a parent or legal guardian with you when you visit the Barangay Office to verify and proceed with this complaint.
+            </p>
+          </div>
+        </div>
+      )}
 
       <h3 className="mt-6 text-sm font-bold text-dark">What happens next</h3>
       <ol className="mt-3 space-y-3">

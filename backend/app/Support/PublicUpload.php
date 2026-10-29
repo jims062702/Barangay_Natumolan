@@ -2,24 +2,37 @@
 
 namespace App\Support;
 
+use App\Services\Cloudinary\CloudinaryService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Pictures kept on the public disk: officials' photos, post images, the
- * landing carousel. Replacing one removes the file it replaces, so an edited
- * post does not leave its old picture behind on the server.
+ * Pictures uploaded to Cloudinary: officials' photos, post images, the
+ * landing carousel. Replacing one removes the file it replaces from Cloudinary.
+ * Falls back to local public disk if Cloudinary is temporarily unreachable.
  */
 final class PublicUpload
 {
     private const DISK = 'public';
 
-    public static function store(UploadedFile $file, string $directory): string
+    public static function store(UploadedFile|string $file, string $directory): string
     {
-        return $file->store($directory, self::DISK);
+        $cloudinary = app(CloudinaryService::class);
+        $url = $cloudinary->upload($file, $directory);
+
+        if ($url) {
+            return $url;
+        }
+
+        // Fallback to local storage if Cloudinary fails
+        if ($file instanceof UploadedFile) {
+            return $file->store($directory, self::DISK);
+        }
+
+        return '';
     }
 
-    public static function replace(?string $currentPath, UploadedFile $file, string $directory): string
+    public static function replace(?string $currentPath, UploadedFile|string $file, string $directory): string
     {
         self::delete($currentPath);
 
@@ -28,7 +41,15 @@ final class PublicUpload
 
     public static function delete(?string $path): void
     {
-        if ($path) {
+        if (! $path) {
+            return;
+        }
+
+        $cloudinary = app(CloudinaryService::class);
+
+        if ($cloudinary->isCloudinaryUrl($path)) {
+            $cloudinary->delete($path);
+        } else {
             Storage::disk(self::DISK)->delete($path);
         }
     }

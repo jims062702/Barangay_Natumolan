@@ -131,8 +131,8 @@ export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
         const dateStr = d && !isNaN(d.getTime())
           ? d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
           : "";
-        const caseHearings = h.lupon_case?.hearings ?? [];
-        const totalSchedules = caseHearings.length > 0 ? caseHearings.length : 1;
+        // const caseHearings = h.lupon_case?.hearings ?? [];
+        // const totalSchedules = caseHearings.length > 0 ? caseHearings.length : 1;
 
         return (
           <div>
@@ -142,7 +142,7 @@ export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
             <span className="block whitespace-nowrap text-[11px] text-gray-500">
               {dateStr}
             </span>
-            <button
+            {/* <button
               type="button"
               onClick={() => setSchedulesForCase(h.lupon_case ?? null)}
               className="mt-1 inline-flex cursor-pointer items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary/20 hover:underline"
@@ -150,7 +150,7 @@ export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
             >
               <FiCalendar className="h-2.5 w-2.5" />
               {totalSchedules > 1 ? `View all ${totalSchedules} schedules` : "View schedules"}
-            </button>
+            </button> */}
           </div>
         );
       },
@@ -294,13 +294,10 @@ export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
             )}
 
             {/*
-              A REPRINT, not the first printing. The summons that opened
-              this case was printed from the "For summons" list, and that
-              press is what booked these very days — by the time a sitting
-              is on the calendar, the paper already exists. This is for the
-              copy that went missing.
+              Upcoming hearings: view schedules, print summons, or withdraw complaint.
+              No minutes may be recorded or viewed for upcoming hearings.
             */}
-            {view === "upcoming" && open && (
+            {view === "upcoming" && (
               <>
                 <RowAction
                   label="View all schedules"
@@ -308,42 +305,21 @@ export function HearingTable({ ctx }: { ctx: HearingCalendarState }) {
                   tone="primary"
                   onClick={() => setSchedulesForCase(h.lupon_case ?? null)}
                 />
-                <RowAction
-                  label={h.summons_issued ? "Print the summons again" : "Print the summons"}
-                  icon={FiPrinter}
-                  onClick={() => printSummons(h)}
-                />
-                <RowAction
-                  label="Withdraw the complaint"
-                  icon={FiCornerUpLeft}
-                  tone="danger"
-                  onClick={() => openWithdraw(h)}
-                />
-              </>
-            )}
-
-            {/* Upcoming hearings that are closed/cancelled */}
-            {view === "upcoming" && !open && (
-              <>
-                <RowAction
-                  label="View all schedules"
-                  icon={FiCalendar}
-                  tone="primary"
-                  onClick={() => setSchedulesForCase(h.lupon_case ?? null)}
-                />
-                {h.status === "Cancelled" ? (
-                  <RowAction
-                    label="Why it did not sit"
-                    icon={FiEye}
-                    onClick={() => setResultFor(h)}
-                  />
-                ) : hasMin ? (
-                  <RowAction
-                    label="View Minutes"
-                    icon={FiFileText}
-                    onClick={() => openMinutes(h, "view")}
-                  />
-                ) : null}
+                {open && (
+                  <>
+                    <RowAction
+                      label={h.summons_issued ? "Print the summons again" : "Print the summons"}
+                      icon={FiPrinter}
+                      onClick={() => printSummons(h)}
+                    />
+                    <RowAction
+                      label="Withdraw the complaint"
+                      icon={FiCornerUpLeft}
+                      tone="danger"
+                      onClick={() => openWithdraw(h)}
+                    />
+                  </>
+                )}
               </>
             )}
 

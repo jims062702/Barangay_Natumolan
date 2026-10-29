@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Lupon;
 
 use App\Http\Controllers\Api\BaseController;
 use App\Models\Lupon\CaseFile;
+use App\Services\Lupon\FilingFeeDeadlines;
 use App\Services\Lupon\HearingCalendar;
 use App\Services\Lupon\HearingDesk;
 use App\Services\Lupon\PartyNotice;
@@ -76,6 +77,7 @@ class SummonsController extends BaseController
 
     public function awaiting(Request $request)
     {
+        FilingFeeDeadlines::forwardCompletedMediation();
         $office = $request->user()?->office;
         $allowedStages = match ($office) {
             'Lupon' => ['For Lupon Summons', 'Conciliation'],
@@ -154,6 +156,15 @@ class SummonsController extends BaseController
                 'The filing fee is not marked paid yet. Nothing on the case moves until the Lupon has seen the receipt.',
                 422
             );
+        }
+
+        if ($desk === HearingDesk::CONCILIATION_DESK) {
+            if (! $case->isEligibleForLuponConciliation()) {
+                return $this->error(
+                    'Lupon conciliation summons cannot be printed. All 3 Punong Barangay mediation sessions must be concluded first.',
+                    422
+                );
+            }
         }
 
         return $desk === HearingDesk::MEDIATION_DESK ? 'Mediation' : 'Conciliation';
@@ -246,6 +257,12 @@ class SummonsController extends BaseController
         $type = ($case->current_stage === 'Conciliation' || $case->current_stage === 'For Lupon Summons')
             ? 'Conciliation'
             : 'Mediation';
+
+        if ($type === 'Conciliation') {
+            if (! $case->isEligibleForLuponConciliation()) {
+                return $this->error('A case must complete all 3 Punong Barangay mediation sessions before Lupon hearings can be scheduled.', 422);
+            }
+        }
 
         // Check if there is already an active scheduled hearing
         $existing = $case->hearings()

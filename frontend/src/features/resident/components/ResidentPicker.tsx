@@ -59,6 +59,7 @@ const ageOf = (birthdate?: string | null) => {
  */
 const distinguisher = (r: Resident) => {
   const age = ageOf(r.birthdate);
+  const isMinor = age !== null && age < 18;
   /*
    * The two facts that change what a clerk should do with the person they
    * just picked: someone who has died should not be having a certificate
@@ -72,7 +73,9 @@ const distinguisher = (r: Resident) => {
         ? "Lives outside the barangay"
         : null;
 
-  return [flag, age !== null ? `${age} yrs` : null, r.zone_purok].filter(Boolean).join(" · ");
+  const ageLabel = isMinor ? `Minor (${age} yrs · Under 18)` : age !== null ? `${age} yrs` : null;
+
+  return [flag, ageLabel, r.zone_purok].filter(Boolean).join(" · ");
 };
 
 /** Search-as-you-type resident selector (uses /residents/search). */
@@ -175,6 +178,8 @@ export default function ResidentPicker({
   );
 
   if (value) {
+    const age = ageOf(value.birthdate);
+    const isMinor = age !== null && age < 18;
     return (
       <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3.5 py-2.5 text-sm">
         {/*
@@ -190,6 +195,11 @@ export default function ResidentPicker({
         <span className="min-w-0 font-medium text-dark">
           {fullName(value)}
           {value.resident_number && <span className="text-xs text-gray-500"> ({value.resident_number})</span>}
+          {isMinor && (
+            <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+              Minor (Age: {age}) · Parent/Guardian Required
+            </span>
+          )}
           {distinguisher(value) && (
             <span className="block text-xs font-normal text-gray-500">{distinguisher(value)}</span>
           )}

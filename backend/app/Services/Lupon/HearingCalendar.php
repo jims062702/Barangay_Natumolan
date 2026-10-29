@@ -152,16 +152,10 @@ class HearingCalendar
             return $existing->all();
         }
 
-        // 2. Stage eligibility check: Lupon Conciliation requires 3 completed PB mediation hearings or being at Lupon stage
+        // 2. Stage eligibility check: Lupon Conciliation requires all 3 PB mediation sessions to be held/concluded
         if ($type === 'Conciliation') {
-            $completedMediationCount = $case->hearings()
-                ->where('hearing_type', 'Mediation')
-                ->where('status', 'Completed')
-                ->count();
-
-            $isEligible = $completedMediationCount >= 3 || in_array($case->current_stage, ['For Lupon Summons', 'Conciliation', 'CFA'], true);
-            if (! $isEligible) {
-                throw new \InvalidArgumentException('A case must complete 3 Punong Barangay mediation hearings before Lupon hearing can be scheduled.');
+            if (! $case->isEligibleForLuponConciliation()) {
+                throw new \InvalidArgumentException('A case must complete all 3 Punong Barangay mediation sessions before Lupon hearing can be scheduled.');
             }
         } elseif ($type === 'Mediation' && in_array($case->current_stage, ['For Lupon Summons', 'Conciliation', 'CFA', 'Settled'], true)) {
             throw new \InvalidArgumentException('Case has already moved past Punong Barangay stage.');
@@ -237,6 +231,12 @@ class HearingCalendar
      */
     public function plan(CaseFile $case, string $type, ?Carbon $after = null): array
     {
+        if ($type === 'Conciliation') {
+            if (! $case->isEligibleForLuponConciliation()) {
+                return [];
+            }
+        }
+
         $existing = $case->hearings()
             ->where('hearing_type', $type)
             ->where('status', 'Scheduled')

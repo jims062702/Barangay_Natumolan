@@ -191,7 +191,7 @@ class CaseController extends BaseController
         $filedOn = ManilaTime::today();
 
         $case = CaseFile::create([
-            'case_number' => CaseFile::nextCaseNumber($filedOn),
+            'case_number' => null, // Case number is generated once payment is confirmed
             'case_title' => $validated['case_title'],
             'case_classification' => $validated['case_classification'],
             'complainant_id' => $validated['complainant_id'],
@@ -214,7 +214,7 @@ class CaseController extends BaseController
 
         return $this->success(
             $case->load(['complaint', 'respondents:id,first_name,last_name']),
-            'Lupon case filed. The filing fee must be paid before a summons can be issued.',
+            'Lupon case filed. The filing fee must be paid before a case number and summons are issued.',
             201
         );
     }

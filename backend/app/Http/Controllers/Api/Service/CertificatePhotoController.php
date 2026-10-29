@@ -45,7 +45,10 @@ class CertificatePhotoController extends BaseController
 
         $request->validate(['photo' => 'required|image|max:5120']);
 
-        $this->photo->attach($certificate, $request->file('photo')->store(CertificatePhoto::DIRECTORY, 'public'));
+        $uploadedPath = app(\App\Services\Cloudinary\CloudinaryService::class)->upload($request->file('photo'), CertificatePhoto::DIRECTORY)
+            ?? $request->file('photo')->store(CertificatePhoto::DIRECTORY, 'public');
+
+        $this->photo->attach($certificate, $uploadedPath);
 
         /* fresh() on its own reloads the columns and none of the relations —
            which is what blanked the holder in the counter's window. */

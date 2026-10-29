@@ -8,6 +8,7 @@ import { DeathCertificateWalkinFields } from "./DeathCertificateWalkinFields";
 import type { CertificateDeskState } from "../../hooks/useCertificateDesk";
 import type { FilingItem } from "../../hooks/useCertificateFiling";
 import { MAX_IN_TRANSACTION } from "../../lib/certificateFees";
+import { ageFrom } from "../../../../shared/lib/birthdate";
 
 /**
  * Filing certificates at the counter — as many as the resident needs, in
@@ -27,6 +28,8 @@ export function NewCertificateModal({ ctx }: { ctx: CertificateDeskState }) {
 
   const hasDeathCert = items.some((i) => i.certType === "Certification of Death");
   const isRequesterDeceased = certResident && certResident.life_status === "Deceased";
+  const certResidentAge = ageFrom(certResident?.birthdate);
+  const isResidentMinor = certResidentAge !== null && certResidentAge < 18;
 
   return (
     <Modal open={createOpen} onClose={closeCreate} title="New Certificate" size="xl">
@@ -55,6 +58,20 @@ export function NewCertificateModal({ ctx }: { ctx: CertificateDeskState }) {
             <p>
               <strong>Cannot proceed:</strong> This resident is recorded as <strong>Deceased</strong> and cannot be the requester for a certificate.
             </p>
+          </div>
+        )}
+
+        {isResidentMinor && (
+          <div className="flex items-start gap-2.5 rounded-xl border border-warning/50 bg-warning/10 p-3.5 text-xs text-dark">
+            <FiAlertTriangle className="h-4 w-4 shrink-0 text-warning mt-0.5" aria-hidden="true" />
+            <div>
+              <p className="font-semibold text-warning-dark">
+                Minor Resident Alert (Age: {certResidentAge}) — Parent/Guardian Required
+              </p>
+              <p className="mt-0.5 text-gray-700 leading-relaxed">
+                This resident is 17 years old or below ({certResidentAge} years old). As a minor, they must be accompanied by a parent or legal guardian to request and claim this certificate at the counter. Please verify the guardian's presence and identification.
+              </p>
+            </div>
           </div>
         )}
 

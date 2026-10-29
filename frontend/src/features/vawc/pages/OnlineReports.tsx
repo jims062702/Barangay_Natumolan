@@ -11,6 +11,7 @@ import PageHeader from "../../../shared/ui/PageHeader";
 import StatTile from "../../../shared/ui/StatTile";
 import StatusBadge from "../../../shared/ui/StatusBadge";
 import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
+import { ageFrom } from "../../../shared/lib/birthdate";
 import ResidentPicker from "../../resident/components/ResidentPicker";
 import type { Resident } from "../../../shared/types";
 import { ValidIdViewer } from "../../lupon/components/online/ValidIdViewer";
@@ -22,7 +23,7 @@ interface ReportRow {
   status: string;
   sent_at: string | null;
   filed_via: string;
-  resident: { id: number; name: string; resident_number: string; zone_purok: string | null } | null;
+  resident: { id: number; name: string; resident_number: string; zone_purok: string | null; is_minor?: boolean; age?: number | null } | null;
   /** The respondent as she wrote it. */
   respondent_name: string | null;
   /** The register's record, once the desk has chosen it (or chosen by her, before 2026-09-30). */
@@ -56,7 +57,7 @@ interface ReportDetail {
   office_note: string | null;
   vawc_case_id: number | null;
   vawc_case: { id: number; case_code: string } | null;
-  resident: { id: number; full_name: string; resident_number: string; zone_purok: string | null; contact_number: string | null } | null;
+  resident: { id: number; full_name: string; resident_number: string; zone_purok: string | null; contact_number: string | null; birthdate?: string | null; is_minor?: boolean; age?: number | null } | null;
   respondent: (Resident & { full_name: string }) | null;
   card: { status: string } | null;
 }
@@ -194,7 +195,20 @@ export default function OnlineReports() {
           columns={[
             { header: "Reference Number", render: (r: ReportRow) => <span className="font-semibold tabular-nums text-dark">{r.reference_no}</span> },
             { header: "Sent", render: (r: ReportRow) => when(r.sent_at) },
-            { header: "Complainant", render: (r: ReportRow) => r.resident ? <span>{r.resident.name}<span className="block text-xs text-gray-500">{r.resident.resident_number} · {r.resident.zone_purok ?? "—"}</span></span> : "—" },
+            {
+              header: "Complainant",
+              render: (r: ReportRow) => r.resident ? (
+                <div>
+                  <span className="font-medium text-dark">{r.resident.name}</span>
+                  {r.resident.is_minor && (
+                    <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                      Minor ({r.resident.age} yrs)
+                    </span>
+                  )}
+                  <span className="block text-xs text-gray-500">{r.resident.resident_number} · {r.resident.zone_purok ?? "—"}</span>
+                </div>
+              ) : "—"
+            },
             {
               header: "Respondent",
               render: (r: ReportRow) => r.respondent
@@ -227,6 +241,20 @@ export default function OnlineReports() {
               <span className="text-gray-500">Sent {when(open.created_at)} · {open.filed_via === "Portal" ? "from her portal" : "from the public page"}</span>
             </div>
             <Flags row={open} />
+
+            {open.resident && (open.resident.is_minor || (ageFrom(open.resident.birthdate) !== null && ageFrom(open.resident.birthdate)! < 18)) && (
+              <div className="flex items-start gap-2.5 rounded-xl border border-warning/50 bg-warning/10 p-3.5 text-xs text-dark">
+                <FiAlertTriangle className="h-4 w-4 shrink-0 text-warning mt-0.5" aria-hidden="true" />
+                <div>
+                  <p className="font-semibold text-warning-dark">
+                    Minor Complainant Alert (Age: {open.resident.age ?? ageFrom(open.resident.birthdate)}) — Parent/Guardian Required
+                  </p>
+                  <p className="mt-0.5 text-gray-700 leading-relaxed">
+                    The complainant is 17 years old or below ({open.resident.age ?? ageFrom(open.resident.birthdate)} years old). As a minor, she must be accompanied by a parent, legal guardian, or protective adult advocate during verification, dialogue, and case proceedings.
+                  </p>
+                </div>
+              </div>
+            )}
 
             <dl className="grid gap-3 rounded-2xl bg-secondary/60 p-4 sm:grid-cols-2">
               <div><dt className="text-xs text-gray-500">Complainant</dt><dd className="font-semibold text-dark">{open.resident?.full_name ?? "—"}</dd></div>

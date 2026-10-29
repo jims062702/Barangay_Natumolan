@@ -10,7 +10,9 @@ const STATUS_TONES: Record<string, string> = {
   // Generic / requests
   Pending: "bg-warning/10 text-warning",
   "In Progress": "bg-primary/10 text-primary",
+  "For Approval": "bg-warning/10 text-warning",
   Approved: "bg-success/10 text-success",
+  Adopted: "bg-success/10 text-success",
   Completed: "bg-success/10 text-success",
   Rejected: "bg-danger/10 text-danger",
   Cancelled: "bg-gray text-gray-500",

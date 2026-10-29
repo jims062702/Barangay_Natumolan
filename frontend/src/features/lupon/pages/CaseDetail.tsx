@@ -33,7 +33,7 @@ export default function CaseDetail() {
       </Link>
 
       <PageHeader
-        title={`${caseData.case_number} — ${caseData.case_title}`}
+        title={`${caseData.case_number ? `${caseData.case_number} — ` : ""}${caseData.case_title}`}
         subtitle={`${caseData.case_classification} · filed ${new Date(caseData.date_filed).toLocaleDateString("en-PH", { dateStyle: "long" })}`}
         actions={<StatusBadge status={caseData.current_stage} />}
       />

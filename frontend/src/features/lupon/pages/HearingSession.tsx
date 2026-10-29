@@ -113,8 +113,16 @@ export default function HearingSession() {
   /* The third of the three — recording it moves the case on by itself. */
   const last = hearing.last_of_stage === true;
 
+  const now = new Date();
+  const todayManila = now.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+  const isUpcoming = hearing.scheduled_at ? hearing.scheduled_at.slice(0, 10) > todayManila : false;
+
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isUpcoming) {
+      toast("Cannot record minutes for an upcoming hearing. Sittings must be held before minutes can be recorded.", "error");
+      return;
+    }
     const isUpdateOnly = hearing.status !== "Scheduled";
     if (!chosen && !isUpdateOnly) return;
 
@@ -362,7 +370,14 @@ export default function HearingSession() {
               )}
             </fieldset>
 
-            {canEdit && (
+            {isUpcoming && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-800">
+                <span className="font-bold">Upcoming sitting:</span> This hearing is scheduled for{" "}
+                {formatWallClock(hearing.scheduled_at, { weekday: "long", month: "short", day: "numeric", year: "numeric" })}. Minutes can only be recorded on or after the scheduled date.
+              </div>
+            )}
+
+            {canEdit && !isUpcoming && (
               <button
                 type="submit"
                 disabled={saving}

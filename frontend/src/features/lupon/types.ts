@@ -17,7 +17,7 @@ export interface LuponCase {
     summons_status: string;
     hearing_id: number | null;
   } | null;
-  case_number: string;
+  case_number?: string | null;
   case_title: string;
   case_classification: string;
   /** Null when the complainant lives outside the barangay. */
@@ -219,8 +219,8 @@ export interface OnlineComplaint {
   office_notes?: string | null;
   handled_at?: string | null;
   /** Set when the filer was found on the register. */
-  resident?: { id: number; first_name: string; middle_name?: string | null; last_name: string } | null;
-  lupon_case?: { id: number; case_number: string; case_classification?: string | null; current_stage?: string } | null;
+  resident?: { id: number; first_name: string; middle_name?: string | null; last_name: string; birthdate?: string | null } | null;
+  lupon_case?: { id: number; case_number?: string | null; case_classification?: string | null; current_stage?: string } | null;
   files?: OnlineComplaintFile[];
 }
 

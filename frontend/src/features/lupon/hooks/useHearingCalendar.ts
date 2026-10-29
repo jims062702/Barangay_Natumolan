@@ -98,7 +98,14 @@ export function useHearingCalendar(view: View) {
       .then((r) => {
         const data = r.data.data;
         if (sittings) {
-          setRows(data.data ?? []);
+          const rawRows: LuponHearing[] = data.data ?? [];
+          const activeRows = rawRows.filter(
+            (h) =>
+              h.status !== "Cancelled" &&
+              h.lupon_case?.current_stage !== "Withdrawn" &&
+              h.lupon_case?.current_stage !== "Cancelled"
+          );
+          setRows(activeRows);
         } else {
           setCases(data.data ?? []);
         }

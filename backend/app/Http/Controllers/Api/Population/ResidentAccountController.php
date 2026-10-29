@@ -85,7 +85,7 @@ class ResidentAccountController extends BaseController
 
         $age = $resident->birthdate?->age;
         if ($age === null || $age < 18) {
-            return $this->error('Ang resident portal account ay para lamang sa mga residenteng may edad 18 pataas. Hindi maaaring gawan o buksan ang portal account para sa residenteng 17 anyos pababa.', 422);
+            return $this->error('The resident portal is available only to residents aged 18 and above. An account cannot be created for a resident aged 17 and below.', 422);
         }
 
         // The resident record is the source of truth for the login address,
@@ -192,7 +192,7 @@ class ResidentAccountController extends BaseController
         if ($user->resident) {
             $age = $user->resident->birthdate?->age;
             if ($age === null || $age < 18) {
-                return $this->error('Hindi maaaring i-activate ang portal account ng residenteng 17 anyos pababa. Para lamang sa 18 pataas ang resident portal.', 422);
+                return $this->error('Cannot activate a portal account for a resident aged 17 and below. The portal is only for residents aged 18 and above.', 422);
             }
         }
 
@@ -225,7 +225,7 @@ class ResidentAccountController extends BaseController
         if (! $user->is_active && $user->resident) {
             $age = $user->resident->birthdate?->age;
             if ($age === null || $age < 18) {
-                return $this->error('Hindi maaaring i-enable ang sign-in para sa residenteng 17 anyos pababa.', 422);
+                return $this->error('Cannot enable sign-in for a resident aged 17 and below. The portal is only for residents aged 18 and above.', 422);
             }
         }
 

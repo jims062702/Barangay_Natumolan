@@ -44,6 +44,9 @@ class OnlineReportController extends BaseController
                     'name' => $r->resident->full_name,
                     'resident_number' => $r->resident->resident_number,
                     'zone_purok' => $r->resident->zone_purok,
+                    'birthdate' => $r->resident->birthdate?->toDateString(),
+                    'is_minor' => $r->resident->isMinor(),
+                    'age' => $r->resident->birthdate?->age,
                 ] : null,
                 /* As she wrote it — the register's record is chosen when it is verified. */
                 'respondent_name' => $r->respondent_name,
@@ -81,6 +84,16 @@ class OnlineReportController extends BaseController
     /** Her Resident ID, from the private disk — looked at, and written down. */
     public function validId(OnlineReport $report)
     {
+        if (str_starts_with($report->id_path, 'http://') || str_starts_with($report->id_path, 'https://')) {
+            $resp = \Illuminate\Support\Facades\Http::get($report->id_path);
+            if ($resp->successful()) {
+                $report->logView('id_viewed');
+                return response($resp->body(), 200, [
+                    'Content-Type' => $resp->header('Content-Type') ?: 'image/jpeg',
+                ]);
+            }
+        }
+
         if (! Storage::disk('local')->exists($report->id_path)) {
             return $this->notFound('The uploaded ID is no longer on file.');
         }

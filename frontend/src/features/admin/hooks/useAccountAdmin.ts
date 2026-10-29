@@ -122,15 +122,20 @@ export function useAccountAdmin({
        * borrowed unlocked screen enough to take the account.
        */
       if (selfPassword) {
-        await authApi.changePassword({
+        const passRes = await authApi.changePassword({
           current_password: currentPassword,
           new_password: selfPassword,
           new_password_confirmation: selfPassword,
         });
+        if (passRes.data?.data?.token) {
+          localStorage.setItem("authToken", passRes.data.data.token);
+        }
+        toast("Matagumpay na napalitan ang password.", "success");
+      } else {
+        toast("Your account has been updated.");
       }
 
       selfDraft.clear();
-      toast("Your account has been updated.");
       setSelfOpen(false);
       setCurrentPassword("");
       setSelfPassword("");

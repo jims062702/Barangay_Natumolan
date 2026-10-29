@@ -78,13 +78,13 @@ final class OnlineFiling
                 'relationship_nature' => $data['relationship_nature'] ?? null,
                 'valid_id_type' => $data['valid_id_type'],
                 'valid_id_number' => $data['valid_id_number'] ?? null,
-                'valid_id_path' => $validId->store(self::ID_DIR, 'local'),
+                'valid_id_path' => app(\App\Services\Cloudinary\CloudinaryService::class)->upload($validId, 'complaint-ids') ?? $validId->store(self::ID_DIR, 'local'),
                 'status' => OnlineComplaint::FOR_VERIFICATION,
             ]);
 
             foreach ($evidence as $file) {
                 $complaint->files()->create([
-                    'path' => $file->store(self::EVIDENCE_DIR, 'local'),
+                    'path' => app(\App\Services\Cloudinary\CloudinaryService::class)->upload($file, 'complaint-evidence') ?? $file->store(self::EVIDENCE_DIR, 'local'),
                     'original_name' => $file->getClientOriginalName(),
                     'mime_type' => $file->getClientMimeType(),
                     'size_bytes' => $file->getSize(),

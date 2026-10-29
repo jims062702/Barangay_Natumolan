@@ -76,12 +76,16 @@ class PaymentController extends BaseController
         ]);
 
         /* The fee's state first; the stage moves as it always has. */
-        $case->update(['payment_status' => FilingFeeDeadlines::PAID]);
-        FilingFeeDeadlines::record($case, 'fee_paid', 'Official receipt seen by the Lupon.');
-
-        if ($case->current_stage === 'Filed') {
-            $case->update(['current_stage' => 'For Summons']);
+        $updates = ['payment_status' => FilingFeeDeadlines::PAID];
+        if (! $case->case_number) {
+            $updates['case_number'] = CaseFile::nextCaseNumber(ManilaTime::today());
         }
+        if ($case->current_stage === 'Filed') {
+            $updates['current_stage'] = 'For Summons';
+        }
+        $case->update($updates);
+        $case->refresh();
+        FilingFeeDeadlines::record($case, 'fee_paid', 'Official receipt seen by the Lupon.');
 
         ChangeLog::bump('lupon_cases');
 
@@ -90,7 +94,8 @@ class PaymentController extends BaseController
                 'payment' => $payment->load('paidBy:id,name'),
                 'case' => $case->fresh()->load('hearings'),
             ],
-            'Filing fee marked paid. The case has gone to the Barangay Secretary, '
+            'Filing fee marked paid. ' . ($case->case_number ? "Case number {$case->case_number} assigned. " : "")
+                . 'The case has gone to the Barangay Secretary, '
                 . 'who prints the summons — and that printing books the three Tuesdays '
                 . 'with the Punong Barangay.'
         );
@@ -127,7 +132,7 @@ class PaymentController extends BaseController
 
         /* Unpaid again, on the same three days: a deadline already past
            closes the case at the next sweep, as the rule says. */
-        $case->update(['payment_status' => FilingFeeDeadlines::UNPAID]);
+        $case->update(['payment_status' => FilingFeeDeadlines::UNPAID, 'case_number' => null]);
         FilingFeeDeadlines::record($case, 'fee_undone', 'Paid was undone.');
 
         /*

@@ -44,6 +44,12 @@ class BadgeController extends BaseController
         $office = $user->office;
         $role = $user->role;
 
+        $cacheKey = "badges:user_{$user->id}:{$role}:{$office}";
+        $cached = \Illuminate\Support\Facades\Cache::get($cacheKey);
+        if ($cached !== null && is_array($cached)) {
+            return $this->success($cached, 'Sidebar counts retrieved');
+        }
+
         $isAdmin = $office === 'Admin';
         $frontDesk = $isAdmin || in_array($office, ['Main Office'], true);
         $isSecretary = $isAdmin || in_array($role, ['Secretary', 'Punong Barangay'], true) || ($office === 'Main Office' && $role !== 'Clerk');
@@ -133,24 +139,33 @@ class BadgeController extends BaseController
             /*
              * VAWC Records badges for resident:
              * - Online complaints waiting for verification
-             * - Active confidential cases
+             * - Active confidential cases / Cases against me
              * - Active / applied protection orders
              */
-            $badges['/resident/vawc/reports'] = \App\Models\Vawc\OnlineReport::where('resident_id', $mine)
-                ->where('status', 'For Verification')
-                ->count();
+            $isMaleResident = $user->resident && strcasecmp((string) $user->resident->gender, 'Male') === 0;
 
-            $badges['/resident/vawc/cases'] = \App\Models\Vawc\CaseFile::where(function ($q) use ($mine) {
-                    $q->where('survivor_id', $mine)->orWhere('reported_by_resident_id', $mine);
-                })
-                ->where('status', 'Active')
-                ->count();
+            if ($isMaleResident) {
+                // Male residents only see "Cases Against Me" under VAWC Records
+                $badges['/resident/vawc/cases'] = \App\Models\Vawc\CaseFile::where('respondent_id', $mine)
+                    ->where('status', 'Active')
+                    ->count();
+            } else {
+                $badges['/resident/vawc/reports'] = \App\Models\Vawc\OnlineReport::where('resident_id', $mine)
+                    ->where('status', 'For Verification')
+                    ->count();
 
-            $badges['/resident/vawc/bpo'] = \App\Models\Vawc\ProtectionOrder::whereIn('vawc_case_id', function ($q) use ($mine) {
-                    $q->select('id')->from('vawc_cases')->where('survivor_id', $mine);
-                })
-                ->whereIn('status', ['Applied', 'Issued'])
-                ->count();
+                $badges['/resident/vawc/cases'] = \App\Models\Vawc\CaseFile::where(function ($q) use ($mine) {
+                        $q->where('survivor_id', $mine)->orWhere('reported_by_resident_id', $mine);
+                    })
+                    ->where('status', 'Active')
+                    ->count();
+
+                $badges['/resident/vawc/bpo'] = \App\Models\Vawc\ProtectionOrder::whereIn('vawc_case_id', function ($q) use ($mine) {
+                        $q->select('id')->from('vawc_cases')->where('survivor_id', $mine);
+                    })
+                    ->whereIn('status', ['Applied', 'Issued'])
+                    ->count();
+            }
 
             /*
              * Case History & Tracking carries no badge. It is an activity log.
@@ -225,35 +240,38 @@ class BadgeController extends BaseController
                 $hearingTypes = ['Conciliation'];
             }
 
-            // Today's Hearing: sittings scheduled for today
+            // Today's Hearing: active scheduled sittings for today (cancelled cases and hearings excluded)
             $badges['/lupon/hearings'] = DB::table('lupon_hearings')
                 ->join('lupon_cases', 'lupon_hearings.lupon_case_id', '=', 'lupon_cases.id')
                 ->whereIn('lupon_hearings.hearing_type', $hearingTypes)
                 ->where('lupon_hearings.status', 'Scheduled')
                 ->whereDate('lupon_hearings.scheduled_at', $today)
-                ->whereNotIn('lupon_cases.current_stage', ['Filed', 'For Summons'])
+                ->whereNotIn('lupon_cases.current_stage', ['Filed', 'For Summons', 'Withdrawn', 'Cancelled'])
                 ->count();
 
-            // Upcoming Hearing: cases with upcoming scheduled hearings
+            // Upcoming Hearing: cases with upcoming scheduled hearings (cancelled cases and hearings excluded)
             $badges['/lupon/hearings/upcoming'] = DB::table('lupon_hearings')
                 ->join('lupon_cases', 'lupon_hearings.lupon_case_id', '=', 'lupon_cases.id')
                 ->whereIn('lupon_hearings.hearing_type', $hearingTypes)
-                ->whereNotIn('lupon_cases.current_stage', ['Filed', 'For Summons'])
+                ->whereNotIn('lupon_cases.current_stage', ['Filed', 'For Summons', 'Withdrawn', 'Cancelled'])
+                ->where('lupon_hearings.status', '!=', 'Cancelled')
                 ->whereDate('lupon_hearings.scheduled_at', '>', $today)
                 ->whereRaw('lupon_hearings.id = (
                     SELECT h2.id FROM lupon_hearings h2
                     WHERE h2.lupon_case_id = lupon_hearings.lupon_case_id
                       AND DATE(h2.scheduled_at) > ?
-                    ORDER BY (CASE WHEN h2.status = \'Cancelled\' THEN 1 ELSE 0 END) ASC, h2.scheduled_at ASC, h2.id ASC
+                      AND h2.status != \'Cancelled\'
+                    ORDER BY h2.scheduled_at ASC, h2.id ASC
                     LIMIT 1
                 )', [$today])
                 ->count();
 
-            // Past Hearings: sittings that already ran before today or completed
+            // Past Hearings: sittings that already ran before today or completed (cancelled excluded)
             $badges['/lupon/hearings/past'] = DB::table('lupon_hearings')
                 ->join('lupon_cases', 'lupon_hearings.lupon_case_id', '=', 'lupon_cases.id')
                 ->whereIn('lupon_hearings.hearing_type', $hearingTypes)
-                ->whereNotIn('lupon_cases.current_stage', ['Filed', 'For Summons'])
+                ->whereNotIn('lupon_cases.current_stage', ['Filed', 'For Summons', 'Withdrawn', 'Cancelled'])
+                ->where('lupon_hearings.status', '!=', 'Cancelled')
                 ->where(function ($q) use ($today) {
                     $q->whereDate('lupon_hearings.scheduled_at', '<', $today)
                       ->orWhere('lupon_hearings.status', 'Completed');
@@ -261,26 +279,30 @@ class BadgeController extends BaseController
                 ->count();
 
             // Cancelled (Withdrawn) cases
-            $cancelledQuery = Lupon\CaseFile::where('current_stage', 'Withdrawn');
+            $cancelledQuery = Lupon\CaseFile::whereIn('current_stage', ['Withdrawn', 'Cancelled']);
             if (! $isAdmin) {
                 if ($isSecretary) {
                     $cancelledQuery->whereDoesntHave('hearings', fn ($q) => $q->where('hearing_type', 'Conciliation'));
                 } elseif ($isLupon) {
-                    $cancelledQuery->whereHas('hearings', fn ($q) => $q->where('hearing_type', 'Conciliation'));
+                    $cancelledQuery->where(function ($q) {
+                        $q->whereHas('hearings', fn ($h) => $h->where('hearing_type', 'Conciliation'))
+                          ->orWhereNotNull('assigned_lupon_secretary');
+                    });
                 }
             }
             $badges['/lupon/hearings/cancelled'] = $cancelledQuery->count();
 
-            // CFA Cases
-            $cfaQuery = Lupon\CaseFile::where('current_stage', 'CFA');
-            if (! $isAdmin) {
-                if ($isSecretary) {
-                    $cfaQuery->whereDoesntHave('hearings', fn ($q) => $q->where('hearing_type', 'Conciliation'));
-                } elseif ($isLupon) {
-                    $cfaQuery->whereHas('hearings', fn ($q) => $q->where('hearing_type', 'Conciliation'));
+            // CFA Cases (Lupon only; Secretary menu no longer displays CFA Cases)
+            if ($isAdmin || $isLupon) {
+                $cfaQuery = Lupon\CaseFile::where('current_stage', 'CFA');
+                if (! $isAdmin && $isLupon) {
+                    $cfaQuery->where(function ($q) {
+                        $q->whereHas('hearings', fn ($h) => $h->where('hearing_type', 'Conciliation'))
+                          ->orWhereNotNull('assigned_lupon_secretary');
+                    });
                 }
+                $badges['/lupon/hearings/cfa'] = $cfaQuery->count();
             }
-            $badges['/lupon/hearings/cfa'] = $cfaQuery->count();
         }
 
         /*
@@ -343,8 +365,11 @@ class BadgeController extends BaseController
                 ->count();
         }
 
+        $result = array_filter($badges);
+        \Illuminate\Support\Facades\Cache::put($cacheKey, $result, 10);
+
         // Zero is the same as nothing to a reader, and sending it invites the
         // sidebar to draw an empty badge.
-        return $this->success(array_filter($badges), 'Sidebar counts retrieved');
+        return $this->success($result, 'Sidebar counts retrieved');
     }
 }

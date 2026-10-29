@@ -116,11 +116,39 @@ final class FilingFeeDeadlines
         return $closed;
     }
 
+    /**
+     * Forwards any case in 'Mediation' whose 3 PB mediation sessions have concluded/passed
+     * to the Lupon conciliation stage ('For Lupon Summons'), even if the Secretary has
+     * not yet typed the minutes.
+     */
+    public static function forwardCompletedMediation(): int
+    {
+        $cases = CaseFile::where('current_stage', 'Mediation')
+            ->with(['hearings' => fn ($q) => $q->where('hearing_type', 'Mediation')])
+            ->get();
+
+        $advanced = 0;
+        foreach ($cases as $case) {
+            if ($case->isEligibleForLuponConciliation()) {
+                $case->update(['current_stage' => 'For Lupon Summons']);
+                self::record($case, 'forwarded_to_lupon', 'Forwarded to Lupon for conciliation: 3 Punong Barangay mediation sessions concluded.', bySystem: true);
+                $advanced++;
+            }
+        }
+
+        if ($advanced > 0) {
+            ChangeLog::bump('lupon_cases');
+        }
+
+        return $advanced;
+    }
+
     /** At most once a minute — see CloseUnpaidLuponCases. */
     public static function sweep(): void
     {
         if (Cache::add('lupon:filing-fee-sweep', true, 60)) {
             self::closeOverdue();
+            self::forwardCompletedMediation();
         }
     }
 }

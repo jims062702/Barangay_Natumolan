@@ -85,7 +85,7 @@ final class OnlineReports
             $evidencePaths = [];
             foreach ($evidence as $file) {
                 if ($file instanceof UploadedFile) {
-                    $evidencePaths[] = $file->store(self::EVIDENCE_DIR, 'local');
+                    $evidencePaths[] = app(\App\Services\Cloudinary\CloudinaryService::class)->upload($file, 'vawc-evidence') ?? $file->store(self::EVIDENCE_DIR, 'local');
                 }
             }
 
@@ -106,7 +106,7 @@ final class OnlineReports
                 'in_danger_now' => $danger,
                 'safe_contact' => $data['safe_contact'] ?? null,
                 'safe_time' => $data['safe_time'] ?? null,
-                'id_path' => $id->store(self::ID_DIR, 'local'),
+                'id_path' => app(\App\Services\Cloudinary\CloudinaryService::class)->upload($id, 'vawc-ids') ?? $id->store(self::ID_DIR, 'local'),
                 'evidence_paths' => $evidencePaths,
                 'status' => OnlineReport::FOR_VERIFICATION,
                 /* No threat: she confirms it in person first. A threat: optional. */

@@ -102,15 +102,12 @@ class PasswordChangeController extends BaseController
 
         $user->setPassword($validated['new_password'], $user->id);
 
-        /*
-         * A fresh token, because setPassword revoked every one of them —
-         * which is the point: a password changed after a phone went missing
-         * has fixed nothing if the session on that phone survives it. The
-         * device doing the changing gets to stay signed in; the rest do not.
-         */
+        $currentToken = $user->currentAccessToken();
+        $token = $currentToken ? null : $user->createToken('api_token')->plainTextToken;
+
         return $this->success(
-            ['token' => $user->createToken('api_token')->plainTextToken],
-            'Your password has been changed. Any other device signed in to this account has been signed out.'
+            ['token' => $token],
+            'Your password has been changed successfully.'
         );
     }
 }

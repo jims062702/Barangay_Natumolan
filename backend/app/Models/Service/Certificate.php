@@ -112,9 +112,15 @@ class Certificate extends Model
 
     public function getPhotoUrlAttribute(): ?string
     {
-        return $this->photo_path
-            ? asset(\Illuminate\Support\Facades\Storage::url($this->photo_path))
-            : null;
+        if (! $this->photo_path) {
+            return null;
+        }
+
+        if (str_starts_with($this->photo_path, 'http://') || str_starts_with($this->photo_path, 'https://')) {
+            return $this->photo_path;
+        }
+
+        return asset(\Illuminate\Support\Facades\Storage::url($this->photo_path));
     }
 
     protected $casts = [

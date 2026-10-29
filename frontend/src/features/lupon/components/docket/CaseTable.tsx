@@ -28,21 +28,29 @@ export function CaseTable({ ctx }: { ctx: LuponDocketState }) {
           },
           {
             header: "Case Number",
-            /*
-             * A case filed with no line has no id to open yet: the server has
-             * never seen it. It is shown, because the clerk filed it and it
-             * has to be visible somewhere — but as plain text, since a link
-             * to /lupon/cases/-1 would land on an error page.
-             */
-            render: (c: LuponCase) => (c.id < 0 ? (
-              <span className="font-medium text-gray-500" title="Waiting to be sent to the office record">
-                {c.case_number}
-              </span>
-            ) : (
-              <Link to={`/lupon/cases/${c.id}`} className="font-medium text-primary hover:underline">
-                {c.case_number}
-              </Link>
-            )),
+            render: (c: LuponCase) => {
+              if (!c.case_number) {
+                return (
+                  <Link
+                    to={`/lupon/cases/${c.id}`}
+                    className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs font-semibold text-amber-600 hover:text-amber-800 hover:underline"
+                    title="Case number will be assigned once filing fee is paid"
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                    Pending Payment
+                  </Link>
+                );
+              }
+              return c.id < 0 ? (
+                <span className="font-medium text-gray-500" title="Waiting to be sent to the office record">
+                  {c.case_number}
+                </span>
+              ) : (
+                <Link to={`/lupon/cases/${c.id}`} className="font-medium text-primary hover:underline">
+                  {c.case_number}
+                </Link>
+              );
+            },
           },
           /* One column: the case is named by its nature (the title follows it). */
           { header: "Nature of the Case", render: (c: LuponCase) => c.case_classification },

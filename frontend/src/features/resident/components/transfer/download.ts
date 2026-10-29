@@ -10,15 +10,26 @@ import { api } from "../../../../shared/lib/api";
 export async function download(path: string, fallbackName: string) {
   const response = await api.get(path, { responseType: "blob" });
 
-  const disposition = String(response.headers["content-disposition"] ?? "");
-  const named = /filename="?([^"]+)"?/.exec(disposition);
+  if (response.data instanceof Blob && response.data.type?.includes("application/json")) {
+    const text = await response.data.text();
+    try {
+      const json = JSON.parse(text);
+      throw new Error(json.message || "Download failed");
+    } catch (e: any) {
+      if (e.message && e.message !== "Download failed") throw e;
+    }
+  }
 
-  const url = URL.createObjectURL(response.data as Blob);
+  const disposition = String(response.headers["content-disposition"] ?? "");
+  const match = /filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i.exec(disposition) || /filename="?([^"]+)"?/i.exec(disposition);
+
+  const blob = response.data instanceof Blob ? response.data : new Blob([response.data]);
+  const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = named?.[1] ?? fallbackName;
+  link.download = match?.[1] ? decodeURIComponent(match[1].replace(/['"]/g, "")) : fallbackName;
   document.body.appendChild(link);
   link.click();
   link.remove();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

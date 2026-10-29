@@ -65,6 +65,13 @@ class PasswordResetController extends BaseController
             return $this->error('That account is disabled. Please ask the Barangay Population Office.', 403);
         }
 
+        if ($user->isResident() && $user->resident) {
+            $age = $user->resident->birthdate?->age;
+            if ($age === null || $age < 18) {
+                return $this->error('The resident portal account is only for residents aged 18 and above. Password resets cannot be requested for residents aged 17 and below.', 403);
+            }
+        }
+
         $code = $this->codes->issue($email);
 
         try {

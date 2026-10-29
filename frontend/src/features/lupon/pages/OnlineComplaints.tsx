@@ -215,7 +215,15 @@ export default function OnlineComplaints() {
                     to={`/lupon/cases/${row.lupon_case.id}`}
                     className="font-semibold tabular-nums text-primary hover:underline"
                   >
-                    {row.lupon_case.case_number}
+                    {row.lupon_case.case_number || (
+                      <span
+                        className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs font-semibold text-amber-600"
+                        title="Case number will be assigned once filing fee is paid"
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                        Pending Payment
+                      </span>
+                    )}
                   </Link>
                 ) : (
                   <span className="text-xs text-gray-400">—</span>

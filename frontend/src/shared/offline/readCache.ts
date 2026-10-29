@@ -67,6 +67,7 @@ export interface SeenResponse {
 
 export function cacheable(config: InternalAxiosRequestConfig): boolean {
   if ((config.method ?? "get").toLowerCase() !== "get") return false;
+  if (config.responseType === "blob" || config.responseType === "arraybuffer") return false;
 
   const url = String(config.url ?? "");
 

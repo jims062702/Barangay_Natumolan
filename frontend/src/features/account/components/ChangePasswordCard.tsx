@@ -100,14 +100,11 @@ export default function ChangePasswordCard() {
         new_password_confirmation: confirm,
       });
 
-      /*
-       * The server revoked every token, including the one this tab is using,
-       * and handed back a fresh one. Storing it is what keeps the resident
-       * signed in here while every other device is signed out.
-       */
-      localStorage.setItem("authToken", response.data.data.token);
+      if (response.data?.data?.token) {
+        localStorage.setItem("authToken", response.data.data.token);
+      }
 
-      toast(response.data.message);
+      toast("Matagumpay na napalitan ang password.", "success");
       reset();
     } catch (err) {
       const message = errorMessage(err);

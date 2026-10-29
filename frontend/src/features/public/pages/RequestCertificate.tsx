@@ -292,6 +292,17 @@ export default function RequestCertificate() {
                 Added to your barangay record: {receipt.filled.join(", ")}. The office checks them when you claim the certificate.
               </p>
             )}
+            {residentId.isMinor && (
+              <div className="mt-4 rounded-2xl border border-warning/50 bg-warning/10 p-4 text-sm leading-relaxed text-dark">
+                <p className="flex items-center gap-1.5 font-bold text-amber-900">
+                  <FiAlertTriangle className="h-5 w-5 shrink-0 text-amber-700" aria-hidden="true" />
+                  Reminder for Minor Requesters (Age: {residentId.age ?? "17 and below"})
+                </p>
+                <p className="mt-1 text-xs text-gray-700">
+                  As a resident aged 17 or below, please remember that you must be accompanied by your <strong>parent or legal guardian</strong> when claiming your certificate at the Barangay Hall. Please bring valid identification for both you and your guardian.
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           <form onSubmit={submit} className="space-y-5" data-testid="certificate-request-form">

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { FiRefreshCw } from "react-icons/fi";
+import { FiAlertTriangle, FiRefreshCw } from "react-icons/fi";
+import { ageFrom } from "../../../../shared/lib/birthdate";
 import DraftNotice from "../../../../shared/ui/DraftNotice";
 import Modal from "../../../../shared/ui/Modal";
 import StatusBadge from "../../../../shared/ui/StatusBadge";
@@ -44,6 +45,20 @@ export function CertificateDetailModal({ ctx }: { ctx: CertificateDeskState }) {
             </div>
             <StatusBadge status={detail.status} />
           </div>
+
+          {detail.resident && ageFrom(detail.resident.birthdate) !== null && ageFrom(detail.resident.birthdate)! < 18 && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-warning/50 bg-warning/10 p-3.5 text-xs text-dark">
+              <FiAlertTriangle className="h-4 w-4 shrink-0 text-warning mt-0.5" aria-hidden="true" />
+              <div>
+                <p className="font-semibold text-warning-dark">
+                  Minor Resident Alert (Age: {ageFrom(detail.resident.birthdate)}) — Parent/Guardian Required
+                </p>
+                <p className="mt-0.5 text-gray-700 leading-relaxed">
+                  This resident is 17 years old or below ({ageFrom(detail.resident.birthdate)} years old). As a minor, they must be accompanied by a parent or legal guardian to receive this certificate at the counter. Please verify the guardian's presence and identification before releasing.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/*
             The rest of the visit. Each is its own certificate with its own

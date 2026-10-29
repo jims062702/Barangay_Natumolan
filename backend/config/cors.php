@@ -21,10 +21,10 @@
 | real site is, and it is named in .env rather than here.
 */
 
-$origins = array_values(array_filter([
-    env('FRONTEND_URL'),
+$configuredOrigins = array_filter(array_map('trim', explode(',', (string) env('FRONTEND_URL', ''))));
+$origins = array_values(array_filter(array_merge([
     env('APP_URL'),
-]));
+], $configuredOrigins)));
 
 return [
 
@@ -42,18 +42,21 @@ return [
     'allowed_origins' => $origins,
 
     /*
-     * Development and the local preview build: this machine, any port.
+     * Development and local preview builds: this machine and dev tunnels.
      *
-     * `vite dev` takes 5173, `vite preview` takes 4173 — or 4174, or 4175,
-     * whichever is free when it starts. Listing them is a losing game, and
-     * the one that is missing is always the one being used.
-     *
-     * Only ever localhost and 127.0.0.1, and only when the app is not in
-     * production. Nothing off this machine matches.
+     * In non-production environments, allow localhost, local LAN IPs,
+     * and dev tunnels (e.g. devtunnels.ms, ngrok, cloudflare tunnels)
+     * so mobile and remote browser testing through tunnels works smoothly.
      */
     'allowed_origins_patterns' => env('APP_ENV') === 'production'
         ? []
-        : ['#^http://(localhost|127\.0\.0\.1)(:\d+)?$#'],
+        : [
+            '#^https?://(localhost|127\.0\.0\.1)(:\d+)?$#',
+            '#^https?://.*\.devtunnels\.ms(:\d+)?$#',
+            '#^https?://.*\.ngrok(-free)?\.(app|io)(:\d+)?$#',
+            '#^https?://.*\.trycloudflare\.com(:\d+)?$#',
+            '#^https?://(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$#',
+        ],
 
     'allowed_headers' => ['*'],
 

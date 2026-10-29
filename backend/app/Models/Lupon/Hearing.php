@@ -11,6 +11,11 @@ class Hearing extends Model
 {
     protected $table = 'lupon_hearings';
 
+    protected $with = [
+        'luponCase.complainant',
+        'luponCase.respondents',
+    ];
+
     /**
      * Always sent, because every screen that shows a sitting needs them and
      * none of them should work the arithmetic out for itself.
@@ -126,9 +131,6 @@ class Hearing extends Model
         if ($this->status === 'Cancelled') {
             return 'Cancelled';
         }
-        if ($this->status === 'Completed') {
-            return 'Completed';
-        }
         if (! $this->scheduled_at) {
             return 'Upcoming';
         }
@@ -138,9 +140,13 @@ class Hearing extends Model
             ? $this->scheduled_at->copy()
             : \Carbon\Carbon::parse($this->scheduled_at);
 
-        // Future date
+        // Future date: always Upcoming
         if ($start->toDateString() > $now->toDateString()) {
             return 'Upcoming';
+        }
+
+        if ($this->status === 'Completed') {
+            return 'Completed';
         }
 
         // Past date

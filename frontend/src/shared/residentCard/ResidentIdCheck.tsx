@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { FiAlertCircle, FiCheckCircle, FiLoader, FiShield } from "react-icons/fi";
+import { FiAlertCircle, FiAlertTriangle, FiCheckCircle, FiLoader, FiShield } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { errorMessage } from "../lib/api";
 import FileField from "../ui/FileField";
@@ -29,10 +29,14 @@ export interface ResidentIdValue {
   maskedName: string | null;
   /** The number on the record — only when the form asked for it (a complaint); see useContactFromId. */
   contactNumber: string | null;
+  isMinor?: boolean;
+  age?: number | null;
+  guardianReminder?: string | null;
 }
 
 export const BLANK_RESIDENT_ID: ResidentIdValue = {
   file: null, code: null, status: "idle", message: "", residentNumber: null, maskedName: null, contactNumber: null,
+  isMinor: false, age: null, guardianReminder: null,
 };
 
 export const RESIDENT_ID_ACCEPT = "image/jpeg,image/png,image/webp";
@@ -44,6 +48,9 @@ export interface IdCheckSummary {
   masked_name: string | null;
   /** Sent only to a complaint form that asked (`purpose`) — ResidentCards::formSummary. */
   contact_number?: string | null;
+  is_minor?: boolean;
+  age?: number | null;
+  guardian_reminder?: string | null;
 }
 
 export function ResidentIdCheck({
@@ -82,6 +89,9 @@ export function ResidentIdCheck({
         residentNumber: s.valid ? s.resident_number : null,
         maskedName: s.valid ? s.masked_name : null,
         contactNumber: s.valid ? s.contact_number ?? null : null,
+        isMinor: s.valid ? (s.is_minor ?? false) : false,
+        age: s.valid ? (s.age ?? null) : null,
+        guardianReminder: s.valid ? (s.guardian_reminder ?? null) : null,
       });
     } catch (err) {
       if (turn !== attempt.current) return;
@@ -186,9 +196,25 @@ export function ResidentIdCheck({
               {s === "verified" ? "ID Verified" : s === "failed" ? "ID Verification Failed" : "Verification Pending"}
             </p>
             {s === "verified" && (
-              <p className="text-gray-600">
-                Resident Number <span className="font-mono font-semibold text-dark">{value.residentNumber}</span> · {value.maskedName}
-              </p>
+              <>
+                <p className="text-gray-600">
+                  Resident Number <span className="font-mono font-semibold text-dark">{value.residentNumber}</span> · {value.maskedName}
+                </p>
+                {value.isMinor && (
+                  <div className="mt-2.5 rounded-xl border border-warning/50 bg-warning/10 p-3 text-xs leading-relaxed text-dark">
+                    <p className="flex items-center gap-1.5 font-bold text-amber-900">
+                      <FiAlertTriangle className="h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
+                      Parent / Legal Guardian Required (Age: {value.age ?? "17 and below"})
+                    </p>
+                    <p className="mt-1 text-gray-700">
+                      Please be reminded that because you are <strong>17 years old or below</strong>{value.age ? ` (${value.age} years old)` : ""}, you must be accompanied by a <strong>parent or legal guardian</strong> when appearing at the Barangay Hall to claim documents, attend hearings, or process your complaint/request.
+                    </p>
+                    <p className="mt-1 text-[11px] font-medium text-amber-800">
+                      (Paalala: Dahil ikaw ay menor de edad / 17 anyos pababa, kailangang magsama ng magulang o legal guardian sa pagpunta sa Barangay Hall.)
+                    </p>
+                  </div>
+                )}
+              </>
             )}
             {s === "failed" && <p className="text-gray-600">{value.message}</p>}
             {(s === "reading" || s === "pending") && (

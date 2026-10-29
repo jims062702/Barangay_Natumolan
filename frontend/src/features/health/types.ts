@@ -8,23 +8,40 @@ export interface HealthVisit {
   id: number;
   patient_id: number;
   visit_date: string;
+  visit_time?: string | null;
   visit_reason: string;
+  chief_complaints?: string | null;
   temperature?: number | string | null;
   blood_pressure?: string | null;
   heart_rate?: number | null;
+  respiratory_rate?: number | null;
+  oxygen_saturation?: number | null;
+  height_cm?: number | string | null;
+  weight_kg?: number | string | null;
+  fundal_height_cm?: number | string | null;
+  fetal_heart_tone?: string | null;
+  age_of_gestation?: string | null;
+  presentation?: string | null;
+  medication?: string | null;
+  laboratory?: string | null;
   symptoms?: string | null;
+  observations?: string | null;
+  consultation_notes?: string | null;
   treatment_advice?: string | null;
   followup_schedule?: string | null;
   referral_recommended: boolean;
+  referral_destination?: string | null;
   patient?: Resident | null;
   provider?: User | null;
 }
 
 /** One dose, given on one day. */
 export interface ImmunizationRecord {
-  id: number;
+  id: number | string;
   child_id: number;
   vaccine_name: string;
+  vaccine_list?: string[];
+  total_vaccines?: number;
   vaccination_date: string;
   child?: Resident | null;
 }
@@ -198,6 +215,7 @@ export interface MotherView {
   pregnancies: PregnancyRow[];
   next_pregnancy_number: number;
   visits?: PrenatalLine[];
+  latest_height_cm?: number | string | null;
 }
 
 /* ------------------------------------------------------------------

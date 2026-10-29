@@ -105,7 +105,19 @@ export default function Immunization() {
             },
             { header: "Zone / Purok", render: (r: ImmunizationRecord) => r.child?.zone_purok ?? "—" },
             { header: "Sex", render: (r: ImmunizationRecord) => r.child?.gender ?? "—" },
-            { header: "Vaccine", render: (r: ImmunizationRecord) => r.vaccine_name },
+            {
+              header: "Vaccine / Vaccines in Session",
+              render: (r: ImmunizationRecord) => (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="font-medium text-dark">{r.vaccine_name}</span>
+                  {r.total_vaccines && r.total_vaccines > 1 ? (
+                    <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                      {r.total_vaccines} vaccines in session
+                    </span>
+                  ) : null}
+                </div>
+              ),
+            },
             {
               header: "Date given",
               render: (r: ImmunizationRecord) => (

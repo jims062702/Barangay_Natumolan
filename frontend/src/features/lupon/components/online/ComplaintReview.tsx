@@ -12,6 +12,7 @@ import type { Resident } from "../../../../shared/types";
 import { CLASSIFICATIONS } from "../../lib/docket";
 import type { OnlineComplaint } from "../../types";
 import { ValidIdViewer } from "./ValidIdViewer";
+import { ageFrom } from "../../../../shared/lib/birthdate";
 
 const KB = 1024;
 
@@ -165,9 +166,23 @@ export function ComplaintReview({
             <p className="text-xs text-gray-500">{complaint.complainant_contact}</p>
 
             {complaint.resident ? (
-              <p className="mt-2 inline-flex rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
-                On the barangay register
-              </p>
+              <div className="mt-2 space-y-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="inline-flex rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
+                    On the barangay register
+                  </span>
+                  {ageFrom(complaint.resident.birthdate) !== null && ageFrom(complaint.resident.birthdate)! < 18 && (
+                    <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800" title="Complainant is under 18 — parent/guardian required">
+                      Minor ({ageFrom(complaint.resident.birthdate)} yrs) · Parent/Guardian Required
+                    </span>
+                  )}
+                </div>
+                {ageFrom(complaint.resident.birthdate) !== null && ageFrom(complaint.resident.birthdate)! < 18 && (
+                  <p className="rounded-lg border border-warning/40 bg-warning/10 p-2 text-[11px] text-amber-900 leading-relaxed">
+                    <strong>Minor Complainant:</strong> Complainant is 17 years old or below ({ageFrom(complaint.resident.birthdate)} yrs). Please require a parent or legal guardian to be present when accepting and hearing this case.
+                  </p>
+                )}
+              </div>
             ) : (
               <p className="mt-2 inline-flex rounded-full bg-gray px-2.5 py-1 text-xs font-semibold text-gray-500">
                 Not a resident — filed here because the respondent lives here

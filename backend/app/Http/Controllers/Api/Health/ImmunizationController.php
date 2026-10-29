@@ -37,7 +37,21 @@ class ImmunizationController extends BaseController
             $query->where('child_id', $request->child_id);
         }
 
-        $records = $query->orderByDesc('vaccination_date')->orderByDesc('id')->get();
+        $rawRecords = $query->orderByDesc('vaccination_date')->orderByDesc('id')->get();
+
+        // Group doses administered to the same patient on the same session date
+        $records = $rawRecords->groupBy(function ($r) {
+            $date = $r->vaccination_date ? (is_string($r->vaccination_date) ? $r->vaccination_date : $r->vaccination_date->toDateString()) : '';
+            return $r->child_id . '_' . $date;
+        })->map(function ($group) {
+            $first = $group->first();
+            $vaccineNames = $group->pluck('vaccine_name')->unique()->values();
+
+            $first->vaccine_name = $vaccineNames->join(', ');
+            $first->setAttribute('vaccine_list', $vaccineNames->all());
+            $first->setAttribute('total_vaccines', $vaccineNames->count());
+            return $first;
+        })->values();
 
         // Also include profiles if they have booster / others / screening or no records
         $profileQuery = ImmunizationProfile::with(['resident:' . self::PERSON_COLUMNS]);

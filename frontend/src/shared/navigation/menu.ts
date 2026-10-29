@@ -56,6 +56,8 @@ export interface MenuSection {
 /** Sidebar menu, filtered by the account's role/office (mirrors the API gates). */
 export function menuFor(user: User): MenuSection[] {
   if (user.role === "Resident") {
+    const isMale = (user.resident?.gender || "").toLowerCase() === "male";
+
     return [
       {
         items: [
@@ -69,22 +71,23 @@ export function menuFor(user: User): MenuSection[] {
           /*
            * VAWC Records — confidential records, protection orders, reports, and tracking.
            *
-           * FOUR CHILDREN tailored specifically for VAWC:
-           * - Online Complaints: reports sent online, verification status, and filing
-           * - Confidential Cases: formal cases where the resident is survivor or reporter
-           * - Protection Orders (BPO): Barangay Protection Orders issued under RA 9262
-           * - Referrals & Tracking: PNP/DSWD/Hospital referrals, follow-ups, and undertakings
+           * - For Male residents: only "Cases Against Me" (cases where resident is respondent)
+           * - For Female residents: full complainant suite (Reports, Cases, BPO, Tracking)
            */
           {
             label: "VAWC Records",
-            to: "/resident/vawc",
+            to: isMale ? "/resident/vawc/cases" : "/resident/vawc",
             icon: FiShield,
-            children: [
-              { label: "Online Complaints", to: "/resident/vawc/reports", icon: FiInbox },
-              { label: "Confidential Cases", to: "/resident/vawc/cases", icon: FiFolder },
-              { label: "Protection Orders (BPO)", to: "/resident/vawc/bpo", icon: FiShield },
-              { label: "Referrals & Tracking", to: "/resident/vawc/tracking", icon: FiClock },
-            ],
+            children: isMale
+              ? [
+                  { label: "Cases Against Me", to: "/resident/vawc/cases", icon: FiFolder },
+                ]
+              : [
+                  { label: "Online Complaints", to: "/resident/vawc/reports", icon: FiInbox },
+                  { label: "Confidential Cases", to: "/resident/vawc/cases", icon: FiFolder },
+                  { label: "Protection Orders (BPO)", to: "/resident/vawc/bpo", icon: FiShield },
+                  { label: "Referrals & Tracking", to: "/resident/vawc/tracking", icon: FiClock },
+                ],
           },
           /*
            * Their Katarungang Pambarangay record — complaints, cases, hearings, and history.
@@ -169,9 +172,13 @@ export function menuFor(user: User): MenuSection[] {
     { label: "Lupon Hearings Calendar", to: "/lupon/hearings/calendar", icon: FiCalendar },
   ];
 
-  /* The Secretary's set with Punong Barangay Hearings Calendar (Tuesdays). */
+  /* The Secretary's set with Punong Barangay Hearings Calendar (Tuesdays) — no CFA Cases. */
   const secretaryHearingRoom: MenuItem[] = [
-    ...hearingRoom,
+    { label: "For Summons", to: "/lupon/hearings/for-summons", icon: FiMail },
+    { label: "Today's Hearing", to: "/lupon/hearings", icon: FiCalendar },
+    { label: "Upcoming Hearing", to: "/lupon/hearings/upcoming", icon: FiClock },
+    { label: "Past Hearings", to: "/lupon/hearings/past", icon: FiArchive },
+    { label: "Cancelled", to: "/lupon/hearings/cancelled", icon: FiSlash },
     { label: "Punong Barangay Hearings Calendar", to: "/lupon/hearings/calendar", icon: FiCalendar },
   ];
 
@@ -232,6 +239,12 @@ export function menuFor(user: User): MenuSection[] {
          * table. What is left is the table: the sittings they conduct, the
          * settlements that come out of them, and the reports on both.
          */
+        sections.push({
+          heading: "Sangguniang Barangay",
+          items: [
+            { label: "Barangay Sessions", to: "/sessions", icon: FiBookOpen },
+          ],
+        });
         sections.push({
           heading: "Lupon Tagapamayapa",
           items: [

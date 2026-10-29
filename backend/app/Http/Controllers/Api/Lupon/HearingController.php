@@ -99,8 +99,8 @@ class HearingController extends BaseController
             'recorder:id,name',
             'luponCase.hearings' => fn ($q) => $q->orderBy('scheduled_at', 'asc'),
         ]))->whereHas('luponCase', function ($q) {
-            $q->whereNotIn('current_stage', ['Filed', 'For Summons']);
-        });
+            $q->whereNotIn('current_stage', ['Filed', 'For Summons', 'Withdrawn', 'Cancelled']);
+        })->where('lupon_hearings.status', '!=', 'Cancelled');
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -157,7 +157,8 @@ class HearingController extends BaseController
                         SELECT h2.id FROM lupon_hearings h2
                         WHERE h2.lupon_case_id = lupon_hearings.lupon_case_id
                           AND DATE(h2.scheduled_at) > ?
-                        ORDER BY (CASE WHEN h2.status = \'Cancelled\' THEN 1 ELSE 0 END) ASC, h2.scheduled_at ASC, h2.id ASC
+                        AND h2.status != \'Cancelled\'
+                        ORDER BY h2.scheduled_at ASC, h2.id ASC
                         LIMIT 1
                     )', [$day])
                     ->orderBy('scheduled_at', 'asc')
@@ -197,7 +198,7 @@ class HearingController extends BaseController
             'state' => ['required', Rule::in(['cancelled', 'cfa'])],
         ]);
 
-        $stages = $validated['state'] === 'cfa' ? ['CFA'] : ['Withdrawn'];
+        $stages = $validated['state'] === 'cfa' ? ['CFA'] : ['Withdrawn', 'Cancelled'];
 
         $casesQuery = CaseFile::with(['complainant:id,first_name,middle_name,last_name', 'respondents:id,first_name,middle_name,last_name'])
             ->whereIn('current_stage', $stages);
@@ -210,7 +211,10 @@ class HearingController extends BaseController
         if ($isSecretary) {
             $casesQuery->whereDoesntHave('hearings', fn ($q) => $q->where('hearing_type', 'Conciliation'));
         } elseif ($isLupon) {
-            $casesQuery->whereHas('hearings', fn ($q) => $q->where('hearing_type', 'Conciliation'));
+            $casesQuery->where(function ($q) {
+                $q->whereHas('hearings', fn ($h) => $h->where('hearing_type', 'Conciliation'))
+                  ->orWhereNotNull('assigned_lupon_secretary');
+            });
         }
 
         $cases = $casesQuery
@@ -554,6 +558,11 @@ class HearingController extends BaseController
 
         if ($hearing->status === 'Cancelled') {
             return $this->error('This sitting was cancelled and did not take place.', 422);
+        }
+
+        $today = ManilaTime::today();
+        if ($hearing->scheduled_at && $hearing->scheduled_at->toDateString() > $today) {
+            return $this->error('Cannot record minutes for an upcoming hearing. Minutes can only be recorded on the day of or after the hearing.', 422);
         }
 
         $validated = $request->validate([

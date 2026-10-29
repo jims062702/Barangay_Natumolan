@@ -59,6 +59,26 @@ export async function updateNow(): Promise<void> {
 
 export function registerServiceWorker(): void {
   /*
+   * In development or tunnel testing, unregister any stale service workers
+   * and clean old cache so other devices always get the latest code.
+   */
+  if (import.meta.env.DEV) {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        for (const registration of registrations) {
+          registration.unregister();
+        }
+      });
+      if ("caches" in window) {
+        caches.keys().then((keys) => {
+          keys.forEach((key) => caches.delete(key));
+        });
+      }
+    }
+    return;
+  }
+
+  /*
    * Only where it can actually work. A service worker needs a secure context
    * — HTTPS, or localhost — and silently does nothing elsewhere. Checking
    * first means the absence is reported here rather than discovered as

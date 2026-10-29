@@ -97,4 +97,19 @@ class VawcAndLuponRulesTest extends TestCase
         $this->assertEquals('Closed', $case->status);
         $this->assertNotNull($case->closed_at);
     }
+
+    public function test_lupon_case_number_nullable_until_paid(): void
+    {
+        $unpaidCase = new LuponCase([
+            'case_number' => null,
+            'case_title' => 'Unpaid Complaint',
+            'case_classification' => 'Debt',
+            'current_stage' => 'Filed',
+            'complainant_name' => 'Maria Clara',
+        ]);
+
+        $this->assertNull($unpaidCase->case_number);
+        $this->assertEquals('Maria Clara', $unpaidCase->complainant_display_name);
+        $this->assertEquals('—', $unpaidCase->respondent_display_names);
+    }
 }

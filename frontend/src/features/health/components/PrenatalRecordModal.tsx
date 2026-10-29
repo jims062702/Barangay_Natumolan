@@ -82,7 +82,20 @@ export default function PrenatalRecordModal({
   const [saving, setSaving] = useState(false);
   const set = (patch: Partial<Line>) => setLine((was) => ({ ...was, ...patch }));
 
-  const fresh = () => (editing ? fromRecord(editing.record) : blankLine());
+  const fresh = () => {
+    if (editing) return fromRecord(editing.record);
+    const m = view;
+    const curr = m?.current ?? m?.selected ?? m?.pregnancies?.[0] ?? null;
+    const latestHeight = m?.latest_height_cm
+      ?? m?.visits?.find((v) => v.height_cm)?.height_cm
+      ?? "";
+    return {
+      ...blankLine(),
+      height: latestHeight ? String(Number(latestHeight)) : "",
+      lmp: curr?.lmp ?? "",
+      edc: curr?.expected_delivery_date ?? "",
+    };
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -115,6 +128,24 @@ export default function PrenatalRecordModal({
       alive = false;
     };
   }, [line.mother]);
+
+  /* Auto-fill height, LMP, and EDC based on latest recorded data / maternal health enrollment */
+  useEffect(() => {
+    if (!open || editing) return;
+    const m = view ?? found;
+    if (!m) return;
+    const curr = m.current ?? m.selected ?? m.pregnancies?.[0] ?? null;
+    const latestHeight = m.latest_height_cm
+      ?? m.visits?.find((v) => v.height_cm)?.height_cm
+      ?? "";
+
+    setLine((was) => ({
+      ...was,
+      height: was.height || (latestHeight ? String(Number(latestHeight)) : ""),
+      lmp: was.lmp || curr?.lmp || "",
+      edc: was.edc || curr?.expected_delivery_date || "",
+    }));
+  }, [open, editing, view, found]);
 
   const mother = view ?? found;
   const current = mother?.current ?? null;

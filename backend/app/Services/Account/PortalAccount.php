@@ -37,6 +37,11 @@ class PortalAccount
             return $skip('This person does not live in the barangay, so no portal account was created — the portal is for bona fide residents.');
         }
 
+        $age = $resident->birthdate?->age;
+        if ($age === null || $age < 18) {
+            return $skip('The resident portal is only for residents aged 18 and above. Accounts cannot be created for residents aged 17 and below.');
+        }
+
         if (!$resident->email) {
             return $skip('No email address on file, so no portal account could be created. Add one to the record and the account will be issued.');
         }

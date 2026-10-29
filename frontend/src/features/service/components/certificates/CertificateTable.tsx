@@ -6,6 +6,7 @@ import StatusBadge from "../../../../shared/ui/StatusBadge";
 import RowAction, { RowActions } from "../../../../shared/ui/RowAction";
 import type { Certificate } from "../../../../shared/types";
 import { STATUS_TABS } from "../../lib/certificateFlow";
+import { ageFrom } from "../../../../shared/lib/birthdate";
 import type { CertificateDeskState } from "../../hooks/useCertificateDesk";
 
 /**
@@ -74,7 +75,10 @@ export function CertificateTable({ ctx }: { ctx: CertificateDeskState }) {
               certificate, so a resident who moves is reachable at the
               address they moved to.
             */
-            render: (c: Certificate) => (
+            render: (c: Certificate) => {
+              const age = ageFrom(c.resident?.birthdate);
+              const isMinor = age !== null && age < 18;
+              return (
               <div className="min-w-0">
                 <p className="font-medium text-dark">
                   {holderName(c)}
@@ -82,6 +86,11 @@ export function CertificateTable({ ctx }: { ctx: CertificateDeskState }) {
                   {isUnlisted(c) && (
                     <span className="ml-1.5 rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
                       Not yet listed
+                    </span>
+                  )}
+                  {isMinor && (
+                    <span className="ml-1.5 rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-semibold" title="Minor resident (under 18) — parent or guardian required upon claiming">
+                      Minor ({age} yrs)
                     </span>
                   )}
                 </p>
@@ -93,8 +102,9 @@ export function CertificateTable({ ctx }: { ctx: CertificateDeskState }) {
                   </p>
                 )}
               </div>
-            ),
+            );
           },
+        },
           {
             header: "Type",
             render: (c: Certificate) => (

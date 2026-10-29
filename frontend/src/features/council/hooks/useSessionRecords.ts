@@ -6,6 +6,8 @@ import { usePulse } from "../../../shared/hooks/usePulse";
 import { useModalDraft } from "../../../shared/lib/useModalDraft";
 import { blankAttendee, asTime } from "../lib/sessions";
 import { councilApi } from "../api";
+import { confirmAction } from "../../../shared/lib/confirm";
+import { toast } from "../../../shared/lib/toast";
 import type { Session, Attendee } from "../types";
 
 interface SessionFields {
@@ -168,6 +170,18 @@ export function useSessionRecords() {
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
+
+    const isEdit = Boolean(editing);
+    const confirmed = await confirmAction({
+      title: isEdit ? "Save the session minutes?" : "Record this barangay session?",
+      text: isEdit
+        ? "Are you sure you want to update the session record, minutes, and attendance?"
+        : "Are you sure you want to record this Sangguniang Barangay session?",
+      confirmText: isEdit ? "Yes, save minutes" : "Yes, record session",
+    });
+
+    if (!confirmed) return;
+
     setSaving(true);
     setError("");
 
@@ -195,22 +209,38 @@ export function useSessionRecords() {
 
       draft.clear();
       setOpen(false);
+      toast(
+        isEdit ? "Session minutes saved successfully." : "Barangay session recorded successfully.",
+        "success"
+      );
       load();
     } catch (err: unknown) {
       const res = (err as { response?: { data?: { message?: string } } }).response;
-      setError(res?.data?.message ?? "The session could not be saved.");
+      const msg = res?.data?.message ?? "The session could not be saved.";
+      setError(msg);
+      toast(msg, "error");
     } finally {
       setSaving(false);
     }
   };
 
   const adopt = async (row: Session) => {
+    const confirmed = await confirmAction({
+      title: `Adopt minutes for ${row.session_number}?`,
+      text: "Once adopted by the council, these minutes become an official record and can no longer be edited.",
+      confirmText: "Yes, adopt minutes",
+    });
+
+    if (!confirmed) return;
+
     try {
       await councilApi.adoptSession(row.id);
+      toast("Session minutes adopted successfully.", "success");
       load();
     } catch (err: unknown) {
       const res = (err as { response?: { data?: { message?: string } } }).response;
-      window.alert(res?.data?.message ?? "The minutes could not be adopted.");
+      const msg = res?.data?.message ?? "The minutes could not be adopted.";
+      toast(msg, "error");
     }
   };
 

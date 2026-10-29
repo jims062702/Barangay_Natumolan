@@ -47,6 +47,16 @@ class DocumentController extends BaseController
             return $this->notFound();
         }
 
+        if (str_starts_with((string) $document->file_reference, 'http://') || str_starts_with((string) $document->file_reference, 'https://')) {
+            $resp = \Illuminate\Support\Facades\Http::get($document->file_reference);
+            if ($resp->successful()) {
+                AccessLog::record($case->id, 'document_downloaded', $document->title);
+                return response($resp->body(), 200, [
+                    'Content-Type' => $resp->header('Content-Type') ?: 'application/octet-stream',
+                ]);
+            }
+        }
+
         if (! $document->file_reference || ! Storage::disk('local')->exists($document->file_reference)) {
             return $this->notFound('The document file is not available on disk.');
         }

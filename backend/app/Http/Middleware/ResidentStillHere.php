@@ -49,6 +49,14 @@ class ResidentStillHere
             ], 403);
         }
 
+        $age = $resident->birthdate?->age;
+        if ($age === null || $age < 18) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The resident portal is available only to residents aged 18 and above. Accounts cannot be accessed by residents aged 17 and below.',
+            ], 403);
+        }
+
         return $next($request);
     }
 }

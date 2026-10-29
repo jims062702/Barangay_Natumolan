@@ -23,7 +23,7 @@ class VisitController extends BaseController
             $query->where('patient_id', $request->patient_id);
         }
 
-        return $this->success($query->orderByDesc('visit_date')->paginate(20), 'Health visits retrieved');
+        return $this->success($query->orderByDesc('visit_date')->orderByDesc('id')->paginate(20), 'Health visits retrieved');
     }
 
     public function store(StoreVisitRequest $request)

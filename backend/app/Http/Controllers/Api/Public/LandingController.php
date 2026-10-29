@@ -141,7 +141,10 @@ class LandingController extends BaseController
                 $row = $row->toArray();
             }
             if (is_array($row) && array_key_exists($pathKey, $row)) {
-                $row[$urlKey] = $row[$pathKey] ? asset(Storage::url($row[$pathKey])) : null;
+                $val = $row[$pathKey];
+                $row[$urlKey] = $val
+                    ? ((str_starts_with($val, 'http://') || str_starts_with($val, 'https://')) ? $val : asset(Storage::url($val)))
+                    : null;
             }
 
             return $row;

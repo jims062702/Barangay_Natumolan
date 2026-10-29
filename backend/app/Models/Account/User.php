@@ -16,6 +16,8 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
+    protected $with = ['resident'];
+
     protected $fillable = [
         'name',
         'email',
@@ -110,7 +112,12 @@ class User extends Authenticatable
             'password_set_by' => $by,
         ])->save();
 
-        $this->tokens()->delete();
+        $currentToken = $this->currentAccessToken();
+        if ($currentToken) {
+            $this->tokens()->where('id', '!=', $currentToken->id)->delete();
+        } else {
+            $this->tokens()->delete();
+        }
     }
 
     public function isResident(): bool

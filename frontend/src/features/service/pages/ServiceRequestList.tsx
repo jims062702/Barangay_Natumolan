@@ -12,6 +12,8 @@ import PageHeader from "../../../shared/ui/PageHeader";
 import type { ServiceRequest } from "../../../shared/types";
 import { serviceApi } from "../api";
 import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
+import { FiAlertTriangle } from "react-icons/fi";
+import { ageFrom } from "../../../shared/lib/birthdate";
 
 /**
  * Who asked: the resident on the register — or, for somebody the Population
@@ -201,8 +203,21 @@ export default function ServiceRequestList() {
             },
             {
               header: "Resident",
-              render: (r: ServiceRequest) =>
-                requesterName(r) || "—",
+              render: (r: ServiceRequest) => {
+                const name = requesterName(r) || "—";
+                const age = ageFrom(r.resident?.birthdate);
+                const isMinor = age !== null && age < 18;
+                return (
+                  <div>
+                    <span className="font-medium text-dark">{name}</span>
+                    {isMinor && (
+                      <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800" title="Requester is under 18 years old — parent/guardian required">
+                        Minor (Age: {age})
+                      </span>
+                    )}
+                  </div>
+                );
+              },
             },
             {
               header: "Service",
@@ -292,6 +307,20 @@ export default function ServiceRequestList() {
               </div>
               <StatusBadge status={detail.status} />
             </div>
+
+            {detail.resident && ageFrom(detail.resident.birthdate) !== null && ageFrom(detail.resident.birthdate)! < 18 && (
+              <div className="flex items-start gap-2.5 rounded-xl border border-warning/50 bg-warning/10 p-3.5 text-xs text-dark">
+                <FiAlertTriangle className="h-4 w-4 shrink-0 text-warning mt-0.5" aria-hidden="true" />
+                <div>
+                  <p className="font-semibold text-warning-dark">
+                    Minor Requester Alert (Age: {ageFrom(detail.resident.birthdate)}) — Parent/Guardian Required
+                  </p>
+                  <p className="mt-0.5 text-gray-700 leading-relaxed">
+                    This request was submitted for a resident aged 17 or below ({ageFrom(detail.resident.birthdate)} years old). As a minor, they must be accompanied by a parent or legal guardian when claiming the certificate at the Barangay Hall. Please verify the guardian's presence and identification upon release.
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="rounded-2xl bg-secondary p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Purpose of request</p>

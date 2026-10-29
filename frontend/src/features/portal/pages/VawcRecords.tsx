@@ -18,6 +18,7 @@ import StatusBadge from "../../../shared/ui/StatusBadge";
 import { RowsSkeleton } from "../../../shared/ui/Skeleton";
 import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
 import type { IdCheckSummary } from "../../../shared/residentCard/ResidentIdCheck";
+import { useAuth } from "../../../shared/auth/AuthContext";
 import { VawcReportForm, type ReportReceipt } from "../../vawc/components/online/VawcReportForm";
 import { portalApi } from "../api";
 
@@ -121,6 +122,8 @@ const TAB_CONFIG: Record<
 
 export default function VawcRecords() {
   const { pathname } = useLocation();
+  const { user } = useAuth();
+  const isMale = (user?.resident?.gender || "").toLowerCase() === "male";
 
   const view: View = pathname.endsWith("/cases")
     ? "cases"
@@ -128,7 +131,7 @@ export default function VawcRecords() {
       ? "bpo"
       : pathname.endsWith("/tracking")
         ? "tracking"
-        : "reports";
+        : isMale ? "cases" : "reports";
 
   const [reports, setReports] = useState<VawcOnlineReport[]>([]);
   const [cases, setCases] = useState<VawcCase[]>([]);
@@ -184,7 +187,21 @@ export default function VawcRecords() {
     return <PageLoading load={pageLoad} onRetry={() => setAttempt((n) => n + 1)} />;
   }
 
-  const currentTab = TAB_CONFIG[view];
+  const tabConfig = {
+    ...TAB_CONFIG,
+    ...(isMale
+      ? {
+          cases: {
+            label: "Cases Against Me",
+            icon: FiFolder,
+            blurb: "Official VAWC cases and proceedings filed against you pursuant to RA 9262.",
+            empty: "No VAWC cases have been filed against you.",
+          },
+        }
+      : {}),
+  };
+
+  const currentTab = tabConfig[view];
 
   return (
     <div className="space-y-6">
@@ -209,21 +226,39 @@ export default function VawcRecords() {
       />
 
       {/* Emergency & Confidentiality Alert Banner */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-rose-200 bg-rose-50/80 px-4 py-3 text-sm text-rose-900 shadow-xs">
-        <div className="flex items-center gap-2.5">
-          <FiAlertTriangle className="h-5 w-5 shrink-0 text-rose-600" />
-          <div>
-            <span className="font-bold">In immediate danger?</span>
-            <span className="ml-1 text-xs sm:text-sm text-rose-800">
-              Call <strong>911</strong> or contact PNP Women's Desk immediately.
-            </span>
+      {isMale ? (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <FiShield className="h-5 w-5 shrink-0 text-primary" />
+            <div>
+              <span className="font-bold">Confidential Proceedings:</span>
+              <span className="ml-1 text-xs sm:text-sm text-slate-600">
+                Under Republic Act 9262, all VAWC proceedings, summons, and case records are strictly confidential.
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+            <FiShield className="h-4 w-4 text-primary" />
+            <span>Strictly Confidential · RA 9262</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-xs font-semibold text-rose-700">
-          <FiShield className="h-4 w-4" />
-          <span>Strictly Confidential · RA 9262</span>
+      ) : (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-rose-200 bg-rose-50/80 px-4 py-3 text-sm text-rose-900 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <FiAlertTriangle className="h-5 w-5 shrink-0 text-rose-600" />
+            <div>
+              <span className="font-bold">In immediate danger?</span>
+              <span className="ml-1 text-xs sm:text-sm text-rose-800">
+                Call <strong>911</strong> or contact PNP Women's Desk immediately.
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-xs font-semibold text-rose-700">
+            <FiShield className="h-4 w-4" />
+            <span>Strictly Confidential · RA 9262</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* VIEW 1: ONLINE COMPLAINTS */}
       {view === "reports" && (
@@ -343,7 +378,7 @@ export default function VawcRecords() {
       {/* VIEW 2: CONFIDENTIAL CASES */}
       {view === "cases" && (
         <div className="space-y-5">
-          <Card title="My VAWC Cases">
+          <Card title={isMale ? "Cases Filed Against Me" : "My VAWC Cases"}>
             {loading ? (
               <RowsSkeleton rows={3} what="confidential cases" />
             ) : (

@@ -143,17 +143,42 @@ export default defineConfig({
    * connection from the Dev Tunnel troubleshooting.
    */
   server: {
-    host: "127.0.0.1",
+    host: "0.0.0.0",
 
     port: 5173,
 
     strictPort: true,
 
-    allowedHosts: [
-      "3psh2ksf-5173.asse.devtunnels.ms",
-    ],
+    allowedHosts: true,
 
     hmr: false,
+
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+      },
+      "/storage": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+      },
+    },
+  },
+
+  preview: {
+    host: "0.0.0.0",
+    port: 4173,
+    allowedHosts: true,
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+      },
+      "/storage": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+      },
+    },
   },
 
   /*

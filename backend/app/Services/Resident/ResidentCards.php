@@ -308,6 +308,8 @@ final class ResidentCards
     public static function summary(array $check): array
     {
         $resident = $check['resident'];
+        $age = $resident?->birthdate?->age;
+        $isMinor = ($resident && $age !== null && $age < 18);
 
         return [
             'valid' => $check['ok'],
@@ -316,6 +318,11 @@ final class ResidentCards
             'resident_number' => $resident?->resident_number,
             'masked_name' => $resident ? self::mask($resident->first_name . ' ' . $resident->last_name) : null,
             'issued_on' => $check['ok'] ? $check['card']?->issued_at?->toDateString() : null,
+            'is_minor' => $isMinor,
+            'age' => $age,
+            'guardian_reminder' => $isMinor
+                ? 'Notice: As a minor (17 years old and below), you must be accompanied by a parent or legal guardian when appearing at the Barangay Hall.'
+                : null,
         ];
     }
 
