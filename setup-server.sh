@@ -51,18 +51,24 @@ mariadb -e "CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED BY '$DB_
 mariadb -e "GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'localhost';"
 mariadb -e "FLUSH PRIVILEGES;"
 
-# 5. Setup Project Directory & Clone / Update Repository
+# 5. Setup Project Directory & Clone / Extract
 echo "--> [5/8] Setting up Application in $APP_DIR..."
 mkdir -p /var/www
 
-if [ ! -d "$APP_DIR/.git" ]; then
-    echo "Cloning repository..."
-    git clone https://github.com/jims062702/Barangay_Natumolan.git "$APP_DIR"
-else
+if [ -f "/root/barangay_natumolan.tar.gz" ]; then
+    echo "Found /root/barangay_natumolan.tar.gz! Extracting directly..."
+    mkdir -p "$APP_DIR"
+    tar -xzf /root/barangay_natumolan.tar.gz -C "$APP_DIR"
+elif [ -d "$APP_DIR/.git" ]; then
     echo "Repository already exists, pulling latest main..."
     cd "$APP_DIR"
-    git fetch origin
-    git reset --hard origin/main
+    git fetch origin || true
+    git reset --hard origin/main || true
+else
+    echo "Cloning repository..."
+    git clone https://github.com/jims062702/Barangay_Natumolan.git "$APP_DIR" || {
+        echo "Git clone failed. If private, please upload barangay_natumolan.tar.gz to /root/"
+    }
 fi
 
 cd "$APP_DIR"
