@@ -8,10 +8,10 @@
 set -e
 
 DOMAIN="barangaynatumolan.tech"
-EMAIL="gasang143x@gmail.com"
+EMAIL="barangaynatumolansupport@barangaynatumolan.tech"
 DB_NAME="barangay_natumolan"
 DB_USER="natumolan_admin"
-DB_PASS="Natumolan@2026!"
+DB_PASS='N@tumol@nB@rangaYTCCcapston#Proj3ct20o6'
 APP_DIR="/var/www/barangay_natumolan"
 
 echo "=========================================================="
@@ -97,7 +97,7 @@ DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_DATABASE=barangay_natumolan
 DB_USERNAME=natumolan_admin
-DB_PASSWORD=Natumolan@2026!
+DB_PASSWORD='N@tumol@nB@rangaYTCCcapston#Proj3ct20o6'
 
 SESSION_DRIVER=database
 SESSION_LIFETIME=120
@@ -111,12 +111,13 @@ QUEUE_CONNECTION=database
 CACHE_STORE=database
 
 MAIL_MAILER=smtp
-MAIL_SCHEME=
-MAIL_HOST=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USERNAME=gasang143x@gmail.com
-MAIL_PASSWORD=mfolzsjyyhthhxxu
-MAIL_FROM_ADDRESS=gasang143x@gmail.com
+MAIL_SCHEME=smtps
+MAIL_HOST=smtp.titan.email
+MAIL_PORT=465
+MAIL_USERNAME=barangaynatumolansupport@barangaynatumolan.tech
+MAIL_PASSWORD='NatumolanSupport@2026!'
+MAIL_ENCRYPTION=ssl
+MAIL_FROM_ADDRESS=barangaynatumolansupport@barangaynatumolan.tech
 MAIL_FROM_NAME="Barangay Natumolan"
 
 CLOUDINARY_CLOUD_NAME=dwauqhrdx
