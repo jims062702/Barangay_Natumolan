@@ -2,6 +2,7 @@ import Home from "../sections/Home";
 import News from "../sections/News";
 import About from "../sections/About";
 import Services from "../sections/Services";
+import CitizensCharter from "../sections/CitizensCharter";
 import Offices from "../sections/Offices";
 import Officials from "../sections/Officials";
 import Contact from "../sections/Contact";
@@ -14,6 +15,7 @@ export default function LandingPage() {
       <News />
       <About />
       <Services />
+      <CitizensCharter />
       <Offices />
       <Officials />
       <Contact />

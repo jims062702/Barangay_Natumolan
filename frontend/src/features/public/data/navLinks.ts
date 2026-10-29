@@ -13,6 +13,7 @@ export const navLinks: NavLink[] = [
   { id: "news", label: "News & Announcement", short: "News" },
   { id: "about", label: "About", short: "About" },
   { id: "services", label: "Services", short: "Services" },
+  { id: "charter", label: "Citizen's Charter", short: "Charter" },
   { id: "offices", label: "Offices", short: "Offices" },
   { id: "officials", label: "Officials", short: "Officials" },
   { id: "contact", label: "Contact Us", short: "Contact" },
