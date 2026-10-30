@@ -25,7 +25,7 @@ export default function CitizensCharter() {
   const isResident = user?.role === "Resident";
 
   const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [openIds, setOpenIds] = useState<Set<string>>(new Set(["05-barangay-clearance"]));
+  const [openIds, setOpenIds] = useState<Set<string>>(new Set());
 
   const toggleCharter = (id: string) => {
     setOpenIds((prev) => {
