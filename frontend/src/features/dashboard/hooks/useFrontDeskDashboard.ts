@@ -14,7 +14,6 @@ export interface RecentCertificate {
   created_at: string;
 }
 import { dashboardApi } from "../api";
-import { serviceApi } from "../../service/api";
 import { luponApi } from "../../lupon/api";
 import type { MainOfficeDashboardProps } from "../offices/mainOffice/types";
 import type { LuponHearing } from "../../lupon/types";
@@ -88,9 +87,7 @@ export function useFrontDeskDashboard({ executive = false }: MainOfficeDashboard
       .catch(() => undefined);
 
     if (executive) {
-      const [certs, deadlines, today, ahead] = await Promise.all([
-        // Printed and waiting on the counter for the resident to collect.
-        serviceApi.certificates({ params: { status: "Ready to Claim" } }),
+      const [deadlines, today, ahead] = await Promise.all([
         luponApi.deadlines().catch(() => null),
         /* Each on its own failure: a dashboard is five questions, and one
            of them going unanswered must not blank the other four. */
@@ -99,7 +96,6 @@ export function useFrontDeskDashboard({ executive = false }: MainOfficeDashboard
       ]);
       setTodaySittings(today?.data.data.data ?? []);
       setNextSittings((ahead?.data.data.data ?? []).slice(0, 5));
-      setReadyQueue(certs.data.data.data ?? []);
       if (deadlines) {
         setKpCounts({
           hearings: (deadlines.data.data.upcoming_hearings ?? []).length,

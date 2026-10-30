@@ -215,9 +215,9 @@ export function menuFor(user: User): MenuSection[] {
     sections.push({
       heading: "Public Content",
       items: [
-        { label: "Home Pictures", to: "/sk/hero-slides", icon: FiImage },
-        { label: "News & Announcements", to: "/sk/announcements", icon: FiBell },
-        { label: "Officials", to: "/sk/officials", icon: FiAward },
+        { label: "Home Pictures", to: "/content/hero-slides", icon: FiImage },
+        { label: "News & Announcements", to: "/content/announcements", icon: FiBell },
+        { label: "Officials", to: "/content/officials", icon: FiAward },
       ],
     });
     return sections;
@@ -244,9 +244,9 @@ export function menuFor(user: User): MenuSection[] {
         sections.push({
           heading: "Public Content",
           items: [
-            { label: "Home Pictures", to: "/sk/hero-slides", icon: FiImage },
-            { label: "News & Announcements", to: "/sk/announcements", icon: FiBell },
-            { label: "Officials", to: "/sk/officials", icon: FiAward },
+            { label: "Home Pictures", to: "/content/hero-slides", icon: FiImage },
+            { label: "News & Announcements", to: "/content/announcements", icon: FiBell },
+            { label: "Officials", to: "/content/officials", icon: FiAward },
           ],
         });
       }
@@ -384,11 +384,11 @@ export function menuFor(user: User): MenuSection[] {
      */
     case "Admin":
       sections.push({
-        heading: "SK / Landing Content",
+        heading: "Public Content",
         items: [
-          { label: "Home Pictures", to: "/sk/hero-slides", icon: FiImage },
-          { label: "News & Announcements", to: "/sk/announcements", icon: FiBell },
-          { label: "Officials", to: "/sk/officials", icon: FiAward },
+          { label: "Home Pictures", to: "/content/hero-slides", icon: FiImage },
+          { label: "News & Announcements", to: "/content/announcements", icon: FiBell },
+          { label: "Officials", to: "/content/officials", icon: FiAward },
         ],
       });
       sections.push({

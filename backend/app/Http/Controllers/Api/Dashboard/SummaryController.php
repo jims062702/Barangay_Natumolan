@@ -74,7 +74,7 @@ class SummaryController extends BaseController
          * requests nobody has started, and finished documents waiting to be
          * collected.
          */
-        if ($user->office === 'Main Office' || $user->role === 'Punong Barangay') {
+        if ($user->role === 'Clerk') {
             $pending['pending_certificates'] = Certificate::where('status', 'Pending')
                 ->count();
             $pending['ready_to_claim'] = Certificate::where('status', 'Ready to Claim')
@@ -104,11 +104,13 @@ class SummaryController extends BaseController
     {
         $stats = [];
 
-        // General stats
-        $stats['pending_requests'] = ServiceRequest::where('status', 'Pending')->count();
-        $stats['monthly_certificates'] = Certificate::whereMonth('created_at', date('m'))
-            ->whereYear('created_at', date('Y'))
-            ->count();
+        // General stats for Clerk
+        if ($user->role === 'Clerk') {
+            $stats['pending_requests'] = ServiceRequest::where('status', 'Pending')->count();
+            $stats['monthly_certificates'] = Certificate::whereMonth('created_at', date('m'))
+                ->whereYear('created_at', date('Y'))
+                ->count();
+        }
 
         // Office-specific stats
         if ($user->office === 'VAWC') {
@@ -127,28 +129,24 @@ class SummaryController extends BaseController
         $activities = [];
 
         /*
-         * CERTIFICATES, not service requests.
-         *
-         * The counter issues documents: a request for one raises the
-         * certificate the moment it is made, so the request list was the
-         * same work under an earlier name — and the page it linked to came
-         * off the Clerk's menu. What the clerk wants on opening the day is
-         * the last few certificates and where each has got to.
+         * CERTIFICATES are for Clerk counter work only.
          */
-        $activities['recent_certificates'] = Certificate::with([
-                'resident:id,first_name,middle_name,last_name,suffix',
-            ])
-            ->orderByDesc('created_at')
-            ->limit(5)
-            ->get(['id', 'certificate_number', 'certificate_type', 'status', 'resident_id', 'unlisted_person', 'created_at'])
-            ->map(fn ($c) => [
-                'id' => $c->id,
-                'certificate_number' => $c->certificate_number,
-                'certificate_type' => $c->certificate_type,
-                'status' => $c->status,
-                'resident' => $c->holderName(),
-                'created_at' => $c->created_at,
-            ]);
+        if ($user->role === 'Clerk') {
+            $activities['recent_certificates'] = Certificate::with([
+                    'resident:id,first_name,middle_name,last_name,suffix',
+                ])
+                ->orderByDesc('created_at')
+                ->limit(5)
+                ->get(['id', 'certificate_number', 'certificate_type', 'status', 'resident_id', 'unlisted_person', 'created_at'])
+                ->map(fn ($c) => [
+                    'id' => $c->id,
+                    'certificate_number' => $c->certificate_number,
+                    'certificate_type' => $c->certificate_type,
+                    'status' => $c->status,
+                    'resident' => $c->holderName(),
+                    'created_at' => $c->created_at,
+                ]);
+        }
 
         return $activities;
     }

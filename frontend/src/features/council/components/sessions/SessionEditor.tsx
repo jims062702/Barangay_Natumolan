@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { FiTrash2 } from "react-icons/fi";
 import DraftNotice from "../../../../shared/ui/DraftNotice";
 import Modal from "../../../../shared/ui/Modal";
 import FormField from "../../../../shared/ui/FormField";
@@ -206,38 +207,57 @@ export function SessionEditor({ ctx }: { ctx: SessionRecordsState }) {
 
           <div className="space-y-2">
             {attendees.map((a, i) => (
-              <div key={i} className="grid gap-2 sm:grid-cols-[1.4fr_1fr_auto_auto]">
-                <input
-                  value={a.name}
-                  onChange={(e) => setAttendee(i, { name: e.target.value })}
-                  placeholder="Name"
-                  className={input}
-                />
-                <input
-                  value={a.position ?? ""}
-                  onChange={(e) => setAttendee(i, { position: e.target.value })}
-                  placeholder="Position"
-                  className={input}
-                />
-                <select
-                  value={a.attendance}
-                  onChange={(e) =>
-                    setAttendee(i, { attendance: e.target.value as Attendee["attendance"] })
-                  }
-                  className={input}
-                >
-                  {ATTENDANCE.map((w) => (
-                    <option key={w} value={w}>{w}</option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => setAttendees((l) => l.filter((_, n) => n !== i))}
-                  aria-label={`Remove ${a.name || "this row"}`}
-                  className="cursor-pointer rounded-xl border border-gray px-3 text-sm text-gray-500 transition hover:border-danger/50 hover:text-danger"
-                >
-                  ×
-                </button>
+              <div
+                key={i}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-2xl border border-gray/80 bg-white p-2.5 shadow-xs transition hover:border-primary/50"
+              >
+                <div className="grid flex-1 grid-cols-1 sm:grid-cols-[1.4fr_1.1fr] gap-2 min-w-0">
+                  <div className="relative">
+                    <input
+                      value={a.name}
+                      onChange={(e) => setAttendee(i, { name: e.target.value })}
+                      placeholder="Official Name"
+                      className="w-full rounded-xl bg-gray-50/80 px-3 py-2 text-sm font-semibold text-dark outline-none transition focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary border border-transparent"
+                    />
+                  </div>
+                  <div className="relative">
+                    <input
+                      value={a.position ?? ""}
+                      onChange={(e) => setAttendee(i, { position: e.target.value })}
+                      placeholder="Position (e.g. Barangay Kagawad)"
+                      className="w-full rounded-xl bg-gray-50/80 px-3 py-2 text-xs font-medium text-gray-600 outline-none transition focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary border border-transparent"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 shrink-0 pt-1.5 sm:pt-0 border-t sm:border-t-0 border-gray/40">
+                  <select
+                    value={a.attendance}
+                    onChange={(e) =>
+                      setAttendee(i, { attendance: e.target.value as Attendee["attendance"] })
+                    }
+                    className={`cursor-pointer rounded-xl border px-3 py-1.5 text-xs font-semibold outline-none transition shadow-2xs ${
+                      a.attendance === "Present"
+                        ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                        : a.attendance === "Absent"
+                        ? "border-rose-300 bg-rose-50 text-rose-700"
+                        : "border-amber-300 bg-amber-50 text-amber-700"
+                    }`}
+                  >
+                    {ATTENDANCE.map((w) => (
+                      <option key={w} value={w}>{w}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setAttendees((l) => l.filter((_, n) => n !== i))}
+                    aria-label={`Remove ${a.name || "this row"}`}
+                    className="cursor-pointer rounded-xl p-2 text-gray-400 transition hover:bg-rose-50 hover:text-rose-600"
+                    title="Remove attendee"
+                  >
+                    <FiTrash2 className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

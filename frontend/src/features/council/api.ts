@@ -14,11 +14,11 @@ export const councilApi = {
   adoptSession: (sessionId: PathParam, ...args: BodyArgs) =>
     api.post(`/sessions/${sessionId}/adopt`, ...args),
   officials: (...args: QueryArgs) =>
-    api.get("/sk/officials", ...args),
+    api.get("/content/officials", ...args),
   createOfficial: (...args: BodyArgs) =>
-    api.post("/sk/officials", ...args),
+    api.post("/content/officials", ...args),
   updateOfficial: (officialId: PathParam, ...args: BodyArgs) =>
-    api.post(`/sk/officials/${officialId}`, ...args),
+    api.post(`/content/officials/${officialId}`, ...args),
   deleteOfficial: (officialId: PathParam, ...args: QueryArgs) =>
-    api.delete(`/sk/officials/${officialId}`, ...args),
+    api.delete(`/content/officials/${officialId}`, ...args),
 };

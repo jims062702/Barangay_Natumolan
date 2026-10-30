@@ -11,13 +11,15 @@ use Illuminate\Support\Facades\Route;
 |
 | Loaded inside the signed-in staff group of routes/api.php.
 */
-Route::prefix('sk')->middleware(['office:Main Office,AdminRole', 'deny_role:Punong Barangay'])->group(function () {
-    Route::post('hero-slides/reorder', [HeroSlideController::class, 'reorder']);
-    Route::apiResource('hero-slides', HeroSlideController::class)
-        ->only(['index', 'store', 'update', 'destroy']);
-    Route::apiResource('officials', OfficialController::class)
-        ->only(['index', 'store', 'update', 'destroy']);
-    Route::post('announcements/reorder', [AnnouncementController::class, 'reorder']);
-    Route::apiResource('announcements', AnnouncementController::class)
-        ->only(['index', 'store', 'update', 'destroy']);
+Route::middleware(['office:Main Office,AdminRole', 'deny_role:Punong Barangay'])->group(function () {
+    Route::prefix('content')->group(function () {
+        Route::post('hero-slides/reorder', [HeroSlideController::class, 'reorder']);
+        Route::apiResource('hero-slides', HeroSlideController::class)
+            ->only(['index', 'store', 'update', 'destroy']);
+        Route::apiResource('officials', OfficialController::class)
+            ->only(['index', 'store', 'update', 'destroy']);
+        Route::post('announcements/reorder', [AnnouncementController::class, 'reorder']);
+        Route::apiResource('announcements', AnnouncementController::class)
+            ->only(['index', 'store', 'update', 'destroy']);
+    });
 });

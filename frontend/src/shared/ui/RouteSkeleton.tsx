@@ -808,8 +808,8 @@ const PAGES: [string | RegExp, string, Draw][] = [
     </div>
   )],
 
-  /* ---- SK ---- */
-  ["/sk/hero-slides", "HeroSlidesSkeleton", () => (
+  /* ---- Public Landing Content ---- */
+  ["/content/hero-slides", "HeroSlidesSkeleton", () => (
     <div>
       <Head />
       <div className="mb-3 flex h-5 items-center"><Skeleton className="h-3.5 w-80" /></div>
@@ -820,14 +820,14 @@ const PAGES: [string | RegExp, string, Draw][] = [
       </div>
     </div>
   )],
-  ["/sk/announcements", "AnnouncementsSkeleton", () => (
+  ["/content/announcements", "AnnouncementsSkeleton", () => (
     <div>
       <Head />
       <Chips n={4} />
       <Table columns={7} selects={1} />
     </div>
   )],
-  ["/sk/officials", "OfficialsSkeleton", () => (
+  ["/content/officials", "OfficialsSkeleton", () => (
     <div>
       <Head />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

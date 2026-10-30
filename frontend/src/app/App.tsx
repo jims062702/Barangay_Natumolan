@@ -476,9 +476,15 @@ export default function App() {
 
           {/* Public Landing Content — managed by Secretary, Clerk, and Admin (PB is excluded) */}
           <Route element={<Guarded staffOnly allowedOffices={["Main Office", "Admin"]} allowedRoles={["Secretary", "Clerk", "Admin"]} deniedRoles={["Punong Barangay"]} />}>
-            <Route path="/sk/hero-slides" element={<HeroSlides />} />
-            <Route path="/sk/announcements" element={<Announcements />} />
-            <Route path="/sk/officials" element={<Officials />} />
+            <Route path="/content/hero-slides" element={<HeroSlides />} />
+            <Route path="/content/announcements" element={<Announcements />} />
+            <Route path="/content/officials" element={<Officials />} />
+            {/* Backward-compatible redirects from legacy /sk/* URLs */}
+            <Route path="/sk/hero-slides" element={<Navigate to="/content/hero-slides" replace />} />
+            <Route path="/sk/announcements" element={<Navigate to="/content/announcements" replace />} />
+            <Route path="/sk/officials" element={<Navigate to="/content/officials" replace />} />
+            <Route path="/sk" element={<Navigate to="/content/hero-slides" replace />} />
+            <Route path="/sk/*" element={<Navigate to="/content/hero-slides" replace />} />
           </Route>
 
           {/* Service guides (AI KB) & administrative records — Main Office / PB / Admin

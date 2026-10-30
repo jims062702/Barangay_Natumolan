@@ -1,26 +1,26 @@
-/** The landing page content the SK keeps: posts and home pictures. */
+/** The public landing page content: posts and home pictures. */
 
 import { api, type BodyArgs, type PathParam, type QueryArgs } from "../../shared/lib/api";
 
 export const contentApi = {
   posts: (...args: QueryArgs) =>
-    api.get("/sk/announcements", ...args),
+    api.get("/content/announcements", ...args),
   createPost: (...args: BodyArgs) =>
-    api.post("/sk/announcements", ...args),
+    api.post("/content/announcements", ...args),
   updatePost: (postId: PathParam, ...args: BodyArgs) =>
-    api.post(`/sk/announcements/${postId}`, ...args),
+    api.post(`/content/announcements/${postId}`, ...args),
   deletePost: (postId: PathParam, ...args: QueryArgs) =>
-    api.delete(`/sk/announcements/${postId}`, ...args),
+    api.delete(`/content/announcements/${postId}`, ...args),
   reorderPosts: (...args: BodyArgs) =>
-    api.post("/sk/announcements/reorder", ...args),
+    api.post("/content/announcements/reorder", ...args),
   heroSlides: (...args: QueryArgs) =>
-    api.get("/sk/hero-slides", ...args),
+    api.get("/content/hero-slides", ...args),
   createHeroSlide: (...args: BodyArgs) =>
-    api.post("/sk/hero-slides", ...args),
+    api.post("/content/hero-slides", ...args),
   updateHeroSlide: (slideId: PathParam, ...args: BodyArgs) =>
-    api.post(`/sk/hero-slides/${slideId}`, ...args),
+    api.post(`/content/hero-slides/${slideId}`, ...args),
   deleteHeroSlide: (slideId: PathParam, ...args: QueryArgs) =>
-    api.delete(`/sk/hero-slides/${slideId}`, ...args),
+    api.delete(`/content/hero-slides/${slideId}`, ...args),
   reorderHeroSlides: (...args: BodyArgs) =>
-    api.post("/sk/hero-slides/reorder", ...args),
+    api.post("/content/hero-slides/reorder", ...args),
 };
