@@ -33,7 +33,6 @@ class OfficeAccountsSeeder extends Seeder
             ['Maria Faye C. Ordiz', 'lupon@natumolan.local', 'Lupon Secretary', 'Lupon'],
             ['Abbess Kristel P. Pacaldo', 'population@natumolan.local', 'Population Worker', 'Population'],
             ['Rosa F. Moreno', 'health@natumolan.local', 'Health Personnel', 'Health Station'],
-            ['Hon. Kyla Marie D. Torres', 'sk@natumolan.local', 'SK Chairperson', 'SK'],
             ['System Administrator', 'admin@natumolan.local', 'Admin', 'Admin'],
         ];
 

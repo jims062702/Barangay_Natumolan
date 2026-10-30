@@ -77,9 +77,6 @@ class User extends Authenticatable
         'Lupon Secretary',
         'Population Worker',
         'Health Personnel',
-        'SK Chairperson',
-        'SK Kagawad',
-        'SK Secretary',
         'Admin',
     ];
 
@@ -89,7 +86,6 @@ class User extends Authenticatable
         'Lupon',
         'Population',
         'Health Station',
-        'SK',
         'Admin',
     ];
 

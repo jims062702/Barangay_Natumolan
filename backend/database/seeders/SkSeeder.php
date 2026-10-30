@@ -15,19 +15,7 @@ class SkSeeder extends Seeder
 {
     public function run(): void
     {
-        // SK Chairperson login
-        User::updateOrCreate(
-            ['email' => 'sk@natumolan.local'],
-            [
-                'name' => 'Hon. Kyla Marie D. Torres',
-                'password' => 'password',
-                'role' => 'SK Chairperson',
-                'office' => 'SK',
-                'is_active' => true,
-            ]
-        );
-
-        // Seed officials once (photos can be uploaded later by the SK office).
+        // Seed officials once (photos can be uploaded later).
         if (Official::count() === 0) {
             $term = '2023 – 2026';
 

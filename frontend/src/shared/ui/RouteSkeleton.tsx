@@ -403,14 +403,6 @@ function dashboardFor(office: string | undefined, role: string | undefined): [st
           <Panel h={420} className="mt-6" />
         </div>
       )];
-    case "SK":
-      return ["SkDashboardSkeleton", () => (
-        <div>
-          <DashHead stacked />
-          <Tiles n={3} />
-          <Panel h={200} />
-        </div>
-      )];
     case "Admin":
       return ["AdminDashboardSkeleton", () => (
         <div>

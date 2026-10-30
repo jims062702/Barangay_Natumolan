@@ -4,7 +4,6 @@ import VawcDashboard from "../offices/VawcDashboard";
 import LuponDashboard from "../offices/LuponDashboard";
 import PopulationOfficeDashboard from "../offices/PopulationOfficeDashboard";
 import HealthStationDashboard from "../offices/HealthStationDashboard";
-import SkDashboard from "../offices/SkDashboard";
 import AdminDashboard from "../offices/AdminDashboard";
 
 /**
@@ -24,8 +23,6 @@ export default function Dashboard() {
       return <PopulationOfficeDashboard />;
     case "Health Station":
       return <HealthStationDashboard />;
-    case "SK":
-      return <SkDashboard />;
     case "Admin":
       return <AdminDashboard />;
     default:

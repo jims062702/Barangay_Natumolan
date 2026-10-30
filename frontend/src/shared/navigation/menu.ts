@@ -212,15 +212,24 @@ export function menuFor(user: User): MenuSection[] {
         { label: "Live Chat", to: "/chat", icon: FiMessageCircle },
       ],
     });
+    sections.push({
+      heading: "Public Content",
+      items: [
+        { label: "Home Pictures", to: "/sk/hero-slides", icon: FiImage },
+        { label: "News & Announcements", to: "/sk/announcements", icon: FiBell },
+        { label: "Officials", to: "/sk/officials", icon: FiAward },
+      ],
+    });
     return sections;
   }
 
   switch (user.office) {
     case "Main Office":
       /*
-       * Secretary and Punong Barangay share the exact same interface:
+       * Secretary and Punong Barangay share the same core executive interface:
        * Barangay Sessions, Hearing & Mediation calendar and records, Settlements,
        * and Consolidated Reports.
+       * Public Content (SK landing content) is assigned only to Secretary and Clerk (not PB).
        */
       sections.push({
         heading: "Secretariat & Council",
@@ -231,6 +240,16 @@ export function menuFor(user: User): MenuSection[] {
           { label: "Consolidated Reports", to: "/reports/consolidated", icon: FiBarChart2 },
         ],
       });
+      if (user.role === "Secretary") {
+        sections.push({
+          heading: "Public Content",
+          items: [
+            { label: "Home Pictures", to: "/sk/hero-slides", icon: FiImage },
+            { label: "News & Announcements", to: "/sk/announcements", icon: FiBell },
+            { label: "Officials", to: "/sk/officials", icon: FiAward },
+          ],
+        });
+      }
       break;
 
     // Deliberately no general Referrals/Reports entry: the VAWC Desk keeps its
@@ -346,17 +365,6 @@ export function menuFor(user: User): MenuSection[] {
           /* The station's own report. It was a "Consolidated Report" entry
              showing only the station's slice of the Secretary's return. */
           { label: "Reports", to: "/health/reports", icon: FiBarChart2 },
-        ],
-      });
-      break;
-
-    case "SK":
-      sections.push({
-        heading: "Sangguniang Kabataan",
-        items: [
-          { label: "Home Pictures", to: "/sk/hero-slides", icon: FiImage },
-          { label: "News & Announcements", to: "/sk/announcements", icon: FiBell },
-          { label: "Officials", to: "/sk/officials", icon: FiAward },
         ],
       });
       break;

@@ -6,12 +6,12 @@ use App\Http\Controllers\Api\Council\OfficialController;
 use Illuminate\Support\Facades\Route;
 
 /*
-| Sangguniang Kabataan (SK) — manages the public landing content:
-| home pictures, news & announcements, and officials.
+| Public landing content (home pictures, news & announcements, and officials).
+| Managed by Secretary and Clerk (Main Office) and Admin. Punong Barangay is denied.
 |
 | Loaded inside the signed-in staff group of routes/api.php.
 */
-Route::prefix('sk')->middleware('office:SK,PB,AdminRole')->group(function () {
+Route::prefix('sk')->middleware(['office:Main Office,AdminRole', 'deny_role:Punong Barangay'])->group(function () {
     Route::post('hero-slides/reorder', [HeroSlideController::class, 'reorder']);
     Route::apiResource('hero-slides', HeroSlideController::class)
         ->only(['index', 'store', 'update', 'destroy']);

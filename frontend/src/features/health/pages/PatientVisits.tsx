@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { FiEye, FiPlus, FiPrinter } from "react-icons/fi";
+import { FiCalendar, FiEye, FiPlus, FiPrinter } from "react-icons/fi";
 import { errorMessage } from "../../../shared/lib/api";
 import { toast } from "../../../shared/lib/toast";
 import { confirmAction } from "../../../shared/lib/confirm";
@@ -163,20 +163,30 @@ export default function PatientVisits() {
       />
 
       <Card className="print-plain">
-        <div className="mb-4 flex print-hide items-center gap-3">
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => {
-              setDate(e.target.value);
-              setPage(1);
-            }}
-            className={`${inputClasses} max-w-48`}
-            aria-label="Filter by date"
-          />
+        <div className="mb-4 flex flex-wrap print-hide items-center gap-2.5">
+          <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+            <FiCalendar className="h-4 w-4 text-primary" aria-hidden="true" />
+            <span>Filter by Visit Date:</span>
+          </label>
+          <div className="relative flex items-center">
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => {
+                setDate(e.target.value);
+                setPage(1);
+              }}
+              className={`${inputClasses} w-full sm:w-auto min-w-[170px]`}
+              aria-label="Filter by visit date"
+            />
+          </div>
           {date && (
-            <button type="button" onClick={() => setDate("")} className="cursor-pointer text-sm font-medium text-primary hover:underline">
-              Clear
+            <button
+              type="button"
+              onClick={() => setDate("")}
+              className="cursor-pointer text-sm font-semibold text-primary hover:underline"
+            >
+              Clear date
             </button>
           )}
         </div>

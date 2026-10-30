@@ -15,8 +15,5 @@ export const ROLE_OFFICE: Record<string, string> = {
   "Lupon Secretary": "Lupon",
   "Population Worker": "Population",
   "Health Personnel": "Health Station",
-  "SK Chairperson": "SK",
-  "SK Kagawad": "SK",
-  "SK Secretary": "SK",
   Admin: "Admin",
 };

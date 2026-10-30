@@ -1,4 +1,5 @@
 import Card from "../../../shared/ui/Card";
+import { FiCalendar } from "react-icons/fi";
 
 /**
  * The sections of a barangay report, one office each.
@@ -238,14 +239,16 @@ export function ReportSection({
  */
 export function MonthPicker({ value, onChange }: { value: string; onChange: (month: string) => void }) {
   return (
-    <label className="print-hide flex items-center gap-2 text-sm text-gray-600">
-      <span>Month</span>
+    <label className="print-hide flex items-center gap-2 rounded-full border border-gray bg-white px-3.5 py-1.5 text-sm font-medium text-dark shadow-xs">
+      <FiCalendar className="h-4 w-4 text-primary" aria-hidden="true" />
+      <span>Month:</span>
       <input
         type="month"
         value={value}
         max={new Date().toLocaleDateString("en-CA").slice(0, 7)}
         onChange={(e) => e.target.value && onChange(e.target.value)}
-        className="rounded-full border border-gray bg-white px-3.5 py-1.5 text-sm text-dark"
+        className="bg-transparent text-sm text-dark outline-none cursor-pointer"
+        aria-label="Filter by month"
       />
     </label>
   );

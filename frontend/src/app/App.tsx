@@ -474,8 +474,8 @@ export default function App() {
             <Route path="/health/prenatal/reports/yearly" element={<Navigate to="/health/reports?report=prenatal&period=yearly" replace />} />
           </Route>
 
-          {/* Sangguniang Kabataan — manages public landing content */}
-          <Route element={<Guarded staffOnly allowedOffices={["SK"]} allowedRoles={["Punong Barangay", "Admin"]} />}>
+          {/* Public Landing Content — managed by Secretary, Clerk, and Admin (PB is excluded) */}
+          <Route element={<Guarded staffOnly allowedOffices={["Main Office", "Admin"]} allowedRoles={["Secretary", "Clerk", "Admin"]} deniedRoles={["Punong Barangay"]} />}>
             <Route path="/sk/hero-slides" element={<HeroSlides />} />
             <Route path="/sk/announcements" element={<Announcements />} />
             <Route path="/sk/officials" element={<Officials />} />
