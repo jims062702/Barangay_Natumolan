@@ -23,7 +23,13 @@ final class OnlineComplaintNotice
     public static function toLupon(OnlineComplaint $complaint): void
     {
         $staff = User::where('is_active', true)
-            ->where('office', 'Lupon')
+            ->where(function ($q) {
+                $q->where('office', 'Lupon')
+                  ->orWhere(function ($sub) {
+                      $sub->where('office', 'Main Office')
+                          ->whereIn('role', ['Secretary', 'Punong Barangay']);
+                  });
+            })
             ->where('role', '!=', 'Resident')
             ->pluck('id');
 

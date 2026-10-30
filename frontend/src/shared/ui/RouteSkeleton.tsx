@@ -565,6 +565,30 @@ const PAGES: [string | RegExp, string, Draw][] = [
       <Table columns={7} search={false} />
     </div>
   )],
+  ["/appointments", "AppointmentsListSkeleton", () => (
+    <div>
+      <Head />
+      <Table columns={7} selects={1} />
+    </div>
+  )],
+  ["/appointments/calendar", "AppointmentsCalendarSkeleton", () => (
+    <div>
+      <Head actions={1} />
+      <Tiles n={4} />
+      <div className="rounded-2xl border border-gray bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center justify-between">
+          <Skeleton className="h-9 w-9 rounded-full" />
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-9 w-9 rounded-full" />
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {Array.from({ length: 35 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 w-full rounded-xl" />
+          ))}
+        </div>
+      </div>
+    </div>
+  )],
   ["/reports/consolidated", "ConsolidatedReportSkeleton", () => (
     <div>
       <Head />
@@ -872,6 +896,12 @@ const PAGES: [string | RegExp, string, Draw][] = [
     <div>
       <Head />
       <Table columns={8} search={false} rows={4} />
+    </div>
+  )],
+  ["/resident/appointments", "PortalAppointmentsSkeleton", () => (
+    <div>
+      <Head />
+      <Table columns={6} search={false} rows={4} />
     </div>
   )],
   ["/resident/vawc-report", "PortalVawcReportSkeleton", () => (

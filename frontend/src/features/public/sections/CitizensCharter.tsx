@@ -12,6 +12,7 @@ import {
   FiLayers,
   FiInfo,
 } from "react-icons/fi";
+import BookAppointmentModal from "../components/BookAppointmentModal";
 import SectionTitle from "../components/SectionTitle";
 import Reveal from "../../../shared/ui/Reveal";
 import { useAuth } from "../../../shared/auth/AuthContext";
@@ -26,6 +27,7 @@ export default function CitizensCharter() {
 
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [openIds, setOpenIds] = useState<Set<string>>(new Set());
+  const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
 
   const toggleCharter = (id: string) => {
     setOpenIds((prev) => {
@@ -86,6 +88,31 @@ export default function CitizensCharter() {
             return {
               url: "/resident/vawc/reports",
               label: "Submit VAWC Report via Portal",
+            };
+          case "08-community-tax-certificate":
+            return {
+              url: "/resident/requests?type=Community%20Tax%20Certificate",
+              label: "Request CTC via Portal",
+            };
+          case "09-repair-maintenance-streetlights":
+            return {
+              url: "/resident/appointments",
+              label: "Request Streetlight Inspection / Appointment",
+            };
+          case "10-request-travel-order":
+            return {
+              url: "/resident/appointments",
+              label: "Request Travel Order via Appointment",
+            };
+          case "11-affidavit-solo-parent":
+            return {
+              url: "/resident/requests?type=Affidavit%20for%20Solo%20Parent",
+              label: "Request Solo Parent Affidavit via Portal",
+            };
+          case "12-certificate-of-employment":
+            return {
+              url: "/resident/requests?type=Certificate%20of%20Employment",
+              label: "Request COE via Portal",
             };
           case "07-barangay-resolution":
           default:
@@ -152,6 +179,31 @@ export default function CitizensCharter() {
         return {
           url: "/vawc-complaint",
           label: "File VAWC Report (Upload Resident ID)",
+        };
+      case "08-community-tax-certificate":
+        return {
+          url: "/request-certificate?type=Community%20Tax%20Certificate",
+          label: "Request CTC (Upload Resident ID)",
+        };
+      case "09-repair-maintenance-streetlights":
+        return {
+          url: "#charter",
+          label: "Book Streetlight Repair Appointment",
+        };
+      case "10-request-travel-order":
+        return {
+          url: "/#contact",
+          label: "Submit Travel Order Memo",
+        };
+      case "11-affidavit-solo-parent":
+        return {
+          url: "/request-certificate?type=Affidavit%20for%20Solo%20Parent",
+          label: "Request Solo Parent Affidavit (Upload Resident ID)",
+        };
+      case "12-certificate-of-employment":
+        return {
+          url: "/request-certificate?type=Certificate%20of%20Employment",
+          label: "Request COE (Upload Resident ID)",
         };
       case "07-barangay-resolution":
       default:
@@ -539,6 +591,7 @@ export default function CitizensCharter() {
           })}
         </div>
       </div>
+          <BookAppointmentModal open={appointmentModalOpen} onClose={() => setAppointmentModalOpen(false)} />
     </section>
   );
 }

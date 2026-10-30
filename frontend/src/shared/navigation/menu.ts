@@ -62,6 +62,7 @@ export function menuFor(user: User): MenuSection[] {
       {
         items: [
           { label: "My Dashboard", to: "/resident", icon: FiHome },
+          { label: "My Appointments", to: "/resident/appointments", icon: FiCalendar },
           /*
            * One entry, not two. "My Requests" and "My Certificates" listed
            * the same event twice — the asking and the document that came
@@ -231,14 +232,35 @@ export function menuFor(user: User): MenuSection[] {
        * and Consolidated Reports.
        * Public Content (SK landing content) is assigned only to Secretary and Clerk (not PB).
        */
+      const secretariatItems: MenuItem[] = [];
+      if (user.role === "Secretary") {
+        secretariatItems.push({
+          label: "Appointments",
+          to: "/appointments",
+          icon: FiCalendar,
+          children: [
+            { label: "All Appointments", to: "/appointments", icon: FiCalendar },
+            { label: "Appointments Calendar", to: "/appointments/calendar", icon: FiClock },
+          ],
+        });
+      } else if (user.role === "Punong Barangay") {
+        secretariatItems.push({
+          label: "Appointments Calendar",
+          to: "/appointments/calendar",
+          icon: FiCalendar,
+        });
+      }
+
+      secretariatItems.push(
+        { label: "Barangay Sessions", to: "/sessions", icon: FiBookOpen },
+        { label: "Hearing & Mediation", to: "/lupon/hearings", icon: FiCalendar, children: secretaryHearingRoom },
+        { label: "Settlements", to: "/lupon/settlements", icon: FiFileText },
+        { label: "Consolidated Reports", to: "/reports/consolidated", icon: FiBarChart2 },
+      );
+
       sections.push({
         heading: "Secretariat & Council",
-        items: [
-          { label: "Barangay Sessions", to: "/sessions", icon: FiBookOpen },
-          { label: "Hearing & Mediation", to: "/lupon/hearings", icon: FiCalendar, children: secretaryHearingRoom },
-          { label: "Settlements", to: "/lupon/settlements", icon: FiFileText },
-          { label: "Consolidated Reports", to: "/reports/consolidated", icon: FiBarChart2 },
-        ],
+        items: secretariatItems,
       });
       if (user.role === "Secretary") {
         sections.push({
@@ -322,15 +344,7 @@ export function menuFor(user: User): MenuSection[] {
            * their resident, which is the office's work, and the ones already
            * in use. The count sits on the first.
            */
-          {
-            label: "Portal Accounts",
-            to: "/population/accounts",
-            icon: FiUserPlus,
-            children: [
-              { label: "Not activated", to: "/population/accounts/not-activated", icon: FiUserX },
-              { label: "Activated", to: "/population/accounts/activated", icon: FiUserCheck },
-            ],
-          },
+          { label: "Portal Accounts", to: "/population/accounts", icon: FiUserCheck },
           { label: "Reports", to: "/population/reports", icon: FiBarChart2 },
         ],
       });

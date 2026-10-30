@@ -230,9 +230,14 @@ export function ResidentIdCheck({
             <FormField label="Verification code (under the QR)" hint="12 letters and numbers, e.g. 7K3M-Q9TD-X2PA">
               <input
                 value={typed}
-                onChange={(e) => setTyped(e.target.value)}
-                className={`${inputClasses} font-mono uppercase`}
-                maxLength={20}
+                onChange={(e) => {
+                  const clean = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+                  const chunks = clean.match(/.{1,4}/g);
+                  setTyped(chunks ? chunks.join("-") : "");
+                }}
+                className={`${inputClasses} font-mono uppercase tracking-wider`}
+                maxLength={14}
+                placeholder="XXXX-XXXX-XXXX"
                 aria-label="Verification code"
                 disabled={disabled}
               />

@@ -128,12 +128,22 @@ class Notification extends Model
         self::notifyUsers($ids, $type, $subject, $message, $entityType, $entityId, $link);
     }
 
-    /** Notify the Main Office front desk (clerks/secretary — not the PB). */
+    /** Notify the Main Office front desk (Clerk only — certificates & counter work). */
     public static function notifyFrontDesk(string $type, string $subject, string $message, ?string $entityType = null, ?int $entityId = null, ?string $link = null): void
     {
         $ids = User::where('is_active', true)
             ->where('office', 'Main Office')
-            ->where('role', '!=', 'Punong Barangay')
+            ->where('role', 'Clerk')
+            ->pluck('id');
+        self::notifyUsers($ids, $type, $subject, $message, $entityType, $entityId, $link);
+    }
+
+    /** Notify the Secretary (Council sessions, Lupon hearing forwarding, appointments, etc.). */
+    public static function notifySecretary(string $type, string $subject, string $message, ?string $entityType = null, ?int $entityId = null, ?string $link = null): void
+    {
+        $ids = User::where('is_active', true)
+            ->where('office', 'Main Office')
+            ->where('role', 'Secretary')
             ->pluck('id');
         self::notifyUsers($ids, $type, $subject, $message, $entityType, $entityId, $link);
     }

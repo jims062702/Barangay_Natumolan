@@ -385,4 +385,37 @@ class HouseholdController extends BaseController
             'household' => $newHousehold->fresh(['residents', 'head']),
         ], "{$count} {$plural} successfully transferred to household {$newHousehold->household_number}.");
     }
+    /**
+     * Delete a household.
+     * All residents belonging to this household (head and members)
+     * will have their household assignment cleared (household_id = null).
+     */
+    public function destroy(Household $household)
+    {
+        $num = $household->household_number;
+        DB::transaction(function () use ($household) {
+            // 1. Break head reference on household
+            $household->update(['household_head_id' => null]);
+
+            // 2. Clear household reference from all member and head residents
+            Resident::where('household_id', $household->id)->update([
+                'household_id' => null,
+            ]);
+
+            // 3. Clear census records pointing to this household
+            \App\Models\Rbim\Census::where('household_id', $household->id)->update([
+                'household_id' => null,
+            ]);
+
+            // 4. Delete owner changes
+            $household->ownerChanges()->delete();
+
+            // 5. Delete the household record
+            $household->delete();
+        });
+
+        LandingCache::clearStats();
+
+        return $this->success(null, "Household {$num} has been successfully deleted. Any linked residents have had their household number cleared.");
+    }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { FiEdit2, FiEye, FiPlus, FiRepeat, FiUserPlus, FiX } from "react-icons/fi";
+import { FiEdit2, FiEye, FiPlus, FiRepeat, FiTrash2, FiUserPlus, FiX } from "react-icons/fi";
 import { personName } from "../../../shared/lib/names";
 import { errorMessage } from "../../../shared/lib/api";
 import { toast } from "../../../shared/lib/toast";
@@ -355,6 +355,31 @@ export default function HouseholdList() {
     }
   };
 
+  const handleDeleteHousehold = async (h: Household) => {
+    const memberCount = (h.residents ?? []).length;
+    const confirmed = await confirmAction({
+      title: `Delete Household ${h.household_number}?`,
+      text: memberCount > 0
+        ? `Are you sure you want to delete Household ${h.household_number}? All ${memberCount} resident member(s) will have their household number cleared.`
+        : `Are you sure you want to delete Household ${h.household_number}?`,
+      confirmText: "Yes, delete household",
+      danger: true,
+    });
+
+    if (!confirmed) return;
+
+    try {
+      const res = await populationApi.deleteHousehold(h.id);
+      toast(res.data?.message || `Household ${h.household_number} deleted successfully.`);
+      if (viewing?.id === h.id) {
+        setViewing(null);
+      }
+      load();
+    } catch (err) {
+      toast(errorMessage(err), "error");
+    }
+  };
+
   if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => load()} />;
 
   return (
@@ -428,6 +453,15 @@ export default function HouseholdList() {
                     className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-gray text-gray-500 transition-colors hover:border-primary hover:text-primary"
                   >
                     <FiEdit2 className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteHousehold(h)}
+                    title="Delete household"
+                    aria-label={`Delete household ${h.household_number}`}
+                    className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-gray text-gray-500 transition-colors hover:border-danger hover:bg-danger/10 hover:text-danger"
+                  >
+                    <FiTrash2 className="h-4 w-4" />
                   </button>
                 </span>
               ),

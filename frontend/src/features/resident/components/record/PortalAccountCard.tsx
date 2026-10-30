@@ -21,7 +21,7 @@ export function PortalAccountCard({ ctx, account, activated, resident }: {
   activated: boolean;
   resident: Resident;
 }) {
-  const { resendActivation, setAccountEmail, setAccountOpen, load } = ctx;
+  const { setAccountEmail, setAccountOpen, load } = ctx;
   const [toggling, setToggling] = useState(false);
 
   const age = ageFrom(resident.birthdate);
@@ -96,21 +96,9 @@ export function PortalAccountCard({ ctx, account, activated, resident }: {
             />
             {!activated && !isMinor && (
               <p className="rounded-xl bg-warning/10 px-4 py-2.5 text-xs leading-relaxed text-dark">
-                They have not signed in yet. A 6-digit code is emailed to them
-                the first time they try; resend it below if it did not arrive.
+                They have not signed in yet. A 6-digit code is emailed to them the first time they attempt to sign in.
               </p>
             )}
-            <div className="flex flex-wrap gap-2 pt-1">
-              {!activated && !isMinor && (
-                <button
-                  type="button"
-                  onClick={resendActivation}
-                  className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-gray px-5 py-2 text-sm font-semibold text-dark transition-colors hover:border-primary hover:text-primary"
-                >
-                  Resend activation code
-                </button>
-              )}
-            </div>
           </div>
         ) : isMinor ? (
           <div className="space-y-3">

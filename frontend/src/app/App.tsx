@@ -65,6 +65,9 @@ const CertificateList = lazyRoute(() => import("../features/service/pages/Certif
 const CertificateReport = lazyRoute(() => import("../features/service/pages/CertificateReport"));
 const LiveChat = lazyRoute(() => import("../features/chat/pages/LiveChat"));
 const Sessions = lazyRoute(() => import("../features/council/pages/Sessions"));
+const AppointmentsList = lazyRoute(() => import("../features/council/pages/AppointmentsList"));
+const AppointmentsCalendar = lazyRoute(() => import("../features/council/pages/AppointmentsCalendar"));
+const ResidentAppointments = lazyRoute(() => import("../features/portal/pages/ResidentAppointments"));
 
 // VAWC Office
 const VawcCasesList = lazyRoute(() => import("../features/vawc/pages/CaseList"));
@@ -218,6 +221,7 @@ export default function App() {
           <Route path="/resident" element={<Guarded residentOnly />}>
             <Route index element={<PortalDashboard />} />
             <Route path="requests" element={<PortalRequests />} />
+            <Route path="appointments" element={<ResidentAppointments />} />
             {/*
               The old certificates page, folded into requests.
 
@@ -321,9 +325,11 @@ export default function App() {
 
           {/* Appointments sit behind the front desk but not with the Clerk,
               whose remit is requests & certificates (mirrors deny_role:Clerk). */}
-          <Route element={<Guarded staffOnly allowedOffices={["Main Office"]} allowedRoles={["Punong Barangay", "Secretary", "Admin"]} deniedRoles={["Clerk"]} />}>
+          <Route element={<Guarded staffOnly allowedOffices={["Main Office", "Admin"]} allowedRoles={["Punong Barangay", "Secretary", "Admin"]} deniedRoles={["Clerk"]} />}>
             {/* The secretary's own record, which the PB reads and adopts. */}
             <Route path="/sessions" element={<Sessions />} />
+            <Route path="/appointments" element={<AppointmentsList />} />
+            <Route path="/appointments/calendar" element={<AppointmentsCalendar />} />
           </Route>
 
           {/*
@@ -443,9 +449,9 @@ export default function App() {
                 is still the only route onto the register. */}
             {/* The two lists the sidebar opens into; the bare address — on the
                 dashboard and in older links — lands on the one to work. */}
-            <Route path="/population/accounts" element={<Navigate to="/population/accounts/not-activated" replace />} />
-            <Route path="/population/accounts/not-activated" element={<ResidentAccounts key="pending" activation="pending" />} />
-            <Route path="/population/accounts/activated" element={<ResidentAccounts key="done" activation="done" />} />
+            <Route path="/population/accounts" element={<ResidentAccounts key="all" activation="all" />} />
+            <Route path="/population/accounts/not-activated" element={<Navigate to="/population/accounts" replace />} />
+            <Route path="/population/accounts/activated" element={<Navigate to="/population/accounts" replace />} />
           </Route>
 
           {/* Health Station — isolated */}

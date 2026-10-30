@@ -85,6 +85,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
             require __DIR__ . '/api/sessions.php';
+
+            require __DIR__ . '/api/appointments.php';
         });
 
         require __DIR__ . '/api/sk.php';

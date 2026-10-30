@@ -1,6 +1,4 @@
 import { useEffect, useState } from "react";
-import { errorMessage } from "../../../shared/lib/api";
-import { toast } from "../../../shared/lib/toast";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { usePulse } from "../../../shared/hooks/usePulse";
 import Card from "../../../shared/ui/Card";
@@ -20,7 +18,7 @@ import { ageFrom } from "../../../shared/lib/birthdate";
  * this is comes from the address, so each one can be opened, bookmarked and
  * lit in the sidebar on its own.
  */
-export default function ResidentAccounts({ activation }: { activation: "pending" | "done" }) {
+export default function ResidentAccounts({ activation = "all" }: { activation?: "pending" | "done" | "all" }) {
   const [rows, setRows] = useState<User[]>([]);
 
   const [search, setSearch] = useState("");
@@ -42,7 +40,7 @@ export default function ResidentAccounts({ activation }: { activation: "pending"
   const load = (silent = false) => {
     if (!silent) setLoading(true);
     populationApi.accounts({
-        params: { page, search: search || undefined, activation },
+        params: { page, search: search || undefined, activation: activation === "all" ? undefined : activation },
       })
       .then((r) => {
         setRows(r.data.data.data ?? []);
@@ -71,15 +69,7 @@ export default function ResidentAccounts({ activation }: { activation: "pending"
    */
   usePulse("users", () => load(true));
 
-  /** "I never got the email" — sends the resident a fresh activation code. */
-  const resend = async (user: User) => {
-    try {
-      const response = await populationApi.resendActivation(user.id);
-      toast(response.data.message);
-    } catch (err) {
-      toast(errorMessage(err), "error");
-    }
-  };
+
 
   if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => load()} />;
 
@@ -89,14 +79,9 @@ export default function ResidentAccounts({ activation }: { activation: "pending"
         crumbs={[
           { label: "Population Office" },
           { label: "Portal Accounts" },
-          { label: activation === "pending" ? "Not activated" : "Activated" },
         ]}
-        title={activation === "pending" ? "Portal Accounts — Not activated" : "Portal Accounts — Activated"}
-        subtitle={
-          activation === "pending"
-            ? "Issued, and waiting on the resident to enter the code emailed to them. Until they do, they cannot sign in."
-            : "Residents who have entered their code and can sign in to the portal."
-        }
+        title="Resident Portal Accounts"
+        subtitle="Manage resident portal accounts and email verification status." 
       />
 
       <Card>
@@ -179,27 +164,7 @@ export default function ResidentAccounts({ activation }: { activation: "pending"
                   </span>
                 ),
             },
-            {
-              header: "",
-              render: (u: User) => {
-                const age = ageFrom(u.resident?.birthdate);
-                const isMinor = age !== null && age < 18;
-                return (
-                  <div className="flex flex-wrap justify-end gap-1.5">
-                    {!u.activated_at && !isMinor && (
-                      <button
-                        type="button"
-                        onClick={() => resend(u)}
-                        className="cursor-pointer rounded-full border border-primary/40 px-3 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
-                        title="Email this resident a fresh 6-digit activation code"
-                      >
-                        Resend code
-                      </button>
-                    )}
-                  </div>
-                );
-              },
-            },
+
           ]}
           rows={rows}
           rowKey={(u) => u.id}

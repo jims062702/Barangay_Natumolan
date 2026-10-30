@@ -26,13 +26,13 @@ export interface SystemProcessStep {
 export interface CitizensCharterItem {
   id: string;
   number: string;
-  category: "Clearance" | "Certification" | "Lupon" | "VAWC" | "Resolution";
+  category: "Clearance" | "Certification" | "Lupon" | "VAWC" | "Resolution" | "CTC" | "Services";
   categoryLabel: string;
   title: string;
   description: string;
   office: string;
   classification: "Simple" | "Complex" | "Highly Technical";
-  typeOfTransaction: "G2C – Government to Citizen" | "G2C – Government to Client" | "G2B – Government to Business";
+  typeOfTransaction: "G2C – Government to Citizen" | "G2C – Government to Client" | "G2B – Government to Business" | "G2G – Government to Government" | "G2G / G2C – Government to Government / Citizen" | string;
   whoMayAvail: string;
   legalBasis: string;
   systemProcessFlow: SystemProcessStep[];
@@ -50,6 +50,8 @@ export const CITIZENS_CHARTER_CATEGORIES = [
   { key: "Lupon", label: "Katarungang Pambarangay (Lupon)" },
   { key: "VAWC", label: "Barangay Protection Order (VAWC)" },
   { key: "Resolution", label: "Barangay Resolution" },
+  { key: "CTC", label: "Community Tax Certificate (CTC)" },
+  { key: "Services", label: "Barangay Services & Requests" },
 ] as const;
 
 export const CITIZENS_CHARTERS: CitizensCharterItem[] = [
@@ -740,5 +742,371 @@ export const CITIZENS_CHARTERS: CitizensCharterItem[] = [
     ],
     totalFee: "None (Free of Charge)",
     totalTime: "37 days and 15 minutes",
+  },
+
+  // 08. Issuance of Community Tax Certificate
+  {
+    id: "08-community-tax-certificate",
+    number: "08",
+    category: "CTC",
+    categoryLabel: "Community Tax Certificate (CTC)",
+    title: "08. Issuance of Community Tax Certificate",
+    description:
+      "This service caters the request of the clients as proof of identification, verifying a person's tax and personal details for legal and administrative processes and is required for signing contracts, and applying for government permits and licenses.",
+    office: "Office of the Barangay",
+    classification: "Simple",
+    typeOfTransaction: "G2C – Government to Citizen",
+    whoMayAvail:
+      "1. Residents of the Philippines at least 18 years of age and above; 2. Employed individuals, self-employed individuals, or professionals",
+    legalBasis: "Republic Act No. 7160 (Local Government Code of 1991), Chapter 2, Section 156",
+    systemProcessFlow: [
+      {
+        step: "Step 1",
+        title: "Requirement Submission & Assessment",
+        description:
+          "Client submits previous CTC or government-issued valid ID. The Barangay Treasurer/Clerk assesses basic and additional community tax based on declared gross income/earnings.",
+      },
+      {
+        step: "Step 2",
+        title: "CTC Encoding & Receipt Issuance",
+        description:
+          "Official Community Tax Certificate details and tax computations are encoded into the system and official receipt is generated.",
+      },
+      {
+        step: "Step 3",
+        title: "Signing, Thumbmark & Document Release",
+        description:
+          "Client affixes signature and right thumbmark on the official CTC copy; document is signed and officially released.",
+      },
+    ],
+    requirements: [
+      {
+        requirement: "For clients with Previous CTC: Previous CTC (1 original or 1 photocopy)",
+        whereToSecure: "Client",
+      },
+      {
+        requirement:
+          "For clients without Previous CTC: Any issued valid ID to be presented as proof of identity and residency (1 original copy) (e.g. BIR, Postal ID, Voter's ID, Driver's License, GSIS, SSS, PhilHealth, National ID, School ID, Employee ID, Senior Citizen, PWD)",
+        whereToSecure: "Issuing Government Agency / School / Employer",
+      },
+    ],
+    steps: [
+      {
+        stepNumber: 1,
+        clientStep: "Submit the requirement",
+        agencyAction:
+          "1.1 Check and receive the requirement (2 mins); 1.2 Fill-up the CTC form based on information provided by the client (3 mins); 1.3 Compute the fees to be paid and advise client to pay (3 mins)",
+        fee: "Per R.A. 7160 Chapter 2, Section 156",
+        processingTime: "8 minutes",
+        personResponsible: "Barangay Treasurer / Barangay Clerk",
+      },
+      {
+        stepNumber: 2,
+        clientStep: "Pay the fees, sign and receive the CTC",
+        agencyAction: "Receive the payment and release the CTC",
+        fee: "None (Included in assessed tax)",
+        processingTime: "2 minutes",
+        personResponsible: "Barangay Treasurer / Barangay Clerk",
+      },
+      {
+        stepNumber: 3,
+        clientStep: "Accomplish the Customer Satisfaction Survey (CSS)",
+        agencyAction:
+          "Request client to accomplish the client satisfaction survey (CSS) and to be dropped in the Drop box for Feedback placed at the Barangay Hall",
+        fee: "None",
+        processingTime: "5 minutes",
+        personResponsible: "Barangay Treasurer / Barangay Clerk",
+      },
+    ],
+    totalFee: "Per R.A. 7160 Chapter 2, Section 156",
+    totalTime: "15 minutes",
+  },
+
+  // 09. Request for Repair and Maintenance of Streetlights (Minor Repair)
+  {
+    id: "09-repair-maintenance-streetlights",
+    number: "09",
+    category: "Services",
+    categoryLabel: "Barangay Services & Requests",
+    title: "09. Request for Repair and Maintenance of Streetlights (Minor Repair)",
+    description:
+      "This service includes minor repairs, such as replacing busted bulbs and starters, to cater to the client's request for repair and maintenance of community streetlights.",
+    office: "Office of the Barangay",
+    classification: "Simple",
+    typeOfTransaction: "G2C – Government to Citizen",
+    whoMayAvail: "Resident within the Barangay",
+    legalBasis: "Barangay Public Safety, Infrastructure Maintenance & Security Policies",
+    systemProcessFlow: [
+      {
+        step: "Step 1",
+        title: "Request Filing & Electrician Dispatch",
+        description:
+          "Resident submits the streetlight repair request. Secretary logs the request and notifies the Barangay Electrician for on-site inspection.",
+      },
+      {
+        step: "Step 2",
+        title: "On-Site Inspection & Minor Repair",
+        description:
+          "Barangay Electrician inspects the streetlight location and conducts minor repair or replaces busted bulbs and wires.",
+      },
+      {
+        step: "Step 3",
+        title: "Completion Acknowledgment & Feedback",
+        description:
+          "Electrician informs the resident and barangay of the completed repair; satisfaction survey is accomplished.",
+      },
+    ],
+    requirements: [
+      {
+        requirement: "Request Form (1 original copy)",
+        whereToSecure: "Client / Barangay Hall",
+      },
+    ],
+    steps: [
+      {
+        stepNumber: 1,
+        clientStep: "Submit accomplished request form to the Office of the Punong Barangay",
+        agencyAction:
+          "1.1 Check, receive and record the request (3 mins, Secretary); 1.2 Advise the barangay electrician to inspect the streetlights (2 mins, Secretary); 1.3 Inspect the streetlights (1 hour, Electrician); 1.4 Conduct the minor repair or replace the busted bulbs or wires (1 hour, Electrician)",
+        fee: "None",
+        processingTime: "2 hours & 5 minutes",
+        personResponsible: "Barangay Secretary, Barangay Electrician",
+      },
+      {
+        stepNumber: 2,
+        clientStep: "Acknowledge the completed request",
+        agencyAction: "Notify the client and acknowledge the completed request",
+        fee: "None",
+        processingTime: "30 minutes",
+        personResponsible: "Barangay Electrician",
+      },
+      {
+        stepNumber: 3,
+        clientStep: "Accomplish the Customer Satisfaction Survey (CSS)",
+        agencyAction:
+          "Request client to accomplish the Client Satisfaction Survey (CSS) and to be dropped in the Drop box for Feedback placed at the Barangay Hall",
+        fee: "None",
+        processingTime: "5 minutes",
+        personResponsible: "Barangay Electrician",
+      },
+    ],
+    totalFee: "None (Free of Charge)",
+    totalTime: "2 hours & 40 minutes",
+  },
+
+  // 10. Request for Travel Order
+  {
+    id: "10-request-travel-order",
+    number: "10",
+    category: "Services",
+    categoryLabel: "Barangay Services & Requests",
+    title: "10. Request for Travel Order",
+    description:
+      "This service issues travel orders to barangay officials, employees and volunteers for official business with budget allocation identifying the travel purpose which includes necessary financial information for budgetary and reimbursement purposes.",
+    office: "Office of the Barangay",
+    classification: "Simple",
+    typeOfTransaction: "G2G – Government to Government",
+    whoMayAvail: "Within Area of Responsibility (Barangay Officials, Employees, and Volunteers)",
+    legalBasis: "DILG & COA Guidelines on Official Travel & Local Governance Administration",
+    systemProcessFlow: [
+      {
+        step: "Step 1",
+        title: "Invitation / Memo Submission & Verification",
+        description:
+          "Requesting official/employee presents the written invitation or training memo. Secretary logs the official travel itinerary.",
+      },
+      {
+        step: "Step 2",
+        title: "Travel Order Encoding & Punong Barangay Approval",
+        description:
+          "Barangay Treasurer prepares the Travel Order with budget allocation details. Punong Barangay reviews and signs.",
+      },
+      {
+        step: "Step 3",
+        title: "Release of Official Travel Order",
+        description:
+          "Treasurer officially releases signed copies for travel and reimbursement records.",
+      },
+    ],
+    requirements: [
+      {
+        requirement: "Written Invitation or Memorandum (1 photocopy)",
+        whereToSecure: "Requesting Agency / Organizer / DILG",
+      },
+    ],
+    steps: [
+      {
+        stepNumber: 1,
+        clientStep: "Submit the invitation or memorandum",
+        agencyAction:
+          "1.1 Check, receive, and record the invitation or memorandum (5 mins, Secretary); 1.2 Prepare the Travel Order (10 mins, Treasurer); 1.3 Sign the Travel Order (5 mins, Punong Barangay)",
+        fee: "None",
+        processingTime: "20 minutes",
+        personResponsible: "Barangay Secretary, Barangay Treasurer, Punong Barangay",
+      },
+      {
+        stepNumber: 2,
+        clientStep: "Receive the Travel Order",
+        agencyAction: "Release the Travel Order",
+        fee: "None",
+        processingTime: "5 minutes",
+        personResponsible: "Barangay Treasurer",
+      },
+      {
+        stepNumber: 3,
+        clientStep: "Accomplish the Customer Satisfaction Survey (CSS)",
+        agencyAction:
+          "Request the client to accomplish the Customer Satisfaction Survey (CSS) and drop it in the Drop Box for Feedback",
+        fee: "None",
+        processingTime: "5 minutes",
+        personResponsible: "Barangay Treasurer",
+      },
+    ],
+    totalFee: "None (Free of Charge)",
+    totalTime: "30 minutes",
+  },
+
+  // 11. Issuance of Affidavit for Solo Parent
+  {
+    id: "11-affidavit-solo-parent",
+    number: "11",
+    category: "Certification",
+    categoryLabel: "Barangay Certification",
+    title: "11. Issuance of Affidavit for Solo Parent",
+    description:
+      "This service issues an affidavit for solo parents as one of the requirements for application of solo parent ID to be processed by the Municipal Social Welfare and Development Office (MSWDO).",
+    office: "Office of the Barangay",
+    classification: "Simple",
+    typeOfTransaction: "G2C – Government to Citizen",
+    whoMayAvail: "All Solo Parents within Area of Responsibility",
+    legalBasis: "Republic Act No. 8972 as amended by Republic Act No. 11861 (Expanded Solo Parents Welfare Act)",
+    systemProcessFlow: [
+      {
+        step: "Step 1",
+        title: "Interview & Population Register Verification",
+        description:
+          "Solo parent client undergoes interview with Barangay Secretary; family details and solo parent status are verified on the register.",
+      },
+      {
+        step: "Step 2",
+        title: "Affidavit Preparation & Executive Signature",
+        description:
+          "Barangay Secretary drafts the official Affidavit for Solo Parent; Punong Barangay signs the legal instrument.",
+      },
+      {
+        step: "Step 3",
+        title: "Official Seal & Releasing",
+        description:
+          "The document is sealed and released for submission to MSWDO for Solo Parent ID issuance.",
+      },
+    ],
+    requirements: [
+      {
+        requirement: "None (Interview and verification conducted at Barangay Hall)",
+        whereToSecure: "Barangay Hall",
+      },
+    ],
+    steps: [
+      {
+        stepNumber: 1,
+        clientStep: "Proceed to the Barangay Hall for interview and sign in the logbook",
+        agencyAction:
+          "1.1 Conduct the interview for solo parent affidavit (10 mins, Secretary); 1.2 Prepare the affidavit (5 mins, Secretary); 1.3 Sign the affidavit (5 mins, Punong Barangay)",
+        fee: "None",
+        processingTime: "20 minutes",
+        personResponsible: "Barangay Secretary, Punong Barangay",
+      },
+      {
+        stepNumber: 2,
+        clientStep: "Receive the Affidavit",
+        agencyAction: "Releasing of Affidavit",
+        fee: "None",
+        processingTime: "3 minutes",
+        personResponsible: "Barangay Secretary",
+      },
+      {
+        stepNumber: 3,
+        clientStep: "Accomplish the Customer Satisfaction Survey (CSS)",
+        agencyAction:
+          "Request client to accomplish the client satisfaction survey (CSS) and to be dropped in the Drop box for Feedback placed at the Barangay Hall",
+        fee: "None",
+        processingTime: "5 minutes",
+        personResponsible: "Barangay Secretary",
+      },
+    ],
+    totalFee: "None (Free of Charge)",
+    totalTime: "28 minutes",
+  },
+
+  // 12. Issuance of Certificate of Employment
+  {
+    id: "12-certificate-of-employment",
+    number: "12",
+    category: "Certification",
+    categoryLabel: "Barangay Certification",
+    title: "12. Issuance of Certificate of Employment",
+    description:
+      "This service issues the certificate of employment of all current and former Barangay employees seeking employment, reference, or proof of public service.",
+    office: "Office of the Barangay",
+    classification: "Simple",
+    typeOfTransaction: "G2G / G2C – Government to Government / Citizen",
+    whoMayAvail: "All Current and Former Barangay Employees",
+    legalBasis: "Civil Service Commission (CSC) Rules & Local Government Code (RA 7160)",
+    systemProcessFlow: [
+      {
+        step: "Step 1",
+        title: "Service Records Verification",
+        description:
+          "Applicant submits request; Secretary checks barangay personnel records, term of service, and designation history.",
+      },
+      {
+        step: "Step 2",
+        title: "Certificate Drafting & Executive Endorsement",
+        description:
+          "Certificate of Employment is generated; Punong Barangay or Sangguniang Barangay Member Officer of the Day signs the certificate.",
+      },
+      {
+        step: "Step 3",
+        title: "Seal & Document Releasing",
+        description:
+          "Official Barangay seal is affixed and certificate is handed over to the employee.",
+      },
+    ],
+    requirements: [
+      {
+        requirement: "Request Form (1 Original Copy)",
+        whereToSecure: "Barangay Hall",
+      },
+    ],
+    steps: [
+      {
+        stepNumber: 1,
+        clientStep: "Submit the request form",
+        agencyAction:
+          "1.1 Check, receive and record the request (3 mins, Secretary); 1.2 Prepare the Certificate of Employment (5 mins, Secretary); 1.3 Sign the certificate (5 mins, Punong Barangay or SB Member Officer of the Day)",
+        fee: "None",
+        processingTime: "13 minutes",
+        personResponsible: "Barangay Secretary, Punong Barangay / SB Member Officer of the Day",
+      },
+      {
+        stepNumber: 2,
+        clientStep: "Receive the Certificate of Employment",
+        agencyAction: "Release the Certificate of Employment",
+        fee: "None",
+        processingTime: "2 minutes",
+        personResponsible: "Barangay Secretary",
+      },
+      {
+        stepNumber: 3,
+        clientStep: "Accomplish the CSS",
+        agencyAction:
+          "Request client to accomplish the client satisfaction survey (CSS) and to be dropped in the Drop box for Feedback placed at the Barangay Hall",
+        fee: "None",
+        processingTime: "5 minutes",
+        personResponsible: "Barangay Secretary",
+      },
+    ],
+    totalFee: "None (Free of Charge)",
+    totalTime: "20 minutes",
   },
 ];

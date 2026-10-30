@@ -47,8 +47,27 @@ class NotificationController extends BaseController
     {
         $user = auth()->user();
 
-        return $user->isResident()
-            ? Notification::where('resident_id', $user->resident_id)
-            : Notification::where('user_id', $user->id);
+        if ($user->isResident()) {
+            return Notification::where('resident_id', $user->resident_id);
+        }
+
+        $query = Notification::where('user_id', $user->id);
+
+        if ($user->role === 'Secretary') {
+            // Secretary must not receive any certificate or clerk-related notifications
+            $query->whereNotIn('notification_type', [
+                'new_request',
+                'certificate_request',
+                'certificate_ready',
+                'certificate_approved',
+                'certificate_rejected',
+                'chat_waiting',
+            ])->where(function ($q) {
+                $q->whereNull('link')
+                  ->orWhere('link', 'not like', '%/certificates%');
+            });
+        }
+
+        return $query;
     }
 }

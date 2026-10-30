@@ -26,6 +26,7 @@ Route::get('officials', [LandingController::class, 'officials']);
 Route::get('stats', [LandingController::class, 'stats']);
 Route::get('verify/{referenceNumber}', [CertificateVerificationController::class, 'show']);
 Route::post('assistant/inquiry', [AssistantController::class, 'ask']);
+Route::post('appointments/book', [\App\Http\Controllers\Api\Public\PublicAppointmentController::class, 'store'])->middleware('throttle:30,1');
 
 /*
 | The chatbot's guest limit, counted here per internet address — not in the
