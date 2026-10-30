@@ -290,7 +290,8 @@ final class CertificateFiling
             'Certificate being prepared — ' . $certificate->certificate_number,
             'Your ' . $certificate->certificate_type . ' is being prepared. We will let you know as soon as it is ready to claim.',
             'certificate',
-            $certificate->id
+            $certificate->id,
+            '/resident/requests'
         );
 
         return [$certificate, 'Certificate filed and now being processed'];

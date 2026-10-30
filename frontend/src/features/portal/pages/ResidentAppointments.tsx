@@ -18,6 +18,8 @@ import { useAuth } from "../../../shared/auth/AuthContext";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { usePulse } from "../../../shared/hooks/usePulse";
 import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
+import PhoneInput from "../../../shared/ui/PhoneInput";
+import { localMobile, e164Mobile } from "../../../shared/lib/phone";
 import { residentAppointmentApi } from "../../council/appointmentApi";
 import type { Appointment } from "../../council/appointmentTypes";
 
@@ -29,15 +31,11 @@ export default function ResidentAppointments() {
 
   // Booking modal
   const [bookModalOpen, setBookModalOpen] = useState(false);
-  const [appointmentDate, setAppointmentDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().slice(0, 10);
-  });
-  const [appointmentTime, setAppointmentTime] = useState("09:00 AM");
+  const [appointmentDate, setAppointmentDate] = useState("");
+  const [appointmentTime, setAppointmentTime] = useState("");
   const [purpose, setPurpose] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState(user?.resident?.contact_number ?? "");
-  const [email, setEmail] = useState(user?.email ?? "");
+  const [phoneNumber, setPhoneNumber] = useState(() => user?.resident?.contact_number ?? "");
+  const [email, setEmail] = useState(() => (user?.email ?? "").slice(0, 50));
   const [submitting, setSubmitting] = useState(false);
 
   // Viewing modal
@@ -60,17 +58,24 @@ export default function ResidentAppointments() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!phoneNumber && user?.resident?.contact_number) {
+      setPhoneNumber(user.resident.contact_number);
+    }
+    if (!email && user?.email) {
+      setEmail((user.email ?? "").slice(0, 50));
+    }
+  }, [user]);
+
   useAutoRefresh(() => load(true), REFRESH.staff);
   usePulse("sessions", () => load(true));
 
   const handleOpenBook = () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    setAppointmentDate(d.toISOString().slice(0, 10));
-    setAppointmentTime("09:00 AM");
+    setAppointmentDate("");
+    setAppointmentTime("");
     setPurpose("");
     setPhoneNumber(user?.resident?.contact_number ?? "");
-    setEmail(user?.email ?? "");
+    setEmail((user?.email ?? "").slice(0, 50));
     setBookModalOpen(true);
   };
 
@@ -87,8 +92,21 @@ export default function ResidentAppointments() {
       toast("Please specify the purpose of your appointment.", "error");
       return;
     }
-    if (!phoneNumber.trim()) {
+    if (purpose.trim().length > 255) {
+      toast("Purpose must not exceed 255 characters.", "error");
+      return;
+    }
+    const phoneDigits = localMobile(phoneNumber);
+    if (!phoneDigits) {
       toast("Please provide an active contact phone number.", "error");
+      return;
+    }
+    if (phoneDigits.length !== 10) {
+      toast("Contact phone number must be exactly 10 digits after +63.", "error");
+      return;
+    }
+    if (email.trim().length > 50) {
+      toast("Email address must not exceed 50 characters.", "error");
       return;
     }
 
@@ -97,9 +115,9 @@ export default function ResidentAppointments() {
       const res = await residentAppointmentApi.book({
         appointment_date: appointmentDate,
         appointment_time: appointmentTime.trim(),
-        purpose: purpose.trim(),
-        phone_number: phoneNumber.trim(),
-        email: email.trim() || undefined,
+        purpose: purpose.trim().slice(0, 255),
+        phone_number: e164Mobile(phoneNumber),
+        email: email.trim().slice(0, 50) || undefined,
       });
       toast(res.data?.message || "Appointment request submitted successfully!");
       setBookModalOpen(false);
@@ -238,6 +256,7 @@ export default function ResidentAppointments() {
                   onChange={(e) => setAppointmentTime(e.target.value)}
                   className={inputClasses}
                 >
+                  <option value="">-- Select Preferred Time --</option>
                   <option value="08:30 AM">08:30 AM</option>
                   <option value="09:00 AM">09:00 AM</option>
                   <option value="09:30 AM">09:30 AM</option>
@@ -256,28 +275,35 @@ export default function ResidentAppointments() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <FormField label="Contact Phone Number">
-                <input
+                <PhoneInput
                   value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="09123456789"
-                  className={inputClasses}
+                  onChange={setPhoneNumber}
+                  placeholder="9XX XXX XXXX"
                 />
               </FormField>
-              <FormField label="Email Address (for Confirmation & Reminders)">
+              <FormField
+                label="Email Address (for Confirmation & Reminders)"
+                hint={`${50 - email.length} characters left (max 50)`}
+              >
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  maxLength={50}
+                  onChange={(e) => setEmail(e.target.value.slice(0, 50))}
                   placeholder="name@example.com"
                   className={inputClasses}
                 />
               </FormField>
             </div>
 
-            <FormField label="Purpose of Appointment (Pakay o Sadya)">
+            <FormField
+              label="Purpose of Appointment (Pakay o Sadya)"
+              hint={`${255 - purpose.length} characters left (max 255)`}
+            >
               <textarea
                 value={purpose}
-                onChange={(e) => setPurpose(e.target.value)}
+                maxLength={255}
+                onChange={(e) => setPurpose(e.target.value.slice(0, 255))}
                 placeholder="Ilarawan ang inyong pakay sa pakikipag-appointment…"
                 rows={4}
                 className={inputClasses}

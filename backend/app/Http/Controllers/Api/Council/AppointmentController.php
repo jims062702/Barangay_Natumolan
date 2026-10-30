@@ -105,10 +105,10 @@ class AppointmentController extends BaseController
             'full_name' => 'required|string|max:150',
             'address' => 'required|string|max:255',
             'phone_number' => 'required|string|max:25',
-            'email' => 'nullable|email|max:100',
+            'email' => 'nullable|email|max:50',
             'appointment_date' => 'required|date',
             'appointment_time' => 'required|string|max:20',
-            'purpose' => 'required|string|max:1000',
+            'purpose' => 'required|string|max:255',
             'status' => 'nullable|in:Pending,Approved',
             'minutes' => 'nullable|string',
         ]);

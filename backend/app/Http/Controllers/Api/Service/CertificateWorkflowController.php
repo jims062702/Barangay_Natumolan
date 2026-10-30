@@ -66,7 +66,8 @@ class CertificateWorkflowController extends BaseController
             'A barangay clerk has started preparing your ' . $certificate->certificate_type
                 . '. We will notify you once it is ready to claim.',
             'certificate',
-            $certificate->id
+            $certificate->id,
+            '/resident/requests'
         );
 
         return $this->success($certificate->load(Certificate::COUNTER_RELATIONS), 'Request accepted — now being processed');
@@ -115,7 +116,8 @@ class CertificateWorkflowController extends BaseController
             'Death Certification verified — ' . $certificate->certificate_number,
             'Your Certification of Death request for ' . $deceased->full_name . ' has been verified and confirmed. The certificate is now being prepared.',
             'certificate',
-            $certificate->id
+            $certificate->id,
+            '/resident/requests'
         );
 
         return $this->success($certificate->load(Certificate::COUNTER_RELATIONS), 'Death verified and confirmed — resident status updated to Deceased');
@@ -148,7 +150,8 @@ class CertificateWorkflowController extends BaseController
             'Certificate request rejected — ' . $certificate->certificate_number,
             'Your request for ' . $certificate->certificate_type . ' could not be processed. Reason: ' . $data['reason'],
             'certificate',
-            $certificate->id
+            $certificate->id,
+            '/resident/requests'
         );
 
         return $this->success($certificate->load(Certificate::COUNTER_RELATIONS), 'Request rejected. The resident has been notified.');

@@ -55,9 +55,9 @@ except Exception:
 print("  Streaming archive over SSH...")
 stdin, stdout, stderr = ssh.exec_command(f"cat > /root/{archive_name}")
 with open(archive_name, "rb") as f:
-    while chunk := f.read(32768):
+    while chunk := f.read(65536):
         stdin.write(chunk)
-stdin.close()
+stdin.channel.shutdown_write()
 status = stdout.channel.recv_exit_status()
 if status != 0:
     print(f"[X] Failed to upload archive. Remote stderr: {stderr.read().decode()}")

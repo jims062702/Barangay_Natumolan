@@ -58,7 +58,8 @@ final class CertificateWorkflow
                 . 'at the Barangay Main Office (Mon-Fri, 8:00 AM-5:00 PM). '
                 . 'Verification reference: ' . $certificate->reference_number,
             'certificate',
-            $certificate->id
+            $certificate->id,
+            '/resident/requests'
         );
     }
 
@@ -86,7 +87,8 @@ final class CertificateWorkflow
             'You have received your ' . $certificate->certificate_type . '. '
                 . 'Verification reference: ' . $certificate->reference_number,
             'certificate',
-            $certificate->id
+            $certificate->id,
+            '/resident/requests'
         );
     }
 

@@ -176,7 +176,8 @@ class ServiceRequestController extends BaseController
                 'Request ' . $serviceRequest->request_number . ' is now ' . $serviceRequest->status,
                 'Your ' . $serviceRequest->service_type . ' request status changed to "' . $serviceRequest->status . '".',
                 'service_request',
-                $serviceRequest->id
+                $serviceRequest->id,
+                '/resident/requests'
             );
         }
 

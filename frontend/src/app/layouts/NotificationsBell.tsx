@@ -5,11 +5,122 @@ import { useSoundMuted } from "../../shared/hooks/useSoundMuted";
 import { notificationPermission, ensureNotifyPermission, showDesktopNotification, notificationsSupported } from "../../shared/lib/desktopNotify";
 import { playNotificationSound } from "../../shared/lib/sound";
 import { useAutoRefresh, REFRESH } from "../../shared/hooks/useAutoRefresh";
+import { useAuth } from "../../shared/auth/AuthContext";
 import type { AppNotification } from "../../shared/types";
 import { accountApi } from "../../features/account/api";
 
+function resolveNotificationUrl(n: AppNotification, role?: string): string {
+  const isResident = role?.toLowerCase() === "resident";
+  const type = (n.notification_type ?? "").toLowerCase();
+  const entity = (n.related_entity_type ?? "").toLowerCase();
+  const sub = (n.subject ?? "").toLowerCase();
+  const msg = (n.message ?? "").toLowerCase();
+  const combined = `${type} ${entity} ${sub} ${msg}`;
+
+  // If a link is provided in notification
+  if (n.link && n.link.trim() !== "") {
+    const rawLink = n.link.trim();
+    if (isResident) {
+      if (rawLink.startsWith("/services") || rawLink.startsWith("/certificates")) {
+        return "/resident/requests";
+      }
+      if (rawLink.startsWith("/appointments")) {
+        return "/resident/appointments";
+      }
+      if (rawLink.startsWith("/lupon")) {
+        return "/resident/lupon/complaints";
+      }
+      if (rawLink.startsWith("/vawc")) {
+        return "/resident/vawc/reports";
+      }
+      if (rawLink.startsWith("/content/announcements") || rawLink.startsWith("/sk/announcements")) {
+        return "/resident/announcements";
+      }
+      return rawLink;
+    }
+    // For staff (clerk, secretary, PB, admin, etc.)
+    if (rawLink.startsWith("/resident/requests")) {
+      return "/services";
+    }
+    if (rawLink.startsWith("/resident/appointments")) {
+      return "/appointments";
+    }
+    if (rawLink.startsWith("/resident/announcements")) {
+      return "/content/announcements";
+    }
+    return rawLink;
+  }
+
+  // Fallbacks based on notification type, entity, and text
+  if (
+    combined.includes("cert") ||
+    combined.includes("clearance") ||
+    combined.includes("indigency") ||
+    combined.includes("residency") ||
+    combined.includes("request") ||
+    combined.includes("claim") ||
+    combined.includes("document")
+  ) {
+    return isResident ? "/resident/requests" : "/services";
+  }
+
+  if (
+    combined.includes("appointment") ||
+    combined.includes("booking") ||
+    combined.includes("punong barangay")
+  ) {
+    return isResident ? "/resident/appointments" : "/appointments";
+  }
+
+  if (
+    combined.includes("announcement") ||
+    combined.includes("news") ||
+    combined.includes("event") ||
+    combined.includes("advisory") ||
+    combined.includes("program")
+  ) {
+    return isResident ? "/resident/announcements" : "/content/announcements";
+  }
+
+  if (
+    combined.includes("complaint") ||
+    combined.includes("lupon") ||
+    combined.includes("hearing") ||
+    combined.includes("amicable") ||
+    combined.includes("summon")
+  ) {
+    return isResident ? "/resident/lupon/complaints" : "/lupon/complaints";
+  }
+
+  if (
+    combined.includes("vawc") ||
+    combined.includes("protection order") ||
+    combined.includes("bpo")
+  ) {
+    return isResident ? "/resident/vawc/reports" : "/vawc/online-reports";
+  }
+
+  if (
+    combined.includes("health") ||
+    combined.includes("immuniz") ||
+    combined.includes("vaccin") ||
+    combined.includes("prenatal") ||
+    combined.includes("maternal") ||
+    combined.includes("patient")
+  ) {
+    return isResident ? "/resident/health" : "/health/visits";
+  }
+
+  if (combined.includes("chat")) {
+    return isResident ? "/resident" : (n.related_entity_id ? `/chat?id=${n.related_entity_id}` : "/chat");
+  }
+
+  return isResident ? "/resident" : "/dashboard";
+}
+
 export function NotificationsBell() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   const [items, setItems] = useState<AppNotification[]>([]);
@@ -79,31 +190,9 @@ export function NotificationsBell() {
       accountApi.markNotificationRead(n.id).catch(() => undefined);
     }
 
-    let targetLink = n.link;
-    if (!targetLink) {
-      const type = n.notification_type ?? "";
-      const entity = n.related_entity_type ?? "";
-      const sub = (n.subject ?? "").toLowerCase();
-
-      if (type === "chat_waiting" || entity === "chat" || sub.includes("live chat")) {
-        targetLink = n.related_entity_id ? `/chat?id=${n.related_entity_id}` : "/chat";
-      } else if (
-        type === "new_request" ||
-        entity === "certificate" ||
-        entity === "service_request" ||
-        sub.includes("request") ||
-        sub.includes("certificate")
-      ) {
-        targetLink = "/services";
-      } else if (type === "online_complaint" || entity === "complaint" || sub.includes("complaint")) {
-        targetLink = "/lupon/complaints";
-      } else if (type === "vawc_online_report" || entity === "vawc" || sub.includes("vawc")) {
-        targetLink = "/vawc/online-reports";
-      }
-    }
-
+    const targetLink = resolveNotificationUrl(n, user?.role);
+    setOpen(false);
     if (targetLink) {
-      setOpen(false);
       navigate(targetLink);
     }
   };
@@ -192,17 +281,23 @@ export function NotificationsBell() {
                 key={n.id}
                 type="button"
                 onClick={() => openNotice(n)}
-                className={`flex w-full items-start gap-2 border-b border-gray/60 px-4 py-3 text-left transition-colors ${
+                className={`group flex w-full cursor-pointer items-start gap-2 border-b border-gray/60 px-4 py-3 text-left transition-colors hover:bg-primary/10 ${
                   n.is_read ? "" : "bg-primary/5"
-                } ${n.link ? "cursor-pointer hover:bg-primary/10" : "cursor-default"}`}
+                }`}
               >
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium text-dark">{n.subject}</span>
+                  <span className="block text-sm font-medium text-dark group-hover:text-primary transition-colors">
+                    {n.subject}
+                  </span>
                   {/* In full: the hearing date is often the last words. */}
-                  <span className="mt-0.5 block text-xs text-gray-500">{n.message}</span>
+                  <span className="mt-0.5 block text-xs text-gray-500">
+                    {n.message}
+                  </span>
                 </span>
-                {/* Only a notice that leads somewhere looks like it does. */}
-                {n.link && <FiChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" aria-hidden="true" />}
+                <FiChevronRight
+                  className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 group-hover:text-primary transition-colors"
+                  aria-hidden="true"
+                />
               </button>
             ))}
           </div>

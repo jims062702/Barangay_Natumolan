@@ -149,9 +149,7 @@ export function RequestTable({ ctx }: { ctx: PortalRequestsState }) {
                         <FiXCircle className="h-3.5 w-3.5" aria-hidden="true" />
                         {waiting ? "Cancelling…" : "Cancel"}
                       </button>
-                    ) : (
-                      <span className="text-xs text-gray-400">In Progress</span>
-                    )}
+                    ) : null}
                   </div>
                 );
               },

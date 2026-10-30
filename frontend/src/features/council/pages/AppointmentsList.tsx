@@ -30,6 +30,8 @@ import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
 import { appointmentApi } from "../appointmentApi";
 import type { Appointment } from "../appointmentTypes";
 import ResidentPicker from "../../resident/components/ResidentPicker";
+import PhoneInput from "../../../shared/ui/PhoneInput";
+import { localMobile, e164Mobile } from "../../../shared/lib/phone";
 import type { Resident } from "../../../shared/types";
 
 const TABS = ["All", "Pending", "Approved", "Completed", "Rejected"] as const;
@@ -59,8 +61,8 @@ export default function AppointmentsList() {
   const [address, setAddress] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [email, setEmail] = useState("");
-  const [appointmentDate, setAppointmentDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [appointmentTime, setAppointmentTime] = useState("09:00 AM");
+  const [appointmentDate, setAppointmentDate] = useState("");
+  const [appointmentTime, setAppointmentTime] = useState("");
   const [purpose, setPurpose] = useState("");
   const [initialMinutes, setInitialMinutes] = useState("");
   const [savingWalkIn, setSavingWalkIn] = useState(false);
@@ -116,8 +118,8 @@ export default function AppointmentsList() {
     setAddress("");
     setPhoneNumber("");
     setEmail("");
-    setAppointmentDate(new Date().toISOString().slice(0, 10));
-    setAppointmentTime("09:00 AM");
+    setAppointmentDate("");
+    setAppointmentTime("");
     setPurpose("");
     setInitialMinutes("");
     setCreateModalOpen(true);
@@ -129,7 +131,7 @@ export default function AppointmentsList() {
       setFullName(`${res.first_name} ${res.middle_name ? res.middle_name + " " : ""}${res.last_name}${res.suffix ? " " + res.suffix : ""}`);
       setAddress(res.address ? `${res.address}, ${res.zone_purok ?? ""}` : (res.zone_purok ?? "Barangay Natumolan"));
       setPhoneNumber(res.contact_number ?? "");
-      setEmail(res.email ?? "");
+      setEmail((res.email ?? "").slice(0, 50));
     }
   };
 
@@ -146,8 +148,13 @@ export default function AppointmentsList() {
       toast("Please enter the address.", "error");
       return;
     }
-    if (!phoneNumber.trim()) {
+    const phoneDigits = localMobile(phoneNumber);
+    if (!phoneDigits) {
       toast("Please enter a phone number.", "error");
+      return;
+    }
+    if (phoneDigits.length !== 10) {
+      toast("Phone number must be exactly 10 digits after +63.", "error");
       return;
     }
     if (!appointmentDate) {
@@ -162,6 +169,14 @@ export default function AppointmentsList() {
       toast("Please state the purpose of the appointment.", "error");
       return;
     }
+    if (purpose.trim().length > 255) {
+      toast("Purpose must not exceed 255 characters.", "error");
+      return;
+    }
+    if (email.trim().length > 50) {
+      toast("Email address must not exceed 50 characters.", "error");
+      return;
+    }
 
     setSavingWalkIn(true);
     try {
@@ -170,11 +185,11 @@ export default function AppointmentsList() {
         resident_id: selectedResident?.id ?? null,
         full_name: fullName.trim(),
         address: address.trim(),
-        phone_number: phoneNumber.trim(),
-        email: email.trim() || null,
+        phone_number: e164Mobile(phoneNumber),
+        email: email.trim().slice(0, 50) || null,
         appointment_date: appointmentDate,
         appointment_time: appointmentTime.trim(),
-        purpose: purpose.trim(),
+        purpose: purpose.trim().slice(0, 255),
         status: "Approved",
         minutes: initialMinutes.trim() || null,
       });
@@ -652,21 +667,24 @@ export default function AppointmentsList() {
                 />
               </FormField>
               <FormField label="Contact Phone Number">
-                <input
+                <PhoneInput
                   value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="09123456789"
-                  className={inputClasses}
+                  onChange={setPhoneNumber}
+                  placeholder="9XX XXX XXXX"
                 />
               </FormField>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FormField label="Email Address" hint={applicantType === "Non-resident" ? "Non-resident will receive approval email" : "Optional"}>
+              <FormField
+                label="Email Address"
+                hint={applicantType === "Non-resident" ? `${50 - email.length} chars left (receives approval email)` : `${50 - email.length} chars left (max 50)`}
+              >
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  maxLength={50}
+                  onChange={(e) => setEmail(e.target.value.slice(0, 50))}
                   placeholder="email@example.com"
                   className={inputClasses}
                 />
@@ -686,24 +704,42 @@ export default function AppointmentsList() {
                 <input
                   type="date"
                   value={appointmentDate}
+                  min={new Date().toISOString().slice(0, 10)}
                   onChange={(e) => setAppointmentDate(e.target.value)}
                   className={inputClasses}
                 />
               </FormField>
-              <FormField label="Appointment Time" hint="Halimbawa: 09:30 AM">
-                <input
+              <FormField label="Appointment Time">
+                <select
                   value={appointmentTime}
                   onChange={(e) => setAppointmentTime(e.target.value)}
-                  placeholder="09:30 AM"
                   className={inputClasses}
-                />
+                >
+                  <option value="">-- Select Preferred Time --</option>
+                  <option value="08:30 AM">08:30 AM</option>
+                  <option value="09:00 AM">09:00 AM</option>
+                  <option value="09:30 AM">09:30 AM</option>
+                  <option value="10:00 AM">10:00 AM</option>
+                  <option value="10:30 AM">10:30 AM</option>
+                  <option value="11:00 AM">11:00 AM</option>
+                  <option value="01:30 PM">01:30 PM</option>
+                  <option value="02:00 PM">02:00 PM</option>
+                  <option value="02:30 PM">02:30 PM</option>
+                  <option value="03:00 PM">03:00 PM</option>
+                  <option value="03:30 PM">03:30 PM</option>
+                  <option value="04:00 PM">04:00 PM</option>
+                </select>
               </FormField>
             </div>
 
-            <FormField label="Purpose of Appointment">
+            <FormField
+              label="Purpose of Appointment"
+              hint={`${255 - purpose.length} characters left (max 255)`}
+            >
               <textarea
                 value={purpose}
-                onChange={(e) => setPurpose(e.target.value)}
+                maxLength={255}
+                onChange={(e) => setPurpose(e.target.value.slice(0, 255))}
                 placeholder="State the purpose of this appointment or meeting…"
                 rows={3}
                 className={inputClasses}

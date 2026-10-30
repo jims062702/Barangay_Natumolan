@@ -42,9 +42,9 @@ class ResidentAppointmentController extends BaseController
         $validated = $request->validate([
             'appointment_date' => 'required|date|after_or_equal:today',
             'appointment_time' => 'required|string|max:20',
-            'purpose' => 'required|string|max:1000',
+            'purpose' => 'required|string|max:255',
             'phone_number' => 'nullable|string|max:25',
-            'email' => 'nullable|email|max:100',
+            'email' => 'nullable|email|max:50',
             'id_card_code' => 'nullable|string|max:32',
         ]);
 
