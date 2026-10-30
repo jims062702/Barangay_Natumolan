@@ -12,7 +12,6 @@ import {
   FiLayers,
   FiInfo,
 } from "react-icons/fi";
-import BookAppointmentModal from "../components/BookAppointmentModal";
 import SectionTitle from "../components/SectionTitle";
 import Reveal from "../../../shared/ui/Reveal";
 import { useAuth } from "../../../shared/auth/AuthContext";
@@ -27,7 +26,6 @@ export default function CitizensCharter() {
 
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [openIds, setOpenIds] = useState<Set<string>>(new Set());
-  const [appointmentModalOpen, setAppointmentModalOpen] = useState(false);
 
   const toggleCharter = (id: string) => {
     setOpenIds((prev) => {
@@ -187,13 +185,13 @@ export default function CitizensCharter() {
         };
       case "09-repair-maintenance-streetlights":
         return {
-          url: "#charter",
-          label: "Book Streetlight Repair Appointment",
+          url: "/#contact",
+          label: "Contact Barangay Electrician / Maintenance",
         };
       case "10-request-travel-order":
         return {
           url: "/#contact",
-          label: "Submit Travel Order Memo",
+          label: "Inquire with Barangay Office",
         };
       case "11-affidavit-solo-parent":
         return {
@@ -317,7 +315,7 @@ export default function CitizensCharter() {
           {/* Toggle All controls */}
           <div className="mb-6 flex items-center justify-between text-xs text-gray-500">
             <span>
-              Showing: <strong className="text-dark">{filteredCharters.length}</strong> of 7 Citizen's Charters
+              Showing: <strong className="text-dark">{filteredCharters.length}</strong> of {CITIZENS_CHARTERS.length} Citizen's Charters
             </span>
             <div className="flex items-center gap-3">
               <button
@@ -344,6 +342,7 @@ export default function CitizensCharter() {
           {filteredCharters.map((charter) => {
             const isOpen = openIds.has(charter.id);
             const action = getActionForCharter(charter.id);
+            const cleanTitle = charter.title.replace(/^\d+[\.\s\-]+/, "");
 
             return (
               <Reveal key={charter.id} delay={0.02}>
@@ -378,7 +377,7 @@ export default function CitizensCharter() {
                           </span>
                         </div>
                         <h3 className="mt-1 text-base font-bold text-dark sm:text-lg">
-                          {charter.number}. {charter.title}
+                          {charter.number}. {cleanTitle}
                         </h3>
                       </div>
                     </div>
@@ -591,7 +590,6 @@ export default function CitizensCharter() {
           })}
         </div>
       </div>
-          <BookAppointmentModal open={appointmentModalOpen} onClose={() => setAppointmentModalOpen(false)} />
     </section>
   );
 }

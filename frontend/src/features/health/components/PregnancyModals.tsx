@@ -179,7 +179,9 @@ export function PregnancyFormModal({
               value={form.mother}
               onChange={(r) => set({ mother: r })}
               gender="Female"
-              placeholder="Search a Female Resident by Name or Resident Number…"
+              minAge={5}
+              maxAge={51}
+              placeholder="Search a Female Resident (5 to below 51 yrs) by Name or Resident Number…"
               notFound={NOT_ON_REGISTER}
             />
           </FormField>

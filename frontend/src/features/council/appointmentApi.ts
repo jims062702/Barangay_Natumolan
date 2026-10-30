@@ -19,3 +19,4 @@ export const residentAppointmentApi = {
 export const publicAppointmentApi = {
   book: (...args: BodyArgs) => api.post("/appointments/book", ...args),
 };
+

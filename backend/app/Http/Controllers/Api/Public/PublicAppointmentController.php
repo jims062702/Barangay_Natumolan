@@ -78,3 +78,4 @@ class PublicAppointmentController extends BaseController
         ], "Your appointment request {$appointment->appointment_number} has been submitted to the Barangay Secretary.");
     }
 }
+

@@ -1,5 +1,14 @@
 import { useEffect, useState } from "react";
-import { FiActivity, FiLock } from "react-icons/fi";
+import {
+  FiActivity,
+  FiCalendar,
+  FiHeart,
+  FiLock,
+  FiShield,
+  FiSmile,
+  FiUser,
+} from "react-icons/fi";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import Card from "../../../shared/ui/Card";
 import DataTable from "../../../shared/ui/DataTable";
 import PageHeader from "../../../shared/ui/PageHeader";
@@ -7,6 +16,7 @@ import StatusBadge from "../../../shared/ui/StatusBadge";
 import { RowsSkeleton } from "../../../shared/ui/Skeleton";
 import { portalApi } from "../api";
 import { PageLoading, usePageLoad } from "../../../shared/ui/PageLoad";
+import { useAuth } from "../../../shared/auth/AuthContext";
 
 /**
  * A resident's own health record, as a copy they can read.
@@ -64,17 +74,57 @@ interface PortalChildRecord {
   vitamin_services_received?: boolean;
 }
 
-export default function HealthRecords() {
+interface PortalPrenatalRecord {
+  id: number;
+  visit_date?: string | null;
+  months_of_pregnancy?: string | null;
+  blood_pressure?: string | null;
+  weight_kg?: string | null;
+  height_cm?: string | null;
+  lmp?: string | null;
+  edc?: string | null;
+  complaint?: string | null;
+}
+
+export default function HealthRecords({
+  tab,
+}: {
+  tab?: "visits" | "immunization" | "child-health" | "maternal" | "prenatal";
+}) {
+  const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isMale = (user?.resident?.gender || "").toLowerCase() === "male";
+
   const [visits, setVisits] = useState<PortalVisit[]>([]);
   const [shots, setShots] = useState<PortalImmunization[]>([]);
   const [maternalRecords, setMaternalRecords] = useState<PortalMaternalRecord[]>([]);
   const [childRecords, setChildRecords] = useState<PortalChildRecord[]>([]);
+  const [prenatalRecords, setPrenatalRecords] = useState<PortalPrenatalRecord[]>([]);
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
-  /* Its skeleton until the first answer — see PageLoad. */
   const pageLoad = usePageLoad();
-  /* Bumped by "Try again": the load is an effect, so this re-runs it. */
   const [attempt, setAttempt] = useState(0);
+
+  // Determine active tab from prop or URL
+  const resolvedTab = tab || (() => {
+    const path = location.pathname;
+    if (path.includes("immunization")) return "immunization";
+    if (path.includes("child-health")) return "child-health";
+    if (path.includes("maternal")) return "maternal";
+    if (path.includes("prenatal")) return "prenatal";
+    return "visits";
+  })();
+
+  const currentTab = isMale && ["child-health", "maternal", "prenatal"].includes(resolvedTab)
+    ? "visits"
+    : resolvedTab;
+
+  useEffect(() => {
+    if (isMale && ["child-health", "maternal", "prenatal"].includes(resolvedTab)) {
+      navigate("/resident/health/visits", { replace: true });
+    }
+  }, [isMale, resolvedTab, navigate]);
 
   useEffect(() => {
     portalApi.health()
@@ -83,6 +133,7 @@ export default function HealthRecords() {
         setShots(r.data.data.immunizations ?? []);
         setMaternalRecords(r.data.data.maternal_records ?? []);
         setChildRecords(r.data.data.child_records ?? []);
+        setPrenatalRecords(r.data.data.prenatal_records ?? []);
         setNote(r.data.data.note ?? "");
       })
       .then(() => pageLoad.done(), (error) => { pageLoad.fail(error); throw error; })
@@ -92,6 +143,18 @@ export default function HealthRecords() {
 
   if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => setAttempt((n) => n + 1)} />;
 
+  const tabs = [
+    { id: "visits", label: "Patient Visit", to: "/resident/health/visits", icon: FiHeart },
+    { id: "immunization", label: "Immunization", to: "/resident/health/immunization", icon: FiShield },
+    ...(!isMale
+      ? [
+          { id: "child-health", label: "Child Health & Nutrition", to: "/resident/health/child-health", icon: FiSmile },
+          { id: "maternal", label: "Maternal Health", to: "/resident/health/maternal", icon: FiUser },
+          { id: "prenatal", label: "Prenatal Records", to: "/resident/health/prenatal", icon: FiCalendar },
+        ]
+      : []),
+  ];
+
   return (
     <div>
       <PageHeader
@@ -99,15 +162,33 @@ export default function HealthRecords() {
         subtitle="What the Barangay Health Station holds for you."
       />
 
-      {/*
-        Said once, at the top, before anything is read — not as a
-        disappointment discovered after looking for an edit button.
-      */}
       <div className="mb-6 flex items-start gap-3 rounded-2xl border border-gray bg-secondary/60 px-4 py-3 text-sm leading-relaxed text-gray-600">
         <FiLock aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
         <span>
           {note || "This is a copy of your record. It is changed at the health station, not here."}
         </span>
+      </div>
+
+      {/* Tabs navigation */}
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        {tabs.map((t) => {
+          const isActive = currentTab === t.id;
+          const Icon = t.icon;
+          return (
+            <Link
+              key={t.id}
+              to={t.to}
+              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition-all sm:text-sm ${
+                isActive
+                  ? "bg-primary text-white shadow-xs ring-2 ring-primary/30"
+                  : "border border-gray bg-white text-dark hover:border-primary/40 hover:bg-primary/5"
+              }`}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              <span>{t.label}</span>
+            </Link>
+          );
+        })}
       </div>
 
       {loading ? (
@@ -116,8 +197,167 @@ export default function HealthRecords() {
         </Card>
       ) : (
         <div className="space-y-6">
-          {maternalRecords.length > 0 && (
-            <Card title="Maternal Health & Pregnancy">
+          {/* Patient Visits */}
+          {currentTab === "visits" && (
+            <Card title="Patient Visits & Consultations">
+              <DataTable
+                columns={[
+                  {
+                    header: "Date",
+                    render: (v: PortalVisit) => (
+                      <span className="whitespace-nowrap font-medium text-dark">
+                        {v.visit_date
+                          ? new Date(v.visit_date).toLocaleDateString("en-PH")
+                          : "—"}
+                        {v.visit_time && (
+                          <span className="block text-xs font-normal text-gray-500">
+                            {v.visit_time.slice(0, 5)}
+                          </span>
+                        )}
+                      </span>
+                    ),
+                  },
+                  { header: "Reason", render: (v: PortalVisit) => v.visit_reason },
+                  {
+                    header: "Readings",
+                    render: (v: PortalVisit) => {
+                      const taken = [
+                        v.blood_pressure && `BP ${v.blood_pressure}`,
+                        v.temperature && `${v.temperature}°C`,
+                        v.heart_rate && `Pulse ${v.heart_rate}`,
+                        v.respiratory_rate && `RR ${v.respiratory_rate}`,
+                        v.oxygen_saturation && `O₂ ${v.oxygen_saturation}%`,
+                        v.height_cm && `${v.height_cm} cm`,
+                        v.weight_kg && `${v.weight_kg} kg`,
+                      ].filter(Boolean);
+
+                      return taken.length ? (
+                        <span className="text-xs text-gray-600">{taken.join(" · ")}</span>
+                      ) : (
+                        <span className="text-xs text-gray-400">None recorded</span>
+                      );
+                    },
+                  },
+                  {
+                    header: "Advice / Plan",
+                    render: (v: PortalVisit) => (
+                      <span className="text-xs text-gray-600">{v.treatment_advice || "—"}</span>
+                    ),
+                  },
+                  {
+                    header: "Come back",
+                    render: (v: PortalVisit) =>
+                      v.followup_schedule ? (
+                        <span className="whitespace-nowrap text-xs font-semibold text-primary">
+                          {new Date(v.followup_schedule).toLocaleDateString("en-PH")}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      ),
+                  },
+                ]}
+                rows={visits}
+                rowKey={(v: PortalVisit) => `${v.visit_date ?? ""}-${v.visit_time ?? ""}-${v.visit_reason}`}
+                emptyMessage="The station has no consultation on record for you."
+              />
+            </Card>
+          )}
+
+          {/* Immunization */}
+          {currentTab === "immunization" && (
+            <Card title="Immunizations">
+              <DataTable
+                columns={[
+                  ...(shots.some((i) => i.child_name)
+                    ? [
+                        {
+                          header: "Person",
+                          render: (i: PortalImmunization) => (
+                            <span className="text-xs font-medium text-dark">
+                              {i.child_name || "Self"}
+                            </span>
+                          ),
+                        },
+                      ]
+                    : []),
+                  {
+                    header: "Vaccine",
+                    render: (i: PortalImmunization) => (
+                      <span className="font-medium text-dark">{i.vaccine_name}</span>
+                    ),
+                  },
+                  {
+                    header: "Given",
+                    render: (i: PortalImmunization) => (
+                      <span className="whitespace-nowrap">
+                        {i.vaccination_date
+                          ? new Date(i.vaccination_date).toLocaleDateString("en-PH")
+                          : "—"}
+                      </span>
+                    ),
+                  },
+                  {
+                    header: "Status",
+                    render: (i: PortalImmunization) => <StatusBadge status={i.status} />,
+                  },
+                ]}
+                rows={shots}
+                rowKey={(i: PortalImmunization) => `${i.child_name ?? ""}-${i.vaccine_name}-${i.vaccination_date ?? ""}`}
+                emptyMessage="No immunization is on record for you."
+              />
+            </Card>
+          )}
+
+          {/* Child Health & Nutrition */}
+          {!isMale && currentTab === "child-health" && (
+            <Card title="Child Health & Growth Monitoring">
+              <DataTable
+                columns={[
+                  {
+                    header: "Date",
+                    render: (c: PortalChildRecord) => (
+                      <span className="whitespace-nowrap font-medium text-dark">
+                        {c.record_date ? new Date(c.record_date).toLocaleDateString("en-PH") : "—"}
+                      </span>
+                    ),
+                  },
+                  {
+                    header: "Weight & Height",
+                    render: (c: PortalChildRecord) => (
+                      <span className="text-xs text-gray-600">
+                        {[c.current_weight && `${c.current_weight} kg`, c.current_height && `${c.current_height} cm`].filter(Boolean).join(" · ") || "—"}
+                      </span>
+                    ),
+                  },
+                  {
+                    header: "Nutritional Status",
+                    render: (c: PortalChildRecord) => (
+                      <span className="text-xs font-medium text-dark">{c.nutritional_status || "—"}</span>
+                    ),
+                  },
+                  {
+                    header: "Immunization",
+                    render: (c: PortalChildRecord) => (
+                      <span className="text-xs text-gray-600">{c.fully_immunized_status || "—"}</span>
+                    ),
+                  },
+                  {
+                    header: "Breastfeeding",
+                    render: (c: PortalChildRecord) => (
+                      <span className="text-xs text-gray-600">{c.breastfeeding_status || "—"}</span>
+                    ),
+                  },
+                ]}
+                rows={childRecords}
+                rowKey={(c) => `child-${c.id}`}
+                emptyMessage="No child health record found."
+              />
+            </Card>
+          )}
+
+          {/* Maternal Health */}
+          {!isMale && currentTab === "maternal" && (
+            <Card title="Maternal Health & Pregnancy Records">
               <DataTable
                 columns={[
                   {
@@ -176,163 +416,73 @@ export default function HealthRecords() {
             </Card>
           )}
 
-          {childRecords.length > 0 && (
-            <Card title="Child Health & Growth Monitoring">
+          {/* Prenatal Records */}
+          {!isMale && currentTab === "prenatal" && (
+            <Card title="Prenatal Records & Checkups">
               <DataTable
                 columns={[
                   {
                     header: "Date",
-                    render: (c: PortalChildRecord) => (
+                    render: (p: PortalPrenatalRecord) => (
                       <span className="whitespace-nowrap font-medium text-dark">
-                        {c.record_date ? new Date(c.record_date).toLocaleDateString("en-PH") : "—"}
+                        {p.visit_date ? new Date(p.visit_date).toLocaleDateString("en-PH") : "—"}
                       </span>
                     ),
                   },
                   {
-                    header: "Weight & Height",
-                    render: (c: PortalChildRecord) => (
+                    header: "Pregnancy Stage",
+                    render: (p: PortalPrenatalRecord) => (
+                      <span className="text-xs font-medium text-primary">
+                        {p.months_of_pregnancy || "—"}
+                      </span>
+                    ),
+                  },
+                  {
+                    header: "Vitals & Measurements",
+                    render: (p: PortalPrenatalRecord) => {
+                      const vitals = [
+                        p.blood_pressure && `BP ${p.blood_pressure}`,
+                        p.weight_kg && `${p.weight_kg} kg`,
+                        p.height_cm && `${p.height_cm} cm`,
+                      ].filter(Boolean);
+                      return (
+                        <span className="text-xs text-gray-700 font-medium">
+                          {vitals.length ? vitals.join(" · ") : "—"}
+                        </span>
+                      );
+                    },
+                  },
+                  {
+                    header: "LMP",
+                    render: (p: PortalPrenatalRecord) => (
+                      <span className="whitespace-nowrap text-xs text-gray-600">
+                        {p.lmp ? new Date(p.lmp).toLocaleDateString("en-PH") : "—"}
+                      </span>
+                    ),
+                  },
+                  {
+                    header: "Expected Delivery (EDC)",
+                    render: (p: PortalPrenatalRecord) => (
+                      <span className="whitespace-nowrap text-xs font-semibold text-emerald-700">
+                        {p.edc ? new Date(p.edc).toLocaleDateString("en-PH") : "—"}
+                      </span>
+                    ),
+                  },
+                  {
+                    header: "Findings / Complaint",
+                    render: (p: PortalPrenatalRecord) => (
                       <span className="text-xs text-gray-600">
-                        {[c.current_weight && `${c.current_weight} kg`, c.current_height && `${c.current_height} cm`].filter(Boolean).join(" · ") || "—"}
+                        {p.complaint || "Routine checkup"}
                       </span>
-                    ),
-                  },
-                  {
-                    header: "Nutritional Status",
-                    render: (c: PortalChildRecord) => (
-                      <span className="text-xs font-medium text-dark">{c.nutritional_status || "—"}</span>
-                    ),
-                  },
-                  {
-                    header: "Immunization",
-                    render: (c: PortalChildRecord) => (
-                      <span className="text-xs text-gray-600">{c.fully_immunized_status || "—"}</span>
-                    ),
-                  },
-                  {
-                    header: "Breastfeeding",
-                    render: (c: PortalChildRecord) => (
-                      <span className="text-xs text-gray-600">{c.breastfeeding_status || "—"}</span>
                     ),
                   },
                 ]}
-                rows={childRecords}
-                rowKey={(c) => `child-${c.id}`}
-                emptyMessage="No child health record found."
+                rows={prenatalRecords}
+                rowKey={(p) => `prenatal-${p.id}`}
+                emptyMessage="No prenatal records found."
               />
             </Card>
           )}
-
-          <Card title="Consultations & Checkups">
-            <DataTable
-              columns={[
-                {
-                  header: "Date",
-                  render: (v: PortalVisit) => (
-                    <span className="whitespace-nowrap font-medium text-dark">
-                      {v.visit_date
-                        ? new Date(v.visit_date).toLocaleDateString("en-PH")
-                        : "—"}
-                      {v.visit_time && (
-                        <span className="block text-xs font-normal text-gray-500">
-                          {v.visit_time.slice(0, 5)}
-                        </span>
-                      )}
-                    </span>
-                  ),
-                },
-                { header: "Reason", render: (v: PortalVisit) => v.visit_reason },
-                {
-                  /*
-                    The readings in ONE column, labelled.
-
-                    Seven columns of numbers — most of them blank on any given
-                    visit — is a table nobody reads across. Here each visit
-                    shows only what was actually taken.
-                  */
-                  header: "Readings",
-                  render: (v: PortalVisit) => {
-                    const taken = [
-                      v.blood_pressure && `BP ${v.blood_pressure}`,
-                      v.temperature && `${v.temperature}°C`,
-                      v.heart_rate && `Pulse ${v.heart_rate}`,
-                      v.respiratory_rate && `RR ${v.respiratory_rate}`,
-                      v.oxygen_saturation && `O₂ ${v.oxygen_saturation}%`,
-                      v.height_cm && `${v.height_cm} cm`,
-                      v.weight_kg && `${v.weight_kg} kg`,
-                    ].filter(Boolean);
-
-                    return taken.length ? (
-                      <span className="text-xs text-gray-600">{taken.join(" · ")}</span>
-                    ) : (
-                      <span className="text-xs text-gray-400">None recorded</span>
-                    );
-                  },
-                },
-                {
-                  header: "Advice / Plan",
-                  render: (v: PortalVisit) => (
-                    <span className="text-xs text-gray-600">{v.treatment_advice || "—"}</span>
-                  ),
-                },
-                {
-                  header: "Come back",
-                  render: (v: PortalVisit) =>
-                    v.followup_schedule ? (
-                      <span className="whitespace-nowrap text-xs font-semibold text-primary">
-                        {new Date(v.followup_schedule).toLocaleDateString("en-PH")}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-gray-400">—</span>
-                    ),
-                },
-              ]}
-              rows={visits}
-              rowKey={(v: PortalVisit) => `${v.visit_date ?? ""}-${v.visit_time ?? ""}-${v.visit_reason}`}
-              emptyMessage="The station has no consultation on record for you."
-            />
-          </Card>
-
-          <Card title="Immunizations">
-            <DataTable
-              columns={[
-                ...(shots.some((i) => i.child_name)
-                  ? [
-                      {
-                        header: "Person",
-                        render: (i: PortalImmunization) => (
-                          <span className="text-xs font-medium text-dark">
-                            {i.child_name || "Self"}
-                          </span>
-                        ),
-                      },
-                    ]
-                  : []),
-                {
-                  header: "Vaccine",
-                  render: (i: PortalImmunization) => (
-                    <span className="font-medium text-dark">{i.vaccine_name}</span>
-                  ),
-                },
-                {
-                  header: "Given",
-                  render: (i: PortalImmunization) => (
-                    <span className="whitespace-nowrap">
-                      {i.vaccination_date
-                        ? new Date(i.vaccination_date).toLocaleDateString("en-PH")
-                        : "—"}
-                    </span>
-                  ),
-                },
-                {
-                  header: "Status",
-                  render: (i: PortalImmunization) => <StatusBadge status={i.status} />,
-                },
-              ]}
-              rows={shots}
-              rowKey={(i: PortalImmunization) => `${i.child_name ?? ""}-${i.vaccine_name}-${i.vaccination_date ?? ""}`}
-              emptyMessage="No immunization is on record for you."
-            />
-          </Card>
 
           <p className="flex items-start gap-2 px-1 text-xs leading-relaxed text-gray-400">
             <FiActivity aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />

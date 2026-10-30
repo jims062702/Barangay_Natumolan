@@ -37,6 +37,10 @@ interface ResidentPickerProps {
    * the health station's forms look for women only.
    */
   gender?: "Female" | "Male";
+  /** Minimum age of resident in years (e.g. 5) */
+  minAge?: number;
+  /** Maximum age of resident in years (e.g. 51 means < 51) */
+  maxAge?: number;
   /** What to say when nobody matches — who to see, for a form that cannot add a person itself. */
   notFound?: string;
   /** The search box's own words. */
@@ -86,6 +90,8 @@ export default function ResidentPicker({
   residentsOnly = false,
   nonResidentsOnly = false,
   gender,
+  minAge,
+  maxAge,
   notFound,
   placeholder = "Search by Name or Resident Number…",
 }: ResidentPickerProps) {
@@ -114,25 +120,12 @@ export default function ResidentPicker({
     const timer = setTimeout(() => {
       /*
        * The device's copy answers FIRST, and the server corrects it.
-       *
-       * Not a fallback, on purpose. Waiting for the network to fail before
-       * looking locally means every search costs a full timeout whenever
-       * the line is bad-but-not-dead — and the office reads that as "I have
-       * to type the whole name before anything appears", because each new
-       * keystroke restarts the wait. Showing the local answer immediately
-       * makes the picker feel the same whether the line is up or not.
-       *
-       * The server still wins when it replies: it is the register, and the
-       * device's copy is only as fresh as the last sync. The guard below
-       * makes sure a slow reply cannot overwrite a newer search.
        */
       void searchResidentsOffline(term, { recordType, gender })
         .then((rows) => {
           if (seq !== latest.current) return;
           setOptions(rows as Resident[]);
           setSearched(true);
-          /* Not `setLoading(false)` yet — the server may still improve on
-             this, and the spinner says so honestly. */
         })
         .catch(() => {
           /* No IndexedDB. The server request below is the only hope. */
@@ -141,13 +134,11 @@ export default function ResidentPicker({
       residentApi.search({
           params: {
             q: term,
-            // Narrowed on the SERVER: the row limit has to be spent on the
-            // kind of person being looked for.
             record_type: recordType,
             gender,
+            min_age: minAge,
+            max_age: maxAge,
           },
-          /* A search nobody is waiting for any more is worse than no search.
-             Well under the browser's own minutes-long default. */
           timeout: 8000,
         })
         .then((r) => {
@@ -156,9 +147,7 @@ export default function ResidentPicker({
         })
         .catch(() => {
           /*
-           * Left alone. Whatever the cache found is already on screen, and
-           * replacing it with an empty list because the line is down is the
-           * exact failure this whole change exists to remove.
+           * Left alone.
            */
         })
         .finally(() => {
@@ -168,13 +157,19 @@ export default function ResidentPicker({
         });
     }, 250);
     return () => clearTimeout(timer);
-  }, [query, residentsOnly, nonResidentsOnly, gender]);
+  }, [query, residentsOnly, nonResidentsOnly, gender, minAge, maxAge]);
 
   const visible = options.filter(
-    (o) =>
-      !excludeIds.includes(o.id) &&
-      !(residentsOnly && o.record_type === "Non-resident") &&
-      !(nonResidentsOnly && o.record_type !== "Non-resident")
+    (o) => {
+      if (excludeIds.includes(o.id)) return false;
+      if (residentsOnly && o.record_type === "Non-resident") return false;
+      if (nonResidentsOnly && o.record_type !== "Non-resident") return false;
+      if (gender && (o.gender || "").toLowerCase() !== gender.toLowerCase()) return false;
+      const age = ageOf(o.birthdate);
+      if (minAge !== undefined && (age === null || age < minAge)) return false;
+      if (maxAge !== undefined && (age === null || age >= maxAge)) return false;
+      return true;
+    }
   );
 
   if (value) {

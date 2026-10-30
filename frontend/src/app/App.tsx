@@ -258,6 +258,11 @@ export default function App() {
             <Route path="vawc-report" element={<Navigate to="/resident/vawc/reports" replace />} />
             {/* Read only — the page says so, and the API offers no writer. */}
             <Route path="health" element={<PortalHealthRecords />} />
+            <Route path="health/visits" element={<PortalHealthRecords key="visits" tab="visits" />} />
+            <Route path="health/immunization" element={<PortalHealthRecords key="immunization" tab="immunization" />} />
+            <Route path="health/child-health" element={<PortalHealthRecords key="child-health" tab="child-health" />} />
+            <Route path="health/maternal" element={<PortalHealthRecords key="maternal" tab="maternal" />} />
+            <Route path="health/prenatal" element={<PortalHealthRecords key="prenatal" tab="prenatal" />} />
             <Route path="announcements" element={<PortalAnnouncements />} />
             {/* Folded into the profile page; keep the old address working. */}
             <Route path="family" element={<Navigate to="/resident/profile" replace />} />

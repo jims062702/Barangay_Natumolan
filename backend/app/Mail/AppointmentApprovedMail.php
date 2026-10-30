@@ -30,3 +30,4 @@ class AppointmentApprovedMail extends Mailable implements ShouldQueue
         return new Content(view: 'emails.appointment-approved');
     }
 }
+

@@ -35,3 +35,4 @@ export interface Appointment {
     name: string;
   } | null;
 }
+

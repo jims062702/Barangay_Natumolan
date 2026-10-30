@@ -30,3 +30,4 @@ class AppointmentReminderMail extends Mailable implements ShouldQueue
         return new Content(view: 'emails.appointment-reminder');
     }
 }
+

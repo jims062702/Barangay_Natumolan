@@ -19,3 +19,4 @@ Route::middleware('office:Main Office,PB')->group(function () {
     Route::put('appointments/{appointment}/minutes', [AppointmentController::class, 'updateMinutes']);
     Route::delete('appointments/{appointment}', [AppointmentController::class, 'destroy']);
 });
+

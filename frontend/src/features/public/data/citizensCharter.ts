@@ -750,7 +750,7 @@ export const CITIZENS_CHARTERS: CitizensCharterItem[] = [
     number: "08",
     category: "CTC",
     categoryLabel: "Community Tax Certificate (CTC)",
-    title: "08. Issuance of Community Tax Certificate",
+    title: "Issuance of Community Tax Certificate",
     description:
       "This service caters the request of the clients as proof of identification, verifying a person's tax and personal details for legal and administrative processes and is required for signing contracts, and applying for government permits and licenses.",
     office: "Office of the Barangay",
@@ -828,7 +828,7 @@ export const CITIZENS_CHARTERS: CitizensCharterItem[] = [
     number: "09",
     category: "Services",
     categoryLabel: "Barangay Services & Requests",
-    title: "09. Request for Repair and Maintenance of Streetlights (Minor Repair)",
+    title: "Request for Repair and Maintenance of Streetlights (Minor Repair)",
     description:
       "This service includes minor repairs, such as replacing busted bulbs and starters, to cater to the client's request for repair and maintenance of community streetlights.",
     office: "Office of the Barangay",
@@ -900,7 +900,7 @@ export const CITIZENS_CHARTERS: CitizensCharterItem[] = [
     number: "10",
     category: "Services",
     categoryLabel: "Barangay Services & Requests",
-    title: "10. Request for Travel Order",
+    title: "Request for Travel Order",
     description:
       "This service issues travel orders to barangay officials, employees and volunteers for official business with budget allocation identifying the travel purpose which includes necessary financial information for budgetary and reimbursement purposes.",
     office: "Office of the Barangay",
@@ -972,7 +972,7 @@ export const CITIZENS_CHARTERS: CitizensCharterItem[] = [
     number: "11",
     category: "Certification",
     categoryLabel: "Barangay Certification",
-    title: "11. Issuance of Affidavit for Solo Parent",
+    title: "Issuance of Affidavit for Solo Parent",
     description:
       "This service issues an affidavit for solo parents as one of the requirements for application of solo parent ID to be processed by the Municipal Social Welfare and Development Office (MSWDO).",
     office: "Office of the Barangay",
@@ -1044,7 +1044,7 @@ export const CITIZENS_CHARTERS: CitizensCharterItem[] = [
     number: "12",
     category: "Certification",
     categoryLabel: "Barangay Certification",
-    title: "12. Issuance of Certificate of Employment",
+    title: "Issuance of Certificate of Employment",
     description:
       "This service issues the certificate of employment of all current and former Barangay employees seeking employment, reference, or proof of public service.",
     office: "Office of the Barangay",

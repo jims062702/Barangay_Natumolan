@@ -1,10 +1,26 @@
-import { useRef, useState } from "react";
-import { FiAlertCircle, FiAlertTriangle, FiCheckCircle, FiLoader, FiShield } from "react-icons/fi";
+import { useEffect, useRef, useState } from "react";
+import {
+  FiAlertCircle,
+  FiAlertTriangle,
+  FiCamera,
+  FiCheckCircle,
+  FiImage,
+  FiLoader,
+  FiShield,
+  FiX,
+} from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { errorMessage } from "../lib/api";
-import FileField from "../ui/FileField";
 import FormField, { inputClasses } from "../ui/FormField";
 import { cardCode, readQrFromImage } from "./readQr";
+import IdCameraModal from "./IdCameraModal";
+
+const KB = 1024;
+function readableSize(bytes: number) {
+  if (bytes < KB) return `${bytes} B`;
+  if (bytes < KB * KB) return `${(bytes / KB).toFixed(0)} KB`;
+  return `${(bytes / (KB * KB)).toFixed(1)} MB`;
+}
 
 /**
  * A resident's Barangay Resident ID: uploaded, read, and checked — the one
@@ -73,9 +89,23 @@ export function ResidentIdCheck({
   disabled?: boolean;
 }) {
   const [typed, setTyped] = useState("");
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const nativeCameraInputRef = useRef<HTMLInputElement>(null);
   /* Only the latest pick counts: a slow read of an earlier picture must not
      overwrite the answer for the one chosen after it. */
   const attempt = useRef(0);
+
+  useEffect(() => {
+    if (value.file) {
+      const url = URL.createObjectURL(value.file);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setPreviewUrl(null);
+    }
+  }, [value.file]);
 
   const check = async (file: File | null, code: string, turn: number) => {
     onChange({ ...BLANK_RESIDENT_ID, file, code, status: "pending", message: "" });
@@ -167,13 +197,151 @@ export function ResidentIdCheck({
         plain
         hint="JPG, PNG or WEBP, up to 5 MB. The whole card in view, the QR code sharp."
       >
-        <FileField
-          file={value.file}
-          onPick={pick}
+        {/* Hidden file input for choosing from gallery/files */}
+        <input
+          ref={galleryInputRef}
+          type="file"
           accept={RESIDENT_ID_ACCEPT}
-          progress={progress}
-          done={done}
           disabled={disabled}
+          onChange={(e) => {
+            const f = e.target.files?.[0] ?? null;
+            if (f) pick(f);
+          }}
+          className="hidden"
+          data-testid="resident-id-file-input"
+        />
+
+        {/* Hidden input for direct phone camera capture */}
+        <input
+          ref={nativeCameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          disabled={disabled}
+          onChange={(e) => {
+            const f = e.target.files?.[0] ?? null;
+            if (f) pick(f);
+          }}
+          className="hidden"
+        />
+
+        {!value.file ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => galleryInputRef.current?.click()}
+              disabled={disabled}
+              className="group flex cursor-pointer items-center justify-center gap-2.5 rounded-2xl border-2 border-dashed border-gray-300 bg-white p-4 text-center transition hover:border-primary hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-600 transition group-hover:bg-primary/10 group-hover:text-primary">
+                <FiImage className="h-5 w-5" />
+              </div>
+              <div className="text-left">
+                <p className="text-xs font-bold text-dark sm:text-sm">Choose from Gallery / Files</p>
+                <p className="text-[11px] text-gray-500">I-upload ang litrato mula sa iyong device</p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCameraOpen(true)}
+              disabled={disabled}
+              className="group flex cursor-pointer items-center justify-center gap-2.5 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/[0.04] p-4 text-center transition hover:border-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-white">
+                <FiCamera className="h-5 w-5" />
+              </div>
+              <div className="text-left">
+                <p className="text-xs font-bold text-primary sm:text-sm">Take Photo with Camera</p>
+                <p className="text-[11px] text-gray-500">Kunan ng litrato gamit ang camera</p>
+              </div>
+            </button>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-gray-200 bg-secondary/50 p-3 sm:p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                {previewUrl ? (
+                  <img
+                    src={previewUrl}
+                    alt="Resident ID preview"
+                    className="h-14 w-20 shrink-0 rounded-xl border border-gray-300 object-cover shadow-2xs"
+                  />
+                ) : (
+                  <div className="flex h-14 w-20 shrink-0 items-center justify-center rounded-xl bg-gray-200 text-gray-500">
+                    <FiImage className="h-6 w-6" />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-bold text-dark sm:text-sm">
+                    {value.file.name}
+                  </p>
+                  <p className="text-[11px] text-gray-500">
+                    {readableSize(value.file.size)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCameraOpen(true)}
+                  disabled={disabled}
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary hover:text-white disabled:opacity-50"
+                  title="Retake photo using camera"
+                >
+                  <FiCamera className="h-3.5 w-3.5" />
+                  <span>Retake with Camera</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => galleryInputRef.current?.click()}
+                  disabled={disabled}
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-100 disabled:opacity-50"
+                  title="Choose a different file from gallery"
+                >
+                  <FiImage className="h-3.5 w-3.5" />
+                  <span>Change File</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChange(BLANK_RESIDENT_ID);
+                    if (galleryInputRef.current) galleryInputRef.current.value = "";
+                    if (nativeCameraInputRef.current) nativeCameraInputRef.current.value = "";
+                  }}
+                  disabled={disabled}
+                  aria-label="Remove photo"
+                  className="cursor-pointer rounded-full p-2 text-gray-400 transition hover:bg-danger/10 hover:text-danger disabled:opacity-50"
+                >
+                  <FiX className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {progress !== null && !done && (
+              <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
+                <div
+                  className="h-full bg-primary transition-all duration-200"
+                  style={{ width: `${progress >= 0 ? progress : 100}%` }}
+                />
+              </div>
+            )}
+            {done && (
+              <div className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-success">
+                <FiCheckCircle className="h-4 w-4" />
+                <span>Uploaded</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        <IdCameraModal
+          open={cameraOpen}
+          onClose={() => setCameraOpen(false)}
+          onCapture={(file) => pick(file)}
         />
       </FormField>
 

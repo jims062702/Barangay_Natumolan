@@ -270,3 +270,4 @@ class AppointmentController extends BaseController
         return $this->success(null, "Appointment {$num} deleted successfully.");
     }
 }
+

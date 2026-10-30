@@ -92,3 +92,4 @@ class ResidentAppointmentController extends BaseController
         return $this->success($appointment, "Appointment request {$appointment->appointment_number} submitted successfully.");
     }
 }
+

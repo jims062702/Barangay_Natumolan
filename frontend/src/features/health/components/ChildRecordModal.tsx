@@ -200,7 +200,9 @@ export default function ChildRecordModal({
                 value={mother}
                 onChange={setMother}
                 gender="Female"
-                placeholder="Search the Mother by Name or Resident Number…"
+                minAge={5}
+                maxAge={51}
+                placeholder="Search a Female Resident (5 to below 51 yrs) by Name or Resident Number…"
                 notFound={NO_REGISTER}
               />
             </FormField>

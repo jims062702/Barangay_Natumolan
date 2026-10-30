@@ -59,3 +59,4 @@ class Appointment extends Model
         return sprintf('APT-%s-%04d', $today, $count);
     }
 }
+

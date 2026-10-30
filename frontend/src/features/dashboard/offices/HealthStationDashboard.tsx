@@ -4,24 +4,12 @@ import { Link } from "react-router-dom";
 import { useAutoRefresh, REFRESH } from "../../../shared/hooks/useAutoRefresh";
 import { usePulse } from "../../../shared/hooks/usePulse";
 import { PageLoading, settleAll, usePageLoad } from "../../../shared/ui/PageLoad";
-import Card from "../../../shared/ui/Card";
 import StatTile from "../../../shared/ui/StatTile";
-import StatusBadge from "../../../shared/ui/StatusBadge";
 import PageHeader from "../../../shared/ui/PageHeader";
 import RevealGroup from "../../../shared/ui/RevealGroup";
 import { dashboardApi } from "../api";
 import { healthApi } from "../../health/api";
 import type { RecordsSummary } from "../../health/types";
-/** A dose a child should have had by now, worked out on the server from the
-    DOH schedule and the child's birth date. */
-interface OwedDose {
-  child_id: number;
-  name: string;
-  zone_purok?: string | null;
-  vaccine: string;
-  due_on: string;
-  state: "Due" | "Overdue";
-}
 
 interface Coverage {
   total_visits: number;
@@ -35,10 +23,6 @@ export default function HealthStationDashboard() {
   const [coverage, setCoverage] = useState<Coverage | null>(null);
   /* The record books' counts — every one a COUNT of rows, from the server. */
   const [records, setRecords] = useState<RecordsSummary | null>(null);
-  const [attention, setAttention] = useState<OwedDose[]>([]);
-  /* How many children under two were checked — so "nothing owed" can say
-     of how many, rather than sounding like a verdict on nobody. */
-  const [checked, setChecked] = useState(0);
 
   // Live updates: bump `tick` to re-run the fetches below.
   const [tick, setTick] = useState(0);
@@ -57,10 +41,6 @@ export default function HealthStationDashboard() {
       dashboardApi.summary().then((r) => setTodayVisits(r.data.data.quick_stats?.today_visits ?? 0)),
       healthApi.coverageReport().then((r) => setCoverage(r.data.data)),
       healthApi.recordsSummary().then((r) => setRecords(r.data.data)),
-      healthApi.immunizationDue().then((r) => {
-        setAttention(r.data.data.doses ?? []);
-        setChecked(r.data.data.children_checked ?? 0);
-      }),
     ]).then((results) => settleAll(pageLoad, results));
   }, [tick]);
 
@@ -101,40 +81,6 @@ export default function HealthStationDashboard() {
         <StatTile label="Prenatal Records This Month" value={records?.prenatal_records_this_month ?? 0} icon={FiCalendar}
           hint={`${records?.prenatal_records_this_year ?? 0} this year`} />
       </RevealGroup>
-
-      <div className="mt-6">
-        <Card
-          title="Doses due or overdue (children under two)"
-          action={
-            <Link to="/health/immunization" className="text-sm font-medium text-primary hover:underline">
-              Open records
-            </Link>
-          }
-        >
-          {attention.length === 0 ? (
-            <p className="py-6 text-center text-sm text-gray-400">
-              {checked === 0
-                ? "No child under two is on the register, so there is nothing to check."
-                : `Every one of the ${checked} children under two has had each dose due for their age.`}
-            </p>
-          ) : (
-            <ul className="divide-y divide-gray/70">
-              {attention.slice(0, 8).map((d) => (
-                <li key={`${d.child_id}-${d.vaccine}`} className="flex items-center justify-between gap-3 py-3">
-                  <div>
-                    <p className="text-sm font-semibold text-dark">{d.name}</p>
-                    <p className="text-xs text-gray-500">
-                      {d.vaccine} · due {new Date(d.due_on).toLocaleDateString("en-PH")}
-                      {d.zone_purok ? ` · ${d.zone_purok}` : ""}
-                    </p>
-                  </div>
-                  <StatusBadge status={d.state} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </div>
     </div>
   );
 }

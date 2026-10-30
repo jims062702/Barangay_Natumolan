@@ -116,8 +116,27 @@ export function menuFor(user: User): MenuSection[] {
            * Read-only, and the page says so. A health record is written at
            * the station by the person who took the reading; a resident
            * reading their own is right, a resident editing it is not.
+           *
+           * - For Male residents: Patient Visit, Immunization
+           * - For Female residents: Patient Visit, Immunization, Child Health & Nutrition, Maternal Health, Prenatal Records
            */
-          { label: "Health Records", to: "/resident/health", icon: FiActivity },
+          {
+            label: "Health Records",
+            to: "/resident/health/visits",
+            icon: FiActivity,
+            children: isMale
+              ? [
+                  { label: "Patient Visit", to: "/resident/health/visits", icon: FiHeart },
+                  { label: "Immunization", to: "/resident/health/immunization", icon: FiShield },
+                ]
+              : [
+                  { label: "Patient Visit", to: "/resident/health/visits", icon: FiHeart },
+                  { label: "Immunization", to: "/resident/health/immunization", icon: FiShield },
+                  { label: "Child Health & Nutrition", to: "/resident/health/child-health", icon: FiSmile },
+                  { label: "Maternal Health", to: "/resident/health/maternal", icon: FiUser },
+                  { label: "Prenatal Records", to: "/resident/health/prenatal", icon: FiCalendar },
+                ],
+          },
           { label: "Announcements", to: "/resident/announcements", icon: FiBell },
           // Profile carries the family too — same question, one button.
           { label: "My Profile", to: "/resident/profile", icon: FiUser },

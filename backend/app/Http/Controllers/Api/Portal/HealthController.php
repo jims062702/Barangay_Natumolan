@@ -208,11 +208,28 @@ class HealthController extends PortalController
 
         $immunizations = $immunizationList->sortByDesc(fn ($i) => $i['vaccination_date'] ?? '')->values();
 
+        $prenatalRecords = PrenatalVisit::where('mother_id', $residentId)
+            ->orderByDesc('visit_date')
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn ($pv) => [
+                'id' => $pv->id,
+                'visit_date' => $pv->visit_date?->toDateString(),
+                'months_of_pregnancy' => $pv->months_of_pregnancy,
+                'blood_pressure' => $pv->blood_pressure,
+                'weight_kg' => $pv->weight_kg ? (string) $pv->weight_kg : null,
+                'height_cm' => $pv->height_cm ? (string) $pv->height_cm : null,
+                'lmp' => $pv->lmp?->toDateString(),
+                'edc' => $pv->edc?->toDateString(),
+                'complaint' => $pv->complaint,
+            ]);
+
         return $this->success([
             'visits' => $visits,
             'immunizations' => $immunizations,
             'maternal_records' => $maternalRecords,
             'child_records' => $childRecords,
+            'prenatal_records' => $prenatalRecords,
             'note' => 'This is a copy of what the health station holds for you. '
                 . 'To correct anything on it, or to ask about a consultation, '
                 . 'visit the station — records are changed there, not here.',

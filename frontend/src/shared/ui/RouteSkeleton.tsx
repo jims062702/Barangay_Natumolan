@@ -923,7 +923,7 @@ const PAGES: [string | RegExp, string, Draw][] = [
       <Table columns={6} search={false} rows={4} />
     </div>
   )],
-  ["/resident/health", "PortalHealthSkeleton", () => (
+  [/^\/resident\/health/, "PortalHealthSkeleton", () => (
     <div>
       <Head actions={0} />
       <Note h={72} className="mb-6" />

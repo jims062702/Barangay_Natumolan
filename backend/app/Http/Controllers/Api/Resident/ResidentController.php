@@ -417,11 +417,15 @@ class ResidentController extends BaseController
         /* A mother is looked for among women only — filtered here, where the
            limit is applied, for the same reason as the record type above. */
         $sex = in_array($request->input('gender'), ['Male', 'Female'], true) ? $request->input('gender') : null;
+        $minAge = $request->filled('min_age') ? (int) $request->input('min_age') : null;
+        $maxAge = $request->filled('max_age') ? (int) $request->input('max_age') : null;
 
         $residents = Resident::whereNull('merged_into_id')
             ->when($only === Resident::NON_RESIDENT, fn ($q) => $q->where('record_type', Resident::NON_RESIDENT))
             ->when($only === 'Resident', fn ($q) => $q->bonafide())
             ->when($sex, fn ($q) => $q->where('gender', $sex))
+            ->when($minAge !== null, fn ($q) => $q->whereDate('birthdate', '<=', now()->subYears($minAge)))
+            ->when($maxAge !== null, fn ($q) => $q->whereDate('birthdate', '>', now()->subYears($maxAge)))
             ->nameSearch($request->input('q'))
             ->orderBy('last_name')
             ->orderBy('first_name')

@@ -42,3 +42,4 @@
     <strong>Office of the Barangay Secretary & Punong Barangay</strong>
   </p>
 @endsection
+
