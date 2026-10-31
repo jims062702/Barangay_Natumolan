@@ -28,12 +28,14 @@ export function Text({
   money = false,
   prefix,
   preserveValue = false,
+  error,
 }: {
   label: string;
   value: string | number | null | undefined;
   onChange: (v: string) => void;
   placeholder?: string;
   hint?: string;
+  error?: string;
   type?: string;
   required?: boolean;
   disabled?: boolean;
@@ -86,7 +88,7 @@ export function Text({
   };
 
   return (
-    <FormField label={label} hint={disabled ? (disabledNote ?? hint) : hint} required={required}>
+    <FormField label={label} hint={disabled ? (disabledNote ?? hint) : hint} required={required} error={error}>
       <span className="relative block">
         {prefix && !disabled && (
           <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-sm font-medium text-gray-500">
@@ -112,6 +114,8 @@ export function Text({
             grey for one meaning just makes the clerk wonder which is which.
           */
           className={`${inputClasses} ${
+            error ? "border-rose-500 ring-2 ring-rose-500/20" : ""
+          } ${
             disabled || readOnly ? "cursor-not-allowed bg-secondary text-gray-700 font-medium select-none" : ""
           }`}
         />

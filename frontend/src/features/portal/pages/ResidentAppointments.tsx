@@ -335,6 +335,7 @@ export default function ResidentAppointments() {
           open={bookModalOpen}
           onClose={() => setBookModalOpen(false)}
           title="Book an Appointment"
+          size="2xl"
         >
           <div className="space-y-4 text-sm">
             {/* Validation errors summary banner */}

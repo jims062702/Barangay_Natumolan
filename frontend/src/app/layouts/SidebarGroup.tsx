@@ -38,7 +38,7 @@ export function SidebarGroup({
    * number on a closed row is "there is something in here", and the split is
    * one click away.
    */
-  const total = children.reduce((sum, child) => sum + (badges[child.to] ?? 0), 0);
+  const total = item.to === "/population/accounts" ? (badges["/population/accounts/not-activated"] ?? 0) : children.reduce((sum, child) => sum + (badges[child.to] ?? 0), 0);
 
   return (
     <>
@@ -104,7 +104,7 @@ export function SidebarGroup({
                   {child.label}
                 </span>
                 {badges[child.to] > 0 && (
-                  <span className="shrink-0 rounded-full bg-danger px-2 py-0.5 text-[10px] font-bold text-white">
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold text-white ${child.to.includes("activated") && !child.to.includes("not-activated") ? "bg-emerald-500" : "bg-danger"}`}>
                     {badges[child.to] > 99 ? "99+" : badges[child.to]}
                   </span>
                 )}

@@ -819,8 +819,9 @@ export default function AppointmentsList() {
           open={createModalOpen}
           onClose={() => setCreateModalOpen(false)}
           title="Record Walk-in Appointment"
+          size="2xl"
         >
-          <div className="space-y-4 text-sm">
+          <div className="space-y-3.5 text-sm">
             {/* Validation errors summary banner */}
             {Object.keys(formErrors).length > 0 && (
               <div className="rounded-xl border border-rose-300 bg-rose-50 p-3 text-xs text-rose-800">
@@ -1081,7 +1082,7 @@ export default function AppointmentsList() {
                   }
                 }}
                 placeholder="State the purpose of this appointment or meeting…"
-                rows={3}
+                rows={2}
                 className={`${inputClasses} ${formErrors.purpose ? "border-rose-500 focus:border-rose-600 focus:ring-rose-200" : ""}`}
               />
               {formErrors.purpose && (
@@ -1089,11 +1090,9 @@ export default function AppointmentsList() {
               )}
             </FormField>
 
-            <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3 text-xs text-blue-800">
+            <div className="rounded-xl border border-blue-200 bg-blue-50/60 px-3 py-2 text-xs text-blue-800">
               <p>
-                <strong>Notice:</strong> Walk-in appointments are initially recorded with{" "}
-                <strong>Pending</strong> status and can be reviewed and approved by the Punong Barangay
-                or Secretary. Meeting minutes may be recorded once the appointment is approved.
+                <strong>Notice:</strong> Walk-in appointments are recorded as <strong>Pending</strong> and approved by the Punong Barangay or Secretary. Meeting minutes can be added once approved.
               </p>
             </div>
 

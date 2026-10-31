@@ -9,6 +9,7 @@ export function Choice({
   hint,
   neededToRegister = false,
   placeholder = "—",
+  error,
 }: {
   label: string;
   options: { value: string; label: string }[];
@@ -18,13 +19,14 @@ export function Choice({
   /** Starred but not browser-enforced — see the note on Coded. */
   neededToRegister?: boolean;
   placeholder?: string;
+  error?: string;
 }) {
   return (
-    <FormField label={label} required={neededToRegister} hint={hint}>
+    <FormField label={label} required={neededToRegister} hint={hint} error={error}>
       <select
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
-        className={inputClasses}
+        className={`${inputClasses} ${error ? "border-rose-500 ring-2 ring-rose-500/20" : ""}`}
       >
         <option value="">{placeholder}</option>
         {options.map((o) => (

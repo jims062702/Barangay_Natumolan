@@ -20,12 +20,14 @@ export function Coded({
   skippedNote,
   lockedTo,
   lockedNote,
+  error,
 }: {
   label: string;
   list?: Record<string, string>;
   value: string | number | null | undefined;
   onChange: (v: string) => void;
   hint?: string;
+  error?: string;
   /**
    * Starred, but not enforced by the browser.
    *
@@ -51,12 +53,13 @@ export function Coded({
       label={label}
       required={neededToRegister}
       hint={pinned ? lockedNote : skipped ? skippedNote : hint}
+      error={error}
     >
       <select
         value={pinned ? String(lockedTo) : skipped ? SKIPPED : (value ?? "")}
         disabled={skipped || pinned}
         onChange={(e) => onChange(e.target.value)}
-        className={`${inputClasses} ${
+        className={`${inputClasses} ${error ? "border-rose-500 ring-2 ring-rose-500/20" : ""} ${
           skipped || pinned ? "cursor-not-allowed bg-secondary text-gray-400" : ""
         }`}
       >

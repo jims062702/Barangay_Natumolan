@@ -32,14 +32,18 @@ export default function FormField({
 }: FormFieldProps) {
   const Wrapper = plain ? "div" : "label";
 
+  const hasTrailingAsterisk = label.trim().endsWith("*");
+  const cleanLabel = hasTrailingAsterisk ? label.trim().replace(/\s*\*$/, "") : label;
+  const isRequired = required || hasTrailingAsterisk;
+
   return (
     <Wrapper className="block">
       <span className="mb-1.5 block text-sm font-medium text-dark">
-        {label}
-        {required && <span className="text-danger"> *</span>}
+        {cleanLabel}
+        {isRequired && <span className="text-rose-500 font-bold ml-1">*</span>}
       </span>
       {children}
-      {error && <span className="mt-1 block text-xs font-medium text-danger">{error}</span>}
+      {error && <span className="mt-1 block text-xs font-medium text-rose-600">{error}</span>}
       {hint && !error && <span className="mt-1 block text-xs text-gray-400">{hint}</span>}
     </Wrapper>
   );

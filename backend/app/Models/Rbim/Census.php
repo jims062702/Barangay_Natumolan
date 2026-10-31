@@ -5,6 +5,7 @@ namespace App\Models\Rbim;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 use App\Models\Account\User;
 use App\Models\Household\Household;
 
@@ -168,13 +169,45 @@ class Census extends Model
      * and for the same reason: a deleted form must not hand its number to
      * the next one.
      */
+    /**
+     * The next form/household number for the year.
+     *
+     * Ensures the number is strictly unused across both rbim_censuses AND households,
+     * so an auto-generated number never collides with an existing household.
+     */
     public static function nextNumber(): string
     {
-        return \App\Support\SequenceNumber::next(
-            'rbim_censuses',
-            'census_no',
-            'RBIM-' . date('Y') . '-',
-            4
-        );
+        $prefix = 'RBIM-' . date('Y') . '-';
+        $width = 4;
+
+        $cMax = DB::table('rbim_censuses')
+            ->where('census_no', 'like', $prefix . '%')
+            ->where('census_no', '<>', $prefix . str_repeat('9', $width))
+            ->selectRaw('MAX(CAST(SUBSTRING(census_no, ' . (strlen($prefix) + 1) . ') AS UNSIGNED)) AS highest')
+            ->value('highest') ?? 0;
+
+        $hMax = DB::table('households')
+            ->where('household_number', 'like', $prefix . '%')
+            ->where('household_number', '<>', $prefix . str_repeat('9', $width))
+            ->selectRaw('MAX(CAST(SUBSTRING(household_number, ' . (strlen($prefix) + 1) . ') AS UNSIGNED)) AS highest')
+            ->value('highest') ?? 0;
+
+        $sequence = max((int) $cMax, (int) $hMax) + 1;
+
+        // Ensure candidate does not collide with any existing census_no or household_number
+        while (
+            DB::table('rbim_censuses')->where('census_no', $prefix . str_pad((string) $sequence, $width, '0', STR_PAD_LEFT))->exists()
+            || DB::table('households')->where('household_number', $prefix . str_pad((string) $sequence, $width, '0', STR_PAD_LEFT))->exists()
+        ) {
+            $sequence++;
+        }
+
+        if ($sequence >= (int) str_repeat('9', $width)) {
+            throw new \RuntimeException(
+                "The {$prefix} number series is exhausted at " . str_repeat('9', $width)
+            );
+        }
+
+        return $prefix . str_pad((string) $sequence, $width, '0', STR_PAD_LEFT);
     }
 }

@@ -216,6 +216,7 @@ export function IdentificationSection({ ctx }: { ctx: CensusFormState }) {
           maxLength={80}
           required
           hint="Last Name, First Name M.I. — this fills line 1 below."
+          error={ctx.gaps.length > 0 && !String(form.household_head_name ?? "").trim() ? "Household head name is required." : undefined}
           value={form.household_head_name as string}
           onChange={(v) => {
             set("household_head_name", v);
@@ -276,6 +277,7 @@ export function IdentificationSection({ ctx }: { ctx: CensusFormState }) {
           label="Zone / Purok"
           neededToRegister
           hint="Not on the paper form — the register needs one."
+          error={ctx.gaps.length > 0 && !String(form.zone_purok ?? "").trim() ? "Zone / Purok is required." : undefined}
           options={zones.map((z) => ({ value: z, label: z }))}
           value={form.zone_purok as string}
           onChange={(v) => set("zone_purok", v)}

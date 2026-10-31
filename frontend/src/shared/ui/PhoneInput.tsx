@@ -50,20 +50,20 @@ export default function PhoneInput({
         required={required}
         pattern="[0-9]{10}"
         title="Ten digits, starting with 9 — for example 9171234567"
-        className="w-full min-w-0 bg-transparent px-3 py-2.5 text-sm text-dark outline-none placeholder:text-gray-400"
+        className="w-full min-w-0 bg-transparent px-3 py-2 text-sm text-dark outline-none placeholder:text-gray-400 font-mono tracking-wide"
       />
-      <div className="mr-2.5 shrink-0 select-none">
+      <div className="mr-2 shrink-0 select-none">
         <span
-          className={`rounded-md px-2 py-0.5 text-[11px] font-semibold tabular-nums ${
+          className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold tabular-nums ${
             remaining === 0
-              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+              ? "bg-emerald-50 text-emerald-700 border border-emerald-300"
               : remaining <= 3
-              ? "bg-amber-50 text-amber-700 border border-amber-200"
+              ? "bg-amber-50 text-amber-700 border border-amber-300"
               : "bg-gray-100 text-gray-500"
           }`}
-          title={`${remaining} of 10 digits remaining`}
+          title={`${local.length} of 10 digits entered (${remaining} remaining)`}
         >
-          {remaining === 0 ? "0 remaining" : `${remaining} remaining`}
+          {local.length}/10
         </span>
       </div>
     </div>

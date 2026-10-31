@@ -363,6 +363,12 @@ class BadgeController extends BaseController
                 ->whereNotNull('resident_id')
                 ->whereNull('activated_at')
                 ->count();
+
+            // Activated resident portal accounts.
+            $badges['/population/accounts/activated'] = DB::table('users')
+                ->whereNotNull('resident_id')
+                ->whereNotNull('activated_at')
+                ->count();
         }
 
         $result = array_filter($badges);

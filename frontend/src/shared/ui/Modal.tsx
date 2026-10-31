@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { FiX } from "react-icons/fi";
 
 /** How much horizontal room the dialog gets. */
-export type ModalSize = "default" | "wide" | "xl";
+export type ModalSize = "default" | "wide" | "2xl" | "xl";
 
 interface ModalProps {
   open: boolean;
@@ -23,6 +23,7 @@ interface ModalProps {
 const WIDTHS: Record<ModalSize, string> = {
   default: "max-w-lg",
   wide: "max-w-3xl",
+  "2xl": "max-w-4xl",
   xl: "max-w-6xl",
 };
 

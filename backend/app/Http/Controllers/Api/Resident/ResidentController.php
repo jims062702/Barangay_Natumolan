@@ -89,6 +89,8 @@ class ResidentController extends BaseController
             ]);
         }
 
+        $notInPopulation = (clone $query)->where('is_active', false)->count();
+
         $residents = $query->orderBy('resident_number')->paginate(20);
 
         /*
@@ -144,10 +146,7 @@ class ResidentController extends BaseController
          */
         return $this->success(
             $residents->toArray() + [
-                'not_in_population' => Resident::whereNull('merged_into_id')
-                    ->bonafide()
-                    ->where('is_active', false)
-                    ->count(),
+                'not_in_population' => $notInPopulation,
             ],
             'Residents retrieved successfully'
         );

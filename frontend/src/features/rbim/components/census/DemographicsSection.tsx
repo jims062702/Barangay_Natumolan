@@ -17,6 +17,9 @@ export function DemographicsSection({ ctx, member, index, m }: {
   m: Codes;
 }) {
   const { setMember } = ctx;
+  const willRegister = index === 0 || Number(member.register_as_resident ?? 1) === 1;
+  const isNamed = Boolean(String(member.first_name ?? "").trim() || String(member.last_name ?? "").trim());
+  const needsCheck = ctx.gaps.length > 0 && (willRegister && (index === 0 || isNamed));
 
   return (
     <Section
@@ -54,6 +57,7 @@ export function DemographicsSection({ ctx, member, index, m }: {
         value={member.last_name}
         onChange={(v) => setMember(index, "last_name", v)}
         readOnly={index === 0}
+        error={needsCheck && !String(member.last_name ?? "").trim() ? "Surname is required." : undefined}
         hint={index === 0 ? "From the household head above." : undefined}
       />
       <Text
@@ -62,6 +66,7 @@ export function DemographicsSection({ ctx, member, index, m }: {
         value={member.first_name}
         onChange={(v) => setMember(index, "first_name", v)}
         readOnly={index === 0}
+        error={needsCheck && !String(member.first_name ?? "").trim() ? "First name is required." : undefined}
         hint={index === 0 ? "From the household head above." : undefined}
       />
       {/*
@@ -100,7 +105,14 @@ export function DemographicsSection({ ctx, member, index, m }: {
         lockedTo={index === 0 ? 1 : undefined}
         lockedNote="Line 1 is the head — that is what code 01 means."
       />
-      <Coded label="Q3 Sex" neededToRegister list={m.sexes} value={member.q3_sex} onChange={(v) => setMember(index, "q3_sex", v)} />
+      <Coded
+        label="Q3 Sex"
+        neededToRegister
+        list={m.sexes}
+        value={member.q3_sex}
+        onChange={(v) => setMember(index, "q3_sex", v)}
+        error={needsCheck && ![1, 2].includes(Number(member.q3_sex)) ? "Sex is required." : undefined}
+      />
       {/*
         Read-only once Q5 is answered, because then it is not a
         separate fact: it is today minus the date of birth. A typed
@@ -131,6 +143,7 @@ export function DemographicsSection({ ctx, member, index, m }: {
       <FormField
         label="Q5 Date of birth"
         required
+        error={needsCheck && !member.q5_birthdate ? "Date of birth is required." : undefined}
         hint={
           !member.q5_birthdate && Number(member.q5_birth_month) && Number(member.q5_birth_year)
             ? `Saved before as ${MONTHS[Number(member.q5_birth_month) - 1]} ${member.q5_birth_year} — enter the full date.`
@@ -149,7 +162,7 @@ export function DemographicsSection({ ctx, member, index, m }: {
             setMember(index, "q5_birth_year", date ? date.slice(0, 4) : "");
           }}
           aria-label={`Q5 Date of birth, line ${index + 1}`}
-          className={inputClasses}
+          className={`${inputClasses} ${needsCheck && !member.q5_birthdate ? "border-rose-500 ring-2 ring-rose-500/20" : ""}`}
         />
       </FormField>
       <Text label="Q6 Place of birth" hint="City/Municipality and Province" maxLength={80} value={member.q6_birthplace} onChange={(v) => setMember(index, "q6_birthplace", v)} />

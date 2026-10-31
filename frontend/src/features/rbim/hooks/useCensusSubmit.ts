@@ -124,6 +124,15 @@ export function useCensusSubmit(ctx: CensusAnswersState) {
     };
   }, []);
 
+  /* Keep missing registration gaps in sync dynamically once submit has been attempted */
+  const gapsRef = useRef(ctx.gaps);
+  gapsRef.current = ctx.gaps;
+  useEffect(() => {
+    if (gapsRef.current.length > 0) {
+      setGaps(registrationGaps());
+    }
+  }, [form, members]);
+
   /** The form, as the server takes it. */
   const payloadOf = (f: Record<string, unknown>, mem: Member[]) => ({
     ...clean(f),
