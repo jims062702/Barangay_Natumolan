@@ -12,6 +12,7 @@ import {
   FiChevronRight,
 } from "react-icons/fi";
 import Card from "../../../../shared/ui/Card";
+import { confirmAction } from "../../../../shared/lib/confirm";
 import { parseWallClock } from "../../../../shared/lib/datetime";
 import type { LuponCaseState } from "../../hooks/useLuponCase";
 import type { LuponCase, LuponHearing } from "../../types";
@@ -98,9 +99,13 @@ export function HearingsCard({ ctx, caseData }: { ctx: LuponCaseState; caseData:
   const [referring, setReferring] = useState(false);
 
   const handleReferToSecretary = async () => {
-    if (!window.confirm("Are you sure you want to refer this case to Secretary / Lupon? Remaining Punong Barangay mediation hearings will be cancelled and the case will advance to Lupon conciliation.")) {
-      return;
-    }
+    const confirmed = await confirmAction({
+      title: "Refer case to Secretary / Lupon?",
+      text: "Remaining Punong Barangay mediation hearings will be cancelled and the case will advance to Lupon conciliation.",
+      confirmText: "Yes, refer case",
+      cancelText: "Cancel",
+    });
+    if (!confirmed) return;
     setReferring(true);
     try {
       const res = await luponApi.referToSecretary(caseData.id);

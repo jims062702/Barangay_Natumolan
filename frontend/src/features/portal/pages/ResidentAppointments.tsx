@@ -13,6 +13,7 @@ import PageHeader from "../../../shared/ui/PageHeader";
 import Modal from "../../../shared/ui/Modal";
 import FormField, { inputClasses } from "../../../shared/ui/FormField";
 import StatusBadge from "../../../shared/ui/StatusBadge";
+import { confirmAction } from "../../../shared/lib/confirm";
 import { toast } from "../../../shared/lib/toast";
 import { errorMessage } from "../../../shared/lib/api";
 import { useAuth } from "../../../shared/auth/AuthContext";
@@ -229,9 +230,14 @@ export default function ResidentAppointments() {
       return;
     }
 
-    if (!window.confirm(`Are you sure you want to cancel appointment ${cancelling.appointment_number}?`)) {
-      return;
-    }
+    const confirmed = await confirmAction({
+      title: "Cancel your appointment?",
+      text: `Are you sure you want to cancel appointment ${cancelling.appointment_number}?`,
+      confirmText: "Yes, cancel appointment",
+      cancelText: "Keep appointment",
+      danger: true,
+    });
+    if (!confirmed) return;
 
     cancellingRef.current = true;
     setCancellingLoading(true);

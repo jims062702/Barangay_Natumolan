@@ -373,9 +373,13 @@ export default function AppointmentsList() {
       return;
     }
 
-    if (!window.confirm(`Are you sure you want to approve this appointment for ${approving.full_name} on ${approveDate} at ${approveTime}?`)) {
-      return;
-    }
+    const confirmed = await confirmAction({
+      title: "Confirm & approve appointment?",
+      text: `Are you sure you want to approve the appointment for ${approving.full_name} on ${approveDate} at ${approveTime}? An email confirmation will be sent to the applicant.`,
+      confirmText: "Yes, approve",
+      cancelText: "Cancel",
+    });
+    if (!confirmed) return;
 
     approvingRef.current = true;
     setApprovingLoading(true);
@@ -402,9 +406,14 @@ export default function AppointmentsList() {
       return;
     }
 
-    if (!window.confirm(`Are you sure you want to reject appointment ${rejecting.appointment_number}? A notification email will be sent to the applicant.`)) {
-      return;
-    }
+    const confirmed = await confirmAction({
+      title: "Reject appointment?",
+      text: `Are you sure you want to reject appointment ${rejecting.appointment_number}? An email notification will be sent to ${rejecting.full_name}.`,
+      confirmText: "Yes, reject",
+      cancelText: "Cancel",
+      danger: true,
+    });
+    if (!confirmed) return;
 
     rejectingRef.current = true;
     setRejectingLoading(true);
@@ -435,9 +444,14 @@ export default function AppointmentsList() {
       return;
     }
 
-    if (!window.confirm(`Are you sure you want to cancel appointment ${cancelling.appointment_number}? This action will reopen the booked slot.`)) {
-      return;
-    }
+    const confirmed = await confirmAction({
+      title: "Confirm appointment cancellation?",
+      text: `Are you sure you want to cancel appointment ${cancelling.appointment_number}? This action will reopen the booked slot.`,
+      confirmText: "Yes, cancel appointment",
+      cancelText: "Keep appointment",
+      danger: true,
+    });
+    if (!confirmed) return;
 
     cancellingRef.current = true;
     setCancellingLoading(true);
