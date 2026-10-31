@@ -12,10 +12,12 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('office:Main Office,PB')->group(function () {
     Route::get('appointments', [AppointmentController::class, 'index']);
     Route::get('appointments/calendar', [AppointmentController::class, 'calendar']);
+    Route::get('appointments/booked-slots', [AppointmentController::class, 'bookedSlots']);
     Route::get('appointments/{appointment}', [AppointmentController::class, 'show']);
     Route::post('appointments', [AppointmentController::class, 'store']);
     Route::post('appointments/{appointment}/approve', [AppointmentController::class, 'approve']);
     Route::post('appointments/{appointment}/reject', [AppointmentController::class, 'reject']);
+    Route::post('appointments/{appointment}/cancel', [AppointmentController::class, 'cancel']);
     Route::put('appointments/{appointment}/minutes', [AppointmentController::class, 'updateMinutes']);
     Route::delete('appointments/{appointment}', [AppointmentController::class, 'destroy']);
 });

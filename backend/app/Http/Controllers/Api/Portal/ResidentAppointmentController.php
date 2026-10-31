@@ -20,11 +20,32 @@ class ResidentAppointmentController extends BaseController
         }
 
         $appointments = Appointment::where('resident_id', $user->resident_id)
+            ->with(['approver:id,name', 'canceller:id,name'])
             ->orderByDesc('appointment_date')
             ->orderByDesc('id')
             ->get();
 
         return $this->success($appointments, 'Resident appointments retrieved');
+    }
+
+    /**
+     * Check which time slots are already booked and approved on a specific date.
+     */
+    public function bookedSlots(Request $request)
+    {
+        $request->validate(['date' => 'required|date']);
+
+        $booked = Appointment::whereDate('appointment_date', $request->date)
+            ->whereIn('status', ['Approved', 'Completed'])
+            ->pluck('appointment_time')
+            ->filter()
+            ->unique()
+            ->values();
+
+        return $this->success([
+            'date' => $request->date,
+            'booked_times' => $booked,
+        ], 'Booked slots retrieved');
     }
 
     /**
@@ -48,6 +69,29 @@ class ResidentAppointmentController extends BaseController
             'id_card_code' => 'nullable|string|max:32',
         ]);
 
+        $appDate = $validated['appointment_date'];
+        $appTime = trim($validated['appointment_time']);
+
+        // Check if selected time slot is already taken by an Approved/Completed appointment
+        $isTaken = Appointment::whereDate('appointment_date', $appDate)
+            ->where('appointment_time', $appTime)
+            ->whereIn('status', ['Approved', 'Completed'])
+            ->exists();
+
+        if ($isTaken) {
+            return $this->error("The time slot {$appTime} on {$appDate} is already booked and approved. Please choose an available time slot.", 422);
+        }
+
+        // Prevent rapid duplicate clicks within 10 seconds
+        $recent = Appointment::where('resident_id', $user->resident_id)
+            ->whereDate('appointment_date', $appDate)
+            ->where('appointment_time', $appTime)
+            ->where('created_at', '>=', now()->subSeconds(10))
+            ->first();
+        if ($recent) {
+            return $this->success($recent, "Appointment request {$recent->appointment_number} already submitted.");
+        }
+
         $phone = $validated['phone_number'] ?? $resident?->contact_number ?? $user->contact_number ?? '';
         $email = $validated['email'] ?? $user->email;
         $address = $resident?->address ? ($resident->address . ', ' . ($resident->zone_purok ?? '')) : ($resident?->zone_purok ?? 'Barangay Natumolan');
@@ -61,9 +105,9 @@ class ResidentAppointmentController extends BaseController
             'address' => $address,
             'phone_number' => $phone,
             'email' => $email,
-            'appointment_date' => $validated['appointment_date'],
-            'appointment_time' => $validated['appointment_time'],
-            'purpose' => $validated['purpose'],
+            'appointment_date' => $appDate,
+            'appointment_time' => $appTime,
+            'purpose' => trim($validated['purpose']),
             'status' => 'Pending',
             'id_card_code' => $validated['id_card_code'] ?? null,
         ]);
@@ -91,5 +135,42 @@ class ResidentAppointmentController extends BaseController
 
         return $this->success($appointment, "Appointment request {$appointment->appointment_number} submitted successfully.");
     }
-}
 
+    /**
+     * Resident cancels their appointment online with a reason.
+     */
+    public function cancel(Request $request, Appointment $appointment)
+    {
+        $user = auth()->user();
+        if (!$user->resident_id || $appointment->resident_id !== $user->resident_id) {
+            return $this->forbidden('You can only cancel your own appointments.');
+        }
+
+        if (!in_array($appointment->status, ['Pending', 'Approved'], true)) {
+            return $this->error('Only Pending or Approved appointments can be cancelled.', 422);
+        }
+
+        $validated = $request->validate([
+            'reason' => 'required|string|max:500',
+        ]);
+
+        $reason = trim($validated['reason']);
+        $appointment->status = 'Cancelled';
+        $appointment->cancel_reason = $reason;
+        $appointment->cancelled_by = $user->id;
+        $appointment->cancelled_at = now();
+        $appointment->save();
+
+        // Notify Secretary that resident cancelled
+        Notification::notifySecretary(
+            'appointment_cancelled',
+            "Appointment Cancelled: {$appointment->appointment_number}",
+            "{$user->name} cancelled their appointment for " . \Carbon\Carbon::parse($appointment->appointment_date)->format('M d, Y') . " ({$appointment->appointment_time}). Reason: {$reason}",
+            'appointment',
+            $appointment->id,
+            '/appointments'
+        );
+
+        return $this->success($appointment, "Your appointment has been cancelled successfully.");
+    }
+}

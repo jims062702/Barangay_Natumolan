@@ -13,28 +13,28 @@ use Illuminate\Support\Facades\Mail;
 class AppointmentController extends BaseController
 {
     /**
-     * List appointments with pagination and filters.
+     * List appointments with pagination, filters, and status counts.
      * Accessible by Secretary and Punong Barangay.
      */
     public function index(Request $request)
     {
-        $query = Appointment::with(['resident:id,resident_number,first_name,middle_name,last_name,suffix,contact_number,email', 'approver:id,name']);
-
-        if ($request->filled('status') && $request->status !== 'All') {
-            $query->where('status', $request->status);
-        }
+        $baseQuery = Appointment::with([
+            'resident:id,resident_number,first_name,middle_name,last_name,suffix,contact_number,email',
+            'approver:id,name',
+            'canceller:id,name',
+        ]);
 
         if ($request->filled('applicant_type') && $request->applicant_type !== 'All') {
-            $query->where('applicant_type', $request->applicant_type);
+            $baseQuery->where('applicant_type', $request->applicant_type);
         }
 
         if ($request->filled('date')) {
-            $query->whereDate('appointment_date', $request->date);
+            $baseQuery->whereDate('appointment_date', $request->date);
         }
 
         if ($request->filled('search')) {
             $s = trim($request->search);
-            $query->where(function ($q) use ($s) {
+            $baseQuery->where(function ($q) use ($s) {
                 $q->where('appointment_number', 'like', "%{$s}%")
                   ->orWhere('full_name', 'like', "%{$s}%")
                   ->orWhere('email', 'like', "%{$s}%")
@@ -43,9 +43,62 @@ class AppointmentController extends BaseController
             });
         }
 
-        $appointments = $query->orderByDesc('appointment_date')->orderByDesc('id')->paginate(15);
+        // Status counts for tabs
+        $counted = (clone $baseQuery);
+        $counts = [
+            'All' => (clone $counted)->count(),
+            'Pending' => (clone $counted)->where('status', 'Pending')->count(),
+            'Approved' => (clone $counted)->where('status', 'Approved')->count(),
+            'Completed' => (clone $counted)->where('status', 'Completed')->count(),
+            'Cancelled' => (clone $counted)->where('status', 'Cancelled')->count(),
+            'Rejected' => (clone $counted)->where('status', 'Rejected')->count(),
+        ];
 
-        return $this->success($appointments, 'Appointments retrieved');
+        if ($request->filled('status') && $request->status !== 'All') {
+            $baseQuery->where('status', $request->status);
+        }
+
+        $appointments = $baseQuery->orderByDesc('appointment_date')->orderByDesc('id')->paginate(15);
+
+        return $this->success([
+            'appointments' => $appointments,
+            'counts' => $counts,
+        ], 'Appointments retrieved');
+    }
+
+    /**
+     * Get booked/approved time slots for a specific date to prevent double bookings.
+     */
+    public function bookedSlots(Request $request)
+    {
+        $request->validate([
+            'date' => 'required|date',
+            'exclude_id' => 'nullable|integer',
+        ]);
+
+        $query = Appointment::whereDate('appointment_date', $request->date)
+            ->whereIn('status', ['Approved', 'Completed']);
+
+        if ($request->filled('exclude_id')) {
+            $query->where('id', '!=', $request->exclude_id);
+        }
+
+        $booked = $query->pluck('appointment_time')->filter()->unique()->values();
+
+        // Also count pending appointments per time slot to highlight conflicts
+        $pendingQuery = Appointment::whereDate('appointment_date', $request->date)
+            ->where('status', 'Pending');
+        if ($request->filled('exclude_id')) {
+            $pendingQuery->where('id', '!=', $request->exclude_id);
+        }
+        $pendingTimes = $pendingQuery->pluck('appointment_time')->filter()->values();
+        $pendingCounts = array_count_values($pendingTimes->all());
+
+        return $this->success([
+            'date' => $request->date,
+            'booked_times' => $booked,
+            'pending_counts' => $pendingCounts,
+        ], 'Booked slots retrieved');
     }
 
     /**
@@ -84,13 +137,14 @@ class AppointmentController extends BaseController
      */
     public function show(Appointment $appointment)
     {
-        $appointment->load(['resident', 'approver:id,name']);
+        $appointment->load(['resident', 'approver:id,name', 'canceller:id,name']);
         return $this->success($appointment, 'Appointment details retrieved');
     }
 
     /**
      * Walk-in appointment creation by Secretary.
      * Can be Resident or Non-resident.
+     * Always defaults to 'Pending' status.
      */
     public function store(Request $request)
     {
@@ -109,67 +163,96 @@ class AppointmentController extends BaseController
             'appointment_date' => 'required|date',
             'appointment_time' => 'required|string|max:20',
             'purpose' => 'required|string|max:255',
-            'status' => 'nullable|in:Pending,Approved',
-            'minutes' => 'nullable|string',
         ]);
 
-        $status = $validated['status'] ?? 'Approved';
+        // Guard against duplicate concurrent submissions within 10 seconds
+        $recent = Appointment::where('full_name', trim($validated['full_name']))
+            ->whereDate('appointment_date', $validated['appointment_date'])
+            ->where('appointment_time', trim($validated['appointment_time']))
+            ->where('created_at', '>=', now()->subSeconds(10))
+            ->first();
+        if ($recent) {
+            return $this->success($recent, "Walk-in appointment {$recent->appointment_number} recorded successfully.");
+        }
+
+        // Check if selected slot is already taken by an Approved/Completed appointment
+        $isTaken = Appointment::whereDate('appointment_date', $validated['appointment_date'])
+            ->where('appointment_time', trim($validated['appointment_time']))
+            ->whereIn('status', ['Approved', 'Completed'])
+            ->exists();
+
+        if ($isTaken) {
+            return $this->error("The time slot {$validated['appointment_time']} on {$validated['appointment_date']} is already booked and approved. Please select an available time.", 422);
+        }
 
         $appointment = Appointment::create([
             'appointment_number' => Appointment::nextNumber(),
             'resident_id' => $validated['resident_id'] ?? null,
             'applicant_type' => $validated['applicant_type'],
             'is_walk_in' => true,
-            'full_name' => $validated['full_name'],
-            'address' => $validated['address'],
-            'phone_number' => $validated['phone_number'],
-            'email' => $validated['email'] ?? null,
+            'full_name' => trim($validated['full_name']),
+            'address' => trim($validated['address']),
+            'phone_number' => trim($validated['phone_number']),
+            'email' => !empty($validated['email']) ? trim($validated['email']) : null,
             'appointment_date' => $validated['appointment_date'],
-            'appointment_time' => $validated['appointment_time'],
-            'purpose' => $validated['purpose'],
-            'status' => $status,
-            'minutes' => $validated['minutes'] ?? null,
-            'approved_by' => $status === 'Approved' ? $user->id : null,
-            'approved_at' => $status === 'Approved' ? now() : null,
+            'appointment_time' => trim($validated['appointment_time']),
+            'purpose' => trim($validated['purpose']),
+            'status' => 'Pending',
+            'minutes' => null,
+            'approved_by' => null,
+            'approved_at' => null,
         ]);
 
-        if ($status === 'Approved' && !empty($appointment->email)) {
-            try {
-                Mail::to($appointment->email)->send(new AppointmentApprovedMail($appointment));
-            } catch (\Throwable $e) {
-                // Log and continue
-            }
-        }
+        // In-system notification to Punong Barangay
+        Notification::notifyPunongBarangay(
+            'new_walkin_appointment',
+            "New Walk-In Appointment: {$appointment->appointment_number}",
+            "Secretary recorded a walk-in appointment for {$appointment->full_name} on " . \Carbon\Carbon::parse($appointment->appointment_date)->format('M d, Y') . " ({$appointment->appointment_time}).",
+            'appointment',
+            $appointment->id,
+            '/appointments'
+        );
 
-        return $this->success($appointment, "Walk-in appointment {$appointment->appointment_number} recorded successfully.");
+        return $this->success($appointment, "Walk-in appointment {$appointment->appointment_number} recorded successfully with Pending status.");
     }
 
     /**
-     * Approve appointment by Secretary.
+     * Approve appointment by Punong Barangay or Secretary.
+     * Date and time can be adjusted/confirmed during approval.
      */
     public function approve(Request $request, Appointment $appointment)
     {
         $user = auth()->user();
-        if ($user->role === 'Punong Barangay') {
-            return $this->forbidden('Only the Barangay Secretary is authorized to approve appointments.');
+        if (!in_array($user->role, ['Punong Barangay', 'Secretary', 'Admin'], true)) {
+            return $this->forbidden('Only the Punong Barangay or Barangay Secretary can approve appointments.');
         }
 
         $validated = $request->validate([
             'appointment_time' => 'required|string|max:20',
-            'appointment_date' => 'nullable|date',
-            'minutes' => 'nullable|string',
+            'appointment_date' => 'required|date',
         ]);
 
+        $newDate = $validated['appointment_date'];
+        $newTime = trim($validated['appointment_time']);
+
+        // Check if another approved/completed appointment occupies this slot
+        $conflict = Appointment::whereDate('appointment_date', $newDate)
+            ->where('appointment_time', $newTime)
+            ->whereIn('status', ['Approved', 'Completed'])
+            ->where('id', '!=', $appointment->id)
+            ->first();
+
+        if ($conflict) {
+            return $this->error("The time slot {$newTime} on {$newDate} is already booked and approved for {$conflict->full_name} ({$conflict->appointment_number}). Please choose a different date or time.", 422);
+        }
+
         $appointment->status = 'Approved';
-        $appointment->appointment_time = $validated['appointment_time'];
-        if (!empty($validated['appointment_date'])) {
-            $appointment->appointment_date = $validated['appointment_date'];
-        }
-        if (isset($validated['minutes'])) {
-            $appointment->minutes = $validated['minutes'];
-        }
+        $appointment->appointment_date = $newDate;
+        $appointment->appointment_time = $newTime;
         $appointment->approved_by = $user->id;
         $appointment->approved_at = now();
+        $appointment->rejection_reason = null;
+        $appointment->cancel_reason = null;
         $appointment->save();
 
         // 1. Notify Resident in-system if linked
@@ -194,17 +277,17 @@ class AppointmentController extends BaseController
             }
         }
 
-        return $this->success($appointment, "Appointment {$appointment->appointment_number} has been approved.");
+        return $this->success($appointment, "Appointment {$appointment->appointment_number} has been approved for {$newDate} at {$newTime}.");
     }
 
     /**
-     * Reject appointment by Secretary.
+     * Reject appointment by Punong Barangay or Secretary.
      */
     public function reject(Request $request, Appointment $appointment)
     {
         $user = auth()->user();
-        if ($user->role === 'Punong Barangay') {
-            return $this->forbidden('Only the Barangay Secretary is authorized to reject appointments.');
+        if (!in_array($user->role, ['Punong Barangay', 'Secretary', 'Admin'], true)) {
+            return $this->forbidden('Only the Punong Barangay or Barangay Secretary can reject appointments.');
         }
 
         $validated = $request->validate([
@@ -212,7 +295,7 @@ class AppointmentController extends BaseController
         ]);
 
         $appointment->status = 'Rejected';
-        $appointment->rejection_reason = $validated['rejection_reason'];
+        $appointment->rejection_reason = trim($validated['rejection_reason']);
         $appointment->save();
 
         if ($appointment->resident_id) {
@@ -231,7 +314,44 @@ class AppointmentController extends BaseController
     }
 
     /**
+     * Cancel appointment by Secretary or Punong Barangay (Walk-in or Online).
+     */
+    public function cancel(Request $request, Appointment $appointment)
+    {
+        $user = auth()->user();
+        if (!in_array($user->role, ['Punong Barangay', 'Secretary', 'Admin'], true)) {
+            return $this->forbidden('Only the Punong Barangay or Barangay Secretary can cancel appointments.');
+        }
+
+        $validated = $request->validate([
+            'cancel_reason' => 'required|string|max:500',
+        ]);
+
+        $reason = trim($validated['cancel_reason']);
+        $appointment->status = 'Cancelled';
+        $appointment->cancel_reason = $reason;
+        $appointment->cancelled_by = $user->id;
+        $appointment->cancelled_at = now();
+        $appointment->save();
+
+        if ($appointment->resident_id) {
+            Notification::notifyResident(
+                $appointment->resident_id,
+                'appointment_cancelled',
+                "Appointment Cancelled: {$appointment->appointment_number}",
+                "Ang inyong appointment ay nakansela na. Dahilan: {$reason}",
+                'appointment',
+                $appointment->id,
+                '/resident/appointments'
+            );
+        }
+
+        return $this->success($appointment, "Appointment {$appointment->appointment_number} has been cancelled.");
+    }
+
+    /**
      * Update minutes of meeting by Secretary (PB is read-only).
+     * Minutes can ONLY be added if appointment is Approved or Completed.
      */
     public function updateMinutes(Request $request, Appointment $appointment)
     {
@@ -240,12 +360,16 @@ class AppointmentController extends BaseController
             return $this->forbidden('Only the Barangay Secretary is authorized to record or update appointment minutes.');
         }
 
+        if (!in_array($appointment->status, ['Approved', 'Completed'], true)) {
+            return $this->error('Minutes can only be recorded for approved or completed appointments.', 422);
+        }
+
         $validated = $request->validate([
             'minutes' => 'required|string',
             'status' => 'nullable|in:Approved,Completed',
         ]);
 
-        $appointment->minutes = $validated['minutes'];
+        $appointment->minutes = trim($validated['minutes']);
         if (!empty($validated['status'])) {
             $appointment->status = $validated['status'];
         }
@@ -270,4 +394,3 @@ class AppointmentController extends BaseController
         return $this->success(null, "Appointment {$num} deleted successfully.");
     }
 }
-

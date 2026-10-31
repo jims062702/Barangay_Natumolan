@@ -23,7 +23,9 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('portal')->middleware(['office:ResidentRole', 'resident_still_here'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'show']);
     Route::get('appointments', [\App\Http\Controllers\Api\Portal\ResidentAppointmentController::class, 'index']);
+    Route::get('appointments/booked-slots', [\App\Http\Controllers\Api\Portal\ResidentAppointmentController::class, 'bookedSlots']);
     Route::post('appointments', [\App\Http\Controllers\Api\Portal\ResidentAppointmentController::class, 'store']);
+    Route::post('appointments/{appointment}/cancel', [\App\Http\Controllers\Api\Portal\ResidentAppointmentController::class, 'cancel']);
     Route::get('requests', [RequestController::class, 'index']);
     Route::post('requests', [RequestController::class, 'store']);
     Route::get('requests/{serviceRequest}', [RequestController::class, 'show']);

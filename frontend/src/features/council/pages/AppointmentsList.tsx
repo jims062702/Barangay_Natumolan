@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   FiCalendar,
@@ -13,6 +13,8 @@ import {
   FiMapPin,
   FiPhone,
   FiMail,
+  FiSlash,
+  FiAlertTriangle,
 } from "react-icons/fi";
 import { useAuth } from "../../../shared/auth/AuthContext";
 import Card from "../../../shared/ui/Card";
@@ -34,14 +36,29 @@ import PhoneInput from "../../../shared/ui/PhoneInput";
 import { localMobile, e164Mobile } from "../../../shared/lib/phone";
 import type { Resident } from "../../../shared/types";
 
-const TABS = ["All", "Pending", "Approved", "Completed", "Rejected"] as const;
+const TABS = ["All", "Pending", "Approved", "Completed", "Cancelled", "Rejected"] as const;
+
+const TIME_SLOTS = [
+  "08:30 AM",
+  "09:00 AM",
+  "09:30 AM",
+  "10:00 AM",
+  "10:30 AM",
+  "11:00 AM",
+  "01:30 PM",
+  "02:00 PM",
+  "02:30 PM",
+  "03:00 PM",
+  "03:30 PM",
+  "04:00 PM",
+];
 
 export default function AppointmentsList() {
   const { user } = useAuth();
-  const isPb = user?.role === "Punong Barangay";
-  // Secretary check
+  const isSecretary = user?.role === "Secretary" || user?.role === "Admin";
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [counts, setCounts] = useState<Record<string, number>>({});
   const [activeTab, setActiveTab] = useState<string>("All");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -53,7 +70,7 @@ export default function AppointmentsList() {
   // Viewing detail modal
   const [viewing, setViewing] = useState<Appointment | null>(null);
 
-  // Walk-in creation modal (Secretary only)
+  // Walk-in creation modal (Secretary)
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [applicantType, setApplicantType] = useState<"Resident" | "Non-resident">("Resident");
   const [selectedResident, setSelectedResident] = useState<Resident | null>(null);
@@ -64,41 +81,70 @@ export default function AppointmentsList() {
   const [appointmentDate, setAppointmentDate] = useState("");
   const [appointmentTime, setAppointmentTime] = useState("");
   const [purpose, setPurpose] = useState("");
-  const [initialMinutes, setInitialMinutes] = useState("");
   const [savingWalkIn, setSavingWalkIn] = useState(false);
+  const savingWalkInRef = useRef(false);
 
-  // Approve modal (Secretary only)
+  // Slot availability for Walk-in
+  const [walkInBookedSlots, setWalkInBookedSlots] = useState<string[]>([]);
+  const [walkInPendingCounts, setWalkInPendingCounts] = useState<Record<string, number>>({});
+
+  // Approve modal (PB or Secretary)
   const [approving, setApproving] = useState<Appointment | null>(null);
   const [approveTime, setApproveTime] = useState("");
   const [approveDate, setApproveDate] = useState("");
+  const [approveBookedSlots, setApproveBookedSlots] = useState<string[]>([]);
+  const [approvePendingCounts, setApprovePendingCounts] = useState<Record<string, number>>({});
   const [approvingLoading, setApprovingLoading] = useState(false);
+  const approvingRef = useRef(false);
 
-  // Reject modal (Secretary only)
+  // Reject modal (PB or Secretary)
   const [rejecting, setRejecting] = useState<Appointment | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [rejectingLoading, setRejectingLoading] = useState(false);
+  const rejectingRef = useRef(false);
 
-  // Minutes modal (Secretary only)
+  // Cancel modal (PB or Secretary)
+  const [cancelling, setCancelling] = useState<Appointment | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancellingLoading, setCancellingLoading] = useState(false);
+  const cancellingRef = useRef(false);
+
+  // Minutes modal (Secretary or PB)
   const [editingMinutes, setEditingMinutes] = useState<Appointment | null>(null);
   const [minutesText, setMinutesText] = useState("");
   const [minutesStatus, setMinutesStatus] = useState<"Approved" | "Completed">("Completed");
   const [minutesLoading, setMinutesLoading] = useState(false);
+  const minutesRef = useRef(false);
 
   const load = (silent = false) => {
     if (!silent) setLoading(true);
-    appointmentApi.list({
-      params: {
-        page,
-        status: activeTab,
-        search: search.trim() || undefined,
-      },
-    })
-      .then((r) => {
-        setAppointments(r.data.data.data ?? []);
-        setLastPage(r.data.data.last_page ?? 1);
-        setTotal(r.data.data.total ?? 0);
+    appointmentApi
+      .list({
+        params: {
+          page,
+          status: activeTab,
+          search: search.trim() || undefined,
+        },
       })
-      .then(() => pageLoad.done(), (err) => { pageLoad.fail(err); throw err; })
+      .then((r) => {
+        const respData = r.data.data;
+        const list = respData.appointments?.data ?? respData.data ?? [];
+        const last = respData.appointments?.last_page ?? respData.last_page ?? 1;
+        const tot = respData.appointments?.total ?? respData.total ?? 0;
+        setAppointments(list);
+        setLastPage(last);
+        setTotal(tot);
+        if (respData.counts) {
+          setCounts(respData.counts);
+        }
+      })
+      .then(
+        () => pageLoad.done(),
+        (err) => {
+          pageLoad.fail(err);
+          throw err;
+        }
+      )
       .catch(() => undefined)
       .finally(() => setLoading(false));
   };
@@ -111,6 +157,44 @@ export default function AppointmentsList() {
   useAutoRefresh(() => load(true), REFRESH.staff);
   usePulse("sessions", () => load(true));
 
+  // Load booked slots when walk-in date changes
+  useEffect(() => {
+    if (!createModalOpen || !appointmentDate) {
+      setWalkInBookedSlots([]);
+      setWalkInPendingCounts({});
+      return;
+    }
+    appointmentApi
+      .bookedSlots(appointmentDate)
+      .then((res) => {
+        setWalkInBookedSlots(res.data.data.booked_slots ?? []);
+        setWalkInPendingCounts(res.data.data.pending_slot_counts ?? {});
+      })
+      .catch(() => {
+        setWalkInBookedSlots([]);
+        setWalkInPendingCounts({});
+      });
+  }, [createModalOpen, appointmentDate]);
+
+  // Load booked slots when approve date changes
+  useEffect(() => {
+    if (!approving || !approveDate) {
+      setApproveBookedSlots([]);
+      setApprovePendingCounts({});
+      return;
+    }
+    appointmentApi
+      .bookedSlots(approveDate, approving.id)
+      .then((res) => {
+        setApproveBookedSlots(res.data.data.booked_slots ?? []);
+        setApprovePendingCounts(res.data.data.pending_slot_counts ?? {});
+      })
+      .catch(() => {
+        setApproveBookedSlots([]);
+        setApprovePendingCounts({});
+      });
+  }, [approving, approveDate]);
+
   const handleOpenWalkIn = () => {
     setApplicantType("Resident");
     setSelectedResident(null);
@@ -121,21 +205,30 @@ export default function AppointmentsList() {
     setAppointmentDate("");
     setAppointmentTime("");
     setPurpose("");
-    setInitialMinutes("");
+    setWalkInBookedSlots([]);
+    setWalkInPendingCounts({});
     setCreateModalOpen(true);
   };
 
   const handleResidentSelect = (res: Resident | null) => {
     setSelectedResident(res);
     if (res) {
-      setFullName(`${res.first_name} ${res.middle_name ? res.middle_name + " " : ""}${res.last_name}${res.suffix ? " " + res.suffix : ""}`);
-      setAddress(res.address ? `${res.address}, ${res.zone_purok ?? ""}` : (res.zone_purok ?? "Barangay Natumolan"));
+      setFullName(
+        `${res.first_name} ${res.middle_name ? res.middle_name + " " : ""}${res.last_name}${
+          res.suffix ? " " + res.suffix : ""
+        }`
+      );
+      setAddress(
+        res.address ? `${res.address}, ${res.zone_purok ?? ""}` : res.zone_purok ?? "Barangay Natumolan"
+      );
       setPhoneNumber(res.contact_number ?? "");
       setEmail((res.email ?? "").slice(0, 50));
     }
   };
 
   const handleSaveWalkIn = async () => {
+    if (savingWalkInRef.current) return;
+
     if (applicantType === "Resident" && !selectedResident) {
       toast("Please select a registered resident.", "error");
       return;
@@ -165,6 +258,10 @@ export default function AppointmentsList() {
       toast("Please specify the appointment time.", "error");
       return;
     }
+    if (walkInBookedSlots.includes(appointmentTime.trim())) {
+      toast("This time slot is already booked and approved. Please pick another time.", "error");
+      return;
+    }
     if (!purpose.trim()) {
       toast("Please state the purpose of the appointment.", "error");
       return;
@@ -178,6 +275,7 @@ export default function AppointmentsList() {
       return;
     }
 
+    savingWalkInRef.current = true;
     setSavingWalkIn(true);
     try {
       const res = await appointmentApi.createWalkIn({
@@ -190,8 +288,6 @@ export default function AppointmentsList() {
         appointment_date: appointmentDate,
         appointment_time: appointmentTime.trim(),
         purpose: purpose.trim().slice(0, 255),
-        status: "Approved",
-        minutes: initialMinutes.trim() || null,
       });
       toast(res.data?.message || "Walk-in appointment recorded successfully.");
       setCreateModalOpen(false);
@@ -199,6 +295,7 @@ export default function AppointmentsList() {
     } catch (err) {
       toast(errorMessage(err), "error");
     } finally {
+      savingWalkInRef.current = false;
       setSavingWalkIn(false);
     }
   };
@@ -210,16 +307,26 @@ export default function AppointmentsList() {
   };
 
   const handleSaveApprove = async () => {
-    if (!approving) return;
+    if (!approving || approvingRef.current) return;
+    if (!approveDate) {
+      toast("Please specify the confirmed appointment date.", "error");
+      return;
+    }
     if (!approveTime.trim()) {
       toast("Please specify the confirmed appointment time.", "error");
       return;
     }
+    if (approveBookedSlots.includes(approveTime.trim())) {
+      toast("This time slot is already booked for another approved appointment. Please choose a different time or date.", "error");
+      return;
+    }
+
+    approvingRef.current = true;
     setApprovingLoading(true);
     try {
       const res = await appointmentApi.approve(approving.id, {
-        appointment_time: approveTime.trim(),
         appointment_date: approveDate,
+        appointment_time: approveTime.trim(),
       });
       toast(res.data?.message || "Appointment approved.");
       setApproving(null);
@@ -227,16 +334,18 @@ export default function AppointmentsList() {
     } catch (err) {
       toast(errorMessage(err), "error");
     } finally {
+      approvingRef.current = false;
       setApprovingLoading(false);
     }
   };
 
   const handleSaveReject = async () => {
-    if (!rejecting) return;
+    if (!rejecting || rejectingRef.current) return;
     if (!rejectionReason.trim()) {
       toast("Please state the reason for rejecting.", "error");
       return;
     }
+    rejectingRef.current = true;
     setRejectingLoading(true);
     try {
       const res = await appointmentApi.reject(rejecting.id, {
@@ -248,22 +357,52 @@ export default function AppointmentsList() {
     } catch (err) {
       toast(errorMessage(err), "error");
     } finally {
+      rejectingRef.current = false;
       setRejectingLoading(false);
+    }
+  };
+
+  const handleOpenCancel = (apt: Appointment) => {
+    setCancelling(apt);
+    setCancelReason("");
+  };
+
+  const handleSaveCancel = async () => {
+    if (!cancelling || cancellingRef.current) return;
+    if (!cancelReason.trim()) {
+      toast("Please provide the reason for cancellation.", "error");
+      return;
+    }
+    cancellingRef.current = true;
+    setCancellingLoading(true);
+    try {
+      const res = await appointmentApi.cancel(cancelling.id, {
+        reason: cancelReason.trim(),
+      });
+      toast(res.data?.message || "Appointment cancelled.");
+      setCancelling(null);
+      load();
+    } catch (err) {
+      toast(errorMessage(err), "error");
+    } finally {
+      cancellingRef.current = false;
+      setCancellingLoading(false);
     }
   };
 
   const handleOpenMinutes = (apt: Appointment) => {
     setEditingMinutes(apt);
     setMinutesText(apt.minutes || "");
-    setMinutesStatus(apt.status === "Completed" ? "Completed" : "Completed");
+    setMinutesStatus(apt.status === "Completed" ? "Completed" : "Approved");
   };
 
   const handleSaveMinutes = async () => {
-    if (!editingMinutes) return;
+    if (!editingMinutes || minutesRef.current) return;
     if (!minutesText.trim()) {
       toast("Please enter the minutes of the appointment.", "error");
       return;
     }
+    minutesRef.current = true;
     setMinutesLoading(true);
     try {
       const res = await appointmentApi.updateMinutes(editingMinutes.id, {
@@ -276,6 +415,7 @@ export default function AppointmentsList() {
     } catch (err) {
       toast(errorMessage(err), "error");
     } finally {
+      minutesRef.current = false;
       setMinutesLoading(false);
     }
   };
@@ -301,15 +441,13 @@ export default function AppointmentsList() {
 
   if (pageLoad.state !== "ready") return <PageLoading load={pageLoad} onRetry={() => load()} />;
 
+  const isApproveConflict = approveBookedSlots.includes(approveTime.trim());
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Appointments"
-        subtitle={
-          isPb
-            ? "Punong Barangay executive appointment log & calendar view (Read-only)"
-            : "Manage online and walk-in appointments for residents and non-residents"
-        }
+        subtitle="Manage and monitor online and walk-in appointments for residents and non-residents"
         actions={
           <div className="flex items-center gap-2">
             <Link
@@ -318,7 +456,7 @@ export default function AppointmentsList() {
             >
               <FiCalendar className="h-4 w-4" /> Appointments Calendar
             </Link>
-            {!isPb && (
+            {isSecretary && (
               <button
                 type="button"
                 onClick={handleOpenWalkIn}
@@ -332,26 +470,36 @@ export default function AppointmentsList() {
       />
 
       <Card>
-        {/* Filter Tabs */}
+        {/* Filter Tabs with numeric counts */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-gray/60 pb-3">
           <div className="flex flex-wrap gap-1.5">
-            {TABS.map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => {
-                  setActiveTab(tab);
-                  setPage(1);
-                }}
-                className={`cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
-                  activeTab === tab
-                    ? "bg-primary text-white shadow-2xs"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
+            {TABS.map((tab) => {
+              const count = counts[tab] ?? (tab === "All" ? total : 0);
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => {
+                    setActiveTab(tab);
+                    setPage(1);
+                  }}
+                  className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+                    activeTab === tab
+                      ? "bg-primary text-white shadow-2xs"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  <span>{tab}</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
+                      activeTab === tab ? "bg-white/25 text-white" : "bg-gray-200 text-gray-700"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -376,7 +524,13 @@ export default function AppointmentsList() {
                 <div>
                   <div className="font-semibold text-dark">{a.full_name}</div>
                   <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <span className={a.applicant_type === "Resident" ? "text-primary font-medium" : "text-amber-700 font-medium"}>
+                    <span
+                      className={
+                        a.applicant_type === "Resident"
+                          ? "text-primary font-medium"
+                          : "text-amber-700 font-medium"
+                      }
+                    >
                       {a.applicant_type}
                     </span>
                     <span>·</span>
@@ -439,7 +593,8 @@ export default function AppointmentsList() {
                     <FiEye className="h-4 w-4" />
                   </button>
 
-                  {!isPb && a.status === "Pending" && (
+                  {/* PB and Secretary can Approve or Reject Pending appointments */}
+                  {a.status === "Pending" && (
                     <>
                       <button
                         type="button"
@@ -465,7 +620,21 @@ export default function AppointmentsList() {
                     </>
                   )}
 
-                  {!isPb && (a.status === "Approved" || a.status === "Completed") && (
+                  {/* Cancel button for Pending or Approved appointments */}
+                  {(a.status === "Pending" || a.status === "Approved") && (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenCancel(a)}
+                      title="Cancel appointment"
+                      aria-label="Cancel appointment"
+                      className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-700 transition hover:bg-amber-600 hover:text-white"
+                    >
+                      <FiSlash className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+
+                  {/* Minutes can ONLY be added/edited if Approved or Completed */}
+                  {(a.status === "Approved" || a.status === "Completed") && (
                     <button
                       type="button"
                       onClick={() => handleOpenMinutes(a)}
@@ -477,17 +646,16 @@ export default function AppointmentsList() {
                     </button>
                   )}
 
-                  {!isPb && (
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(a)}
-                      title="Delete appointment"
-                      aria-label="Delete appointment"
-                      className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-gray text-gray-400 transition hover:border-danger hover:bg-danger/10 hover:text-danger"
-                    >
-                      <FiTrash2 className="h-4 w-4" />
-                    </button>
-                  )}
+                  {/* Delete button (Secretary or PB) */}
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(a)}
+                    title="Delete appointment"
+                    aria-label="Delete appointment"
+                    className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-gray text-gray-400 transition hover:border-danger hover:bg-danger/10 hover:text-danger"
+                  >
+                    <FiTrash2 className="h-4 w-4" />
+                  </button>
                 </div>
               ),
             },
@@ -528,7 +696,9 @@ export default function AppointmentsList() {
                 <FiUser className="mt-0.5 h-4 w-4 text-primary shrink-0" />
                 <div>
                   <span className="font-bold text-dark block">Applicant Type</span>
-                  <span>{viewing.applicant_type} {viewing.is_walk_in && "(Walk-in Booking)"}</span>
+                  <span>
+                    {viewing.applicant_type} {viewing.is_walk_in && "(Walk-in Booking)"}
+                  </span>
                 </div>
               </div>
               <div className="flex items-start gap-2 text-gray-600">
@@ -555,14 +725,15 @@ export default function AppointmentsList() {
               <div className="flex items-start gap-2 text-gray-600 sm:col-span-2">
                 <FiCalendar className="mt-0.5 h-4 w-4 text-primary shrink-0" />
                 <div>
-                  <span className="font-bold text-dark block">Confirmed Date & Time</span>
+                  <span className="font-bold text-dark block">Scheduled Date & Time</span>
                   <span className="font-semibold text-primary">
                     {new Date(viewing.appointment_date).toLocaleDateString("en-PH", {
                       weekday: "long",
                       year: "numeric",
                       month: "long",
                       day: "numeric",
-                    })} · {viewing.appointment_time || "Pending Time Confirmation"}
+                    })}{" "}
+                    · {viewing.appointment_time || "Pending Time Confirmation"}
                   </span>
                 </div>
               </div>
@@ -570,7 +741,9 @@ export default function AppointmentsList() {
 
             <div className="rounded-xl border border-gray/50 bg-gray-50/70 p-3">
               <span className="font-bold text-xs text-dark block mb-1">Purpose / Details:</span>
-              <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">{viewing.purpose}</p>
+              <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">
+                {viewing.purpose}
+              </p>
             </div>
 
             {viewing.minutes && (
@@ -579,7 +752,9 @@ export default function AppointmentsList() {
                   <FiCheckCircle className="h-3.5 w-3.5 text-indigo-700" />
                   <span>Minutes of Appointment / Discussion:</span>
                 </div>
-                <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed">{viewing.minutes}</p>
+                <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed">
+                  {viewing.minutes}
+                </p>
               </div>
             )}
 
@@ -587,6 +762,19 @@ export default function AppointmentsList() {
               <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-3 text-xs text-rose-800">
                 <span className="font-bold block mb-1">Rejection Reason:</span>
                 <p>{viewing.rejection_reason}</p>
+              </div>
+            )}
+
+            {viewing.cancel_reason && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-xs text-amber-900">
+                <span className="font-bold block mb-1">Cancellation Reason:</span>
+                <p>{viewing.cancel_reason}</p>
+                {viewing.cancelled_at && (
+                  <p className="mt-1 text-[11px] text-gray-500">
+                    Cancelled on {new Date(viewing.cancelled_at).toLocaleString("en-PH")}
+                    {viewing.canceller && ` by ${viewing.canceller.name}`}
+                  </p>
+                )}
               </div>
             )}
 
@@ -603,7 +791,7 @@ export default function AppointmentsList() {
         </Modal>
       )}
 
-      {/* New Walk-in Appointment Modal (Secretary only) */}
+      {/* New Walk-in Appointment Modal (Secretary) */}
       {createModalOpen && (
         <Modal
           open={createModalOpen}
@@ -678,7 +866,11 @@ export default function AppointmentsList() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <FormField
                 label="Email Address"
-                hint={applicantType === "Non-resident" ? `${50 - email.length} chars left (receives approval email)` : `${50 - email.length} chars left (max 50)`}
+                hint={
+                  applicantType === "Non-resident"
+                    ? `${50 - email.length} chars left (receives approval email)`
+                    : `${50 - email.length} chars left (max 50)`
+                }
               >
                 <input
                   type="email"
@@ -705,29 +897,42 @@ export default function AppointmentsList() {
                   type="date"
                   value={appointmentDate}
                   min={new Date().toISOString().slice(0, 10)}
-                  onChange={(e) => setAppointmentDate(e.target.value)}
+                  onChange={(e) => {
+                    setAppointmentDate(e.target.value);
+                    setAppointmentTime("");
+                  }}
                   className={inputClasses}
                 />
               </FormField>
-              <FormField label="Appointment Time">
+              <FormField
+                label="Appointment Time"
+                hint={
+                  !appointmentDate
+                    ? "Pumili muna ng petsa upang makita ang available na oras"
+                    : undefined
+                }
+              >
                 <select
                   value={appointmentTime}
+                  disabled={!appointmentDate}
                   onChange={(e) => setAppointmentTime(e.target.value)}
                   className={inputClasses}
                 >
-                  <option value="">-- Select Preferred Time --</option>
-                  <option value="08:30 AM">08:30 AM</option>
-                  <option value="09:00 AM">09:00 AM</option>
-                  <option value="09:30 AM">09:30 AM</option>
-                  <option value="10:00 AM">10:00 AM</option>
-                  <option value="10:30 AM">10:30 AM</option>
-                  <option value="11:00 AM">11:00 AM</option>
-                  <option value="01:30 PM">01:30 PM</option>
-                  <option value="02:00 PM">02:00 PM</option>
-                  <option value="02:30 PM">02:30 PM</option>
-                  <option value="03:00 PM">03:00 PM</option>
-                  <option value="03:30 PM">03:30 PM</option>
-                  <option value="04:00 PM">04:00 PM</option>
+                  <option value="">-- Select Time Slot --</option>
+                  {TIME_SLOTS.map((slot) => {
+                    const isBooked = walkInBookedSlots.includes(slot);
+                    const pendingCnt = walkInPendingCounts[slot] ?? 0;
+                    return (
+                      <option key={slot} value={slot} disabled={isBooked}>
+                        {slot}{" "}
+                        {isBooked
+                          ? "(Not Available - Booked)"
+                          : pendingCnt > 0
+                          ? `(${pendingCnt} pending)`
+                          : ""}
+                      </option>
+                    );
+                  })}
                 </select>
               </FormField>
             </div>
@@ -746,15 +951,13 @@ export default function AppointmentsList() {
               />
             </FormField>
 
-            <FormField label="Appointment Minutes / Notes (Optional)" hint="Maaari ding ilagay matapos ang appointment">
-              <textarea
-                value={initialMinutes}
-                onChange={(e) => setInitialMinutes(e.target.value)}
-                placeholder="Initial notes or summary of discussions…"
-                rows={2}
-                className={inputClasses}
-              />
-            </FormField>
+            <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3 text-xs text-blue-800">
+              <p>
+                <strong>Paalala:</strong> Ang walk-in appointment ay magiging <strong>Pending</strong>{" "}
+                ang status. Maaari itong i-approve ni Punong Barangay o Secretary. Ang meeting minutes
+                naman ay maitala kapag na-approve na ang appointment.
+              </p>
+            </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-gray/40">
               <button
@@ -778,7 +981,7 @@ export default function AppointmentsList() {
         </Modal>
       )}
 
-      {/* Approve Modal (Secretary only) */}
+      {/* Approve Modal (PB & Secretary) */}
       {approving && (
         <Modal
           open={!!approving}
@@ -787,7 +990,8 @@ export default function AppointmentsList() {
         >
           <div className="space-y-4 text-sm">
             <p className="text-xs text-gray-600">
-              Set and confirm the scheduled time for <strong>{approving.full_name}</strong>. An email notification will be automatically dispatched if an email address is on file.
+              Set and confirm the scheduled date and time for <strong>{approving.full_name}</strong>.
+              An email confirmation will be automatically dispatched if an email is registered.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -795,19 +999,52 @@ export default function AppointmentsList() {
                 <input
                   type="date"
                   value={approveDate}
+                  min={new Date().toISOString().slice(0, 10)}
                   onChange={(e) => setApproveDate(e.target.value)}
                   className={inputClasses}
                 />
               </FormField>
               <FormField label="Confirmed Time">
-                <input
+                <select
                   value={approveTime}
                   onChange={(e) => setApproveTime(e.target.value)}
-                  placeholder="e.g. 10:00 AM"
                   className={inputClasses}
-                />
+                >
+                  <option value="">-- Select Time Slot --</option>
+                  {TIME_SLOTS.map((slot) => {
+                    const isBooked = approveBookedSlots.includes(slot);
+                    const pendingCnt = approvePendingCounts[slot] ?? 0;
+                    return (
+                      <option key={slot} value={slot} disabled={isBooked}>
+                        {slot}{" "}
+                        {isBooked
+                          ? "(Not Available - Booked)"
+                          : pendingCnt > 0
+                          ? `(${pendingCnt} pending)`
+                          : ""}
+                      </option>
+                    );
+                  })}
+                </select>
               </FormField>
             </div>
+
+            {isApproveConflict && (
+              <div className="flex items-start gap-2 rounded-xl border border-rose-300 bg-rose-50 p-3 text-xs text-rose-800">
+                <FiAlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
+                <div>
+                  <span className="font-bold block">Conflict Detected:</span>
+                  Ang napiling oras ({approveTime}) sa petsang ito ay may naka-book at na-aprubahan nang
+                  ibang appointment. Paki-pili ang ibang oras o petsa upang maiwasan ang double booking.
+                </div>
+              </div>
+            )}
+
+            {!isApproveConflict && approvePendingCounts[approveTime] && approvePendingCounts[approveTime] > 0 && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                May <strong>{approvePendingCounts[approveTime]}</strong> pang ibang pending request sa parehong oras na ito.
+              </div>
+            )}
 
             <div className="flex justify-end gap-2 pt-2 border-t border-gray/40">
               <button
@@ -821,7 +1058,7 @@ export default function AppointmentsList() {
               <button
                 type="button"
                 onClick={handleSaveApprove}
-                disabled={approvingLoading}
+                disabled={approvingLoading || isApproveConflict}
                 className="cursor-pointer rounded-full bg-emerald-600 px-6 py-2 text-xs font-semibold text-white shadow hover:bg-emerald-700 disabled:opacity-50"
               >
                 {approvingLoading ? "Approving…" : "Confirm & Approve"}
@@ -831,7 +1068,7 @@ export default function AppointmentsList() {
         </Modal>
       )}
 
-      {/* Reject Modal (Secretary only) */}
+      {/* Reject Modal */}
       {rejecting && (
         <Modal
           open={!!rejecting}
@@ -871,7 +1108,52 @@ export default function AppointmentsList() {
         </Modal>
       )}
 
-      {/* Minutes Modal (Secretary only) */}
+      {/* Cancel Modal (PB or Secretary) */}
+      {cancelling && (
+        <Modal
+          open={!!cancelling}
+          onClose={() => setCancelling(null)}
+          title={`Cancel Appointment ${cancelling.appointment_number}`}
+        >
+          <div className="space-y-4 text-sm">
+            <p className="text-xs text-gray-600">
+              Ikakansela ang appointment ni <strong>{cancelling.full_name}</strong>. Mababakante ang
+              petsa at oras nito para sa ibang appointment.
+            </p>
+
+            <FormField label="Dahilan ng Pag-kansela (Cancellation Reason)">
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="e.g. Nag-walk-in o tumawag ang aplikante para magpa-cancel; conflict sa official barangay schedule..."
+                rows={3}
+                className={inputClasses}
+              />
+            </FormField>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-gray/40">
+              <button
+                type="button"
+                onClick={() => setCancelling(null)}
+                disabled={cancellingLoading}
+                className="cursor-pointer rounded-full border border-gray px-5 py-2 text-xs font-semibold text-dark hover:bg-gray-100"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveCancel}
+                disabled={cancellingLoading}
+                className="cursor-pointer rounded-full bg-amber-600 px-6 py-2 text-xs font-semibold text-white shadow hover:bg-amber-700 disabled:opacity-50"
+              >
+                {cancellingLoading ? "Cancelling…" : "Confirm Cancellation"}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Minutes Modal (Only for Approved or Completed) */}
       {editingMinutes && (
         <Modal
           open={!!editingMinutes}
@@ -880,7 +1162,9 @@ export default function AppointmentsList() {
         >
           <div className="space-y-4 text-sm">
             <p className="text-xs text-gray-600">
-              Record the meeting minutes, actions taken, and discussions for <strong>{editingMinutes.full_name}</strong>. Punong Barangay can read these minutes on their calendar.
+              Record the meeting minutes, actions taken, and discussions for{" "}
+              <strong>{editingMinutes.full_name}</strong>. Punong Barangay can read these minutes on
+              their calendar.
             </p>
 
             <FormField label="Minutes of the Meeting">
@@ -899,7 +1183,7 @@ export default function AppointmentsList() {
                 onChange={(e) => setMinutesStatus(e.target.value as "Approved" | "Completed")}
                 className={inputClasses}
               >
-                <option value="Approved">Approved (In Progress / Retain Schedule)</option>
+                <option value="Approved">Approved (Retain Schedule)</option>
                 <option value="Completed">Completed (Meeting Finished)</option>
               </select>
             </FormField>

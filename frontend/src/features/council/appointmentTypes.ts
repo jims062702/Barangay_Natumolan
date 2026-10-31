@@ -14,10 +14,13 @@ export interface Appointment {
   status: "Pending" | "Approved" | "Rejected" | "Completed" | "Cancelled";
   minutes: string | null;
   rejection_reason: string | null;
+  cancel_reason: string | null;
   id_card_code: string | null;
   id_photo_path: string | null;
   approved_by: number | null;
   approved_at: string | null;
+  cancelled_by: number | null;
+  cancelled_at: string | null;
   created_at: string;
   updated_at: string;
   resident?: {
@@ -31,6 +34,10 @@ export interface Appointment {
     email: string | null;
   } | null;
   approver?: {
+    id: number;
+    name: string;
+  } | null;
+  canceller?: {
     id: number;
     name: string;
   } | null;

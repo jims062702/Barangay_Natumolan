@@ -27,10 +27,13 @@ class Appointment extends Model
         'status',
         'minutes',
         'rejection_reason',
+        'cancel_reason',
         'id_card_code',
         'id_photo_path',
         'approved_by',
         'approved_at',
+        'cancelled_by',
+        'cancelled_at',
     ];
 
     protected function casts(): array
@@ -39,6 +42,7 @@ class Appointment extends Model
             'is_walk_in' => 'boolean',
             'appointment_date' => 'date:Y-m-d',
             'approved_at' => 'datetime',
+            'cancelled_at' => 'datetime',
         ];
     }
 
@@ -50,6 +54,11 @@ class Appointment extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function canceller(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
     }
 
     public static function nextNumber(): string
