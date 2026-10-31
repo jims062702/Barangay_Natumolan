@@ -418,7 +418,7 @@ export default function AppointmentsCalendar() {
                 </p>
               ) : (
                 <p className="text-xs text-gray-500 italic">
-                  Walang minutes na nakatala sa kasalukuyan. {isSecretary && "Maaaring maglagay si Secretary matapos ang pagpupulong."}
+                  No minutes recorded yet. {isSecretary && "Secretary may record minutes once the meeting concludes."}
                 </p>
               )}
             </div>

@@ -83,7 +83,11 @@ class AppointmentController extends BaseController
             $query->where('id', '!=', $request->exclude_id);
         }
 
-        $booked = $query->pluck('appointment_time')->filter()->unique()->values();
+        $booked = $query->pluck('appointment_time')
+            ->map(fn ($t) => trim((string) $t))
+            ->filter()
+            ->unique()
+            ->values();
 
         // Also count pending appointments per time slot to highlight conflicts
         $pendingQuery = Appointment::whereDate('appointment_date', $request->date)
@@ -91,12 +95,17 @@ class AppointmentController extends BaseController
         if ($request->filled('exclude_id')) {
             $pendingQuery->where('id', '!=', $request->exclude_id);
         }
-        $pendingTimes = $pendingQuery->pluck('appointment_time')->filter()->values();
+        $pendingTimes = $pendingQuery->pluck('appointment_time')
+            ->map(fn ($t) => trim((string) $t))
+            ->filter()
+            ->values();
         $pendingCounts = array_count_values($pendingTimes->all());
 
         return $this->success([
             'date' => $request->date,
+            'booked_slots' => $booked,
             'booked_times' => $booked,
+            'pending_slot_counts' => $pendingCounts,
             'pending_counts' => $pendingCounts,
         ], 'Booked slots retrieved');
     }
@@ -159,7 +168,7 @@ class AppointmentController extends BaseController
             'full_name' => 'required|string|max:150',
             'address' => 'required|string|max:255',
             'phone_number' => 'required|string|max:25',
-            'email' => 'nullable|email|max:50',
+            'email' => 'required|email|max:50',
             'appointment_date' => 'required|date',
             'appointment_time' => 'required|string|max:20',
             'purpose' => 'required|string|max:255',
@@ -261,7 +270,7 @@ class AppointmentController extends BaseController
                 $appointment->resident_id,
                 'appointment_approved',
                 "Appointment Approved: {$appointment->appointment_number}",
-                "Ang inyong appointment para sa '{$appointment->purpose}' ay naaprubahan na para sa petsang " . \Carbon\Carbon::parse($appointment->appointment_date)->format('M d, Y') . " sa ganap na {$appointment->appointment_time}.",
+                "Your appointment for '{$appointment->purpose}' has been confirmed for " . \Carbon\Carbon::parse($appointment->appointment_date)->format('M d, Y') . " at {$appointment->appointment_time}.",
                 'appointment',
                 $appointment->id,
                 '/resident/appointments'
@@ -303,7 +312,7 @@ class AppointmentController extends BaseController
                 $appointment->resident_id,
                 'appointment_rejected',
                 "Appointment Update: {$appointment->appointment_number}",
-                "Paumanhin, ang inyong appointment ay hindi maaprubahan: {$appointment->rejection_reason}",
+                "Your appointment request could not be approved: {$appointment->rejection_reason}",
                 'appointment',
                 $appointment->id,
                 '/resident/appointments'
@@ -339,7 +348,7 @@ class AppointmentController extends BaseController
                 $appointment->resident_id,
                 'appointment_cancelled',
                 "Appointment Cancelled: {$appointment->appointment_number}",
-                "Ang inyong appointment ay nakansela na. Dahilan: {$reason}",
+                "Your appointment has been cancelled. Reason: {$reason}",
                 'appointment',
                 $appointment->id,
                 '/resident/appointments'

@@ -39,6 +39,8 @@ const TIME_SLOTS = [
   "04:00 PM",
 ];
 
+const normalizeTime = (t?: string | null) => (t ?? "").trim().toUpperCase().replace(/\s+/g, " ");
+
 export default function ResidentAppointments() {
   const { user } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -53,6 +55,7 @@ export default function ResidentAppointments() {
   const [phoneNumber, setPhoneNumber] = useState(() => user?.resident?.contact_number ?? "");
   const [email, setEmail] = useState(() => (user?.email ?? "").slice(0, 50));
   const [submitting, setSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const submittingRef = useRef(false);
 
   // Time slot availability for date
@@ -104,7 +107,8 @@ export default function ResidentAppointments() {
     residentAppointmentApi
       .bookedSlots(appointmentDate)
       .then((res) => {
-        setBookedSlots(res.data.data.booked_slots ?? []);
+        const slots = res.data.data.booked_slots ?? res.data.data.booked_times ?? [];
+        setBookedSlots(slots);
       })
       .catch(() => {
         setBookedSlots([]);
@@ -121,6 +125,7 @@ export default function ResidentAppointments() {
     setPurpose("");
     setPhoneNumber(user?.resident?.contact_number ?? "");
     setEmail((user?.email ?? "").slice(0, 50));
+    setFormErrors({});
     setBookedSlots([]);
     setBookModalOpen(true);
   };
@@ -128,39 +133,41 @@ export default function ResidentAppointments() {
   const handleBookSubmit = async () => {
     if (submittingRef.current) return;
 
+    const errors: Record<string, string> = {};
+
     if (!appointmentDate) {
-      toast("Please pick a desired appointment date.", "error");
-      return;
+      errors.appointmentDate = "Appointment date is required.";
     }
     if (!appointmentTime.trim()) {
-      toast("Please select a preferred time.", "error");
-      return;
-    }
-    if (bookedSlots.includes(appointmentTime.trim())) {
-      toast("This time slot is already booked. Please choose another time slot.", "error");
-      return;
-    }
-    if (!purpose.trim()) {
-      toast("Please specify the purpose of your appointment.", "error");
-      return;
-    }
-    if (purpose.trim().length > 255) {
-      toast("Purpose must not exceed 255 characters.", "error");
-      return;
+      errors.appointmentTime = "Preferred time slot is required.";
+    } else if (bookedSlots.some((s) => normalizeTime(s) === normalizeTime(appointmentTime))) {
+      errors.appointmentTime = "This time slot is already booked and unavailable. Please select another time.";
     }
     const phoneDigits = localMobile(phoneNumber);
     if (!phoneDigits) {
-      toast("Please provide an active contact phone number.", "error");
+      errors.phoneNumber = "Contact phone number is required.";
+    } else if (phoneDigits.length !== 10) {
+      errors.phoneNumber = "Contact phone number must be exactly 10 digits after +63.";
+    }
+    if (!email.trim()) {
+      errors.email = "Email address is required for confirmation and reminders.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      errors.email = "Please enter a valid email address (e.g. name@example.com).";
+    } else if (email.trim().length > 50) {
+      errors.email = "Email address must not exceed 50 characters.";
+    }
+    if (!purpose.trim()) {
+      errors.purpose = "Purpose of appointment is required.";
+    } else if (purpose.trim().length > 255) {
+      errors.purpose = "Purpose must not exceed 255 characters.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      toast("Please complete all required fields marked in red.", "error");
       return;
     }
-    if (phoneDigits.length !== 10) {
-      toast("Contact phone number must be exactly 10 digits after +63.", "error");
-      return;
-    }
-    if (email.trim().length > 50) {
-      toast("Email address must not exceed 50 characters.", "error");
-      return;
-    }
+    setFormErrors({});
 
     submittingRef.current = true;
     setSubmitting(true);
@@ -170,7 +177,7 @@ export default function ResidentAppointments() {
         appointment_time: appointmentTime.trim(),
         purpose: purpose.trim().slice(0, 255),
         phone_number: e164Mobile(phoneNumber),
-        email: email.trim().slice(0, 50) || undefined,
+        email: email.trim().slice(0, 50),
       });
       toast(res.data?.message || "Appointment request submitted successfully!");
       setBookModalOpen(false);
@@ -234,9 +241,9 @@ export default function ResidentAppointments() {
         <div className="flex items-start gap-2.5">
           <FiInfo className="mt-0.5 h-4 w-4 text-primary shrink-0" />
           <div>
-            <p className="font-semibold text-primary">Paano gumagana ang Barangay Appointment?</p>
+            <p className="font-semibold text-primary">How Barangay Appointments Work</p>
             <p className="mt-0.5 text-gray-600">
-              Maaari kayong mag-request ng appointment para sa inyong mga pakay sa Punong Barangay o tanggapan ng barangay. Susuriin ito ng Punong Barangay o Secretary at makakatanggap kayo ng notification sa dashboard at email confirmation kung kailan at anong oras ang inyong schedule.
+              You can request an appointment for your concerns with the Punong Barangay or Barangay Hall. The Punong Barangay or Secretary will review your request, and you will receive notifications and an email confirmation once your schedule is confirmed.
             </p>
           </div>
         </div>
@@ -330,12 +337,27 @@ export default function ResidentAppointments() {
           title="Book an Appointment"
         >
           <div className="space-y-4 text-sm">
+            {/* Validation errors summary banner */}
+            {Object.keys(formErrors).length > 0 && (
+              <div className="rounded-xl border border-rose-300 bg-rose-50 p-3 text-xs text-rose-800">
+                <div className="flex items-center gap-1.5 font-bold mb-1">
+                  <FiAlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                  <span>Please fill in all required fields marked in red:</span>
+                </div>
+                <ul className="list-disc list-inside space-y-0.5 text-[11px] text-rose-700">
+                  {Object.values(formErrors).map((msg, i) => (
+                    <li key={i}>{msg}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <p className="text-xs text-gray-600">
-              Pumili ng inyong nais na petsa at oras para sa inyong pakay. Makakatanggap kayo ng kumpirmasyon sa inyong email kapag na-aprubahan ito.
+              Please choose your desired appointment date and time slot. You will receive an email confirmation once reviewed and approved by the Barangay.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FormField label="Preferred Date">
+              <FormField label="Preferred Date *">
                 <input
                   type="date"
                   value={appointmentDate}
@@ -343,68 +365,130 @@ export default function ResidentAppointments() {
                   onChange={(e) => {
                     setAppointmentDate(e.target.value);
                     setAppointmentTime("");
+                    if (e.target.value) {
+                      setFormErrors((prev) => {
+                        const copy = { ...prev };
+                        delete copy.appointmentDate;
+                        return copy;
+                      });
+                    }
                   }}
-                  className={inputClasses}
+                  className={`${inputClasses} ${formErrors.appointmentDate ? "border-rose-500 focus:border-rose-600 focus:ring-rose-200" : ""}`}
                 />
+                {formErrors.appointmentDate && (
+                  <p className="mt-1 text-xs text-rose-600 font-medium">{formErrors.appointmentDate}</p>
+                )}
               </FormField>
               <FormField
-                label="Preferred Time"
-                hint={!appointmentDate ? "Pumili muna ng petsa upang makita ang available na oras" : undefined}
+                label="Preferred Time *"
+                hint={!appointmentDate ? "Please choose a date first to see available time slots" : undefined}
               >
                 <select
                   value={appointmentTime}
                   disabled={!appointmentDate}
-                  onChange={(e) => setAppointmentTime(e.target.value)}
-                  className={inputClasses}
+                  onChange={(e) => {
+                    setAppointmentTime(e.target.value);
+                    if (e.target.value) {
+                      setFormErrors((prev) => {
+                        const copy = { ...prev };
+                        delete copy.appointmentTime;
+                        return copy;
+                      });
+                    }
+                  }}
+                  className={`${inputClasses} ${formErrors.appointmentTime ? "border-rose-500 focus:border-rose-600 focus:ring-rose-200" : ""}`}
                 >
                   <option value="">-- Select Preferred Time --</option>
                   {TIME_SLOTS.map((slot) => {
-                    const isBooked = bookedSlots.includes(slot);
+                    const isBooked = bookedSlots.some(
+                      (s) => normalizeTime(s) === normalizeTime(slot)
+                    );
                     return (
                       <option key={slot} value={slot} disabled={isBooked}>
-                        {slot} {isBooked ? "(Not Available - Booked)" : ""}
+                        {slot} {isBooked ? "— (Unavailable - Booked)" : ""}
                       </option>
                     );
                   })}
                 </select>
+                {formErrors.appointmentTime && (
+                  <p className="mt-1 text-xs text-rose-600 font-medium">{formErrors.appointmentTime}</p>
+                )}
               </FormField>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FormField label="Contact Phone Number">
-                <PhoneInput
-                  value={phoneNumber}
-                  onChange={setPhoneNumber}
-                  placeholder="9XX XXX XXXX"
-                />
+              <FormField label="Contact Phone Number *">
+                <div className={formErrors.phoneNumber ? "rounded-xl ring-2 ring-rose-500 p-0.5" : ""}>
+                  <PhoneInput
+                    value={phoneNumber}
+                    onChange={(val) => {
+                      setPhoneNumber(val);
+                      if (val.trim()) {
+                        setFormErrors((prev) => {
+                          const copy = { ...prev };
+                          delete copy.phoneNumber;
+                          return copy;
+                        });
+                      }
+                    }}
+                    placeholder="9XX XXX XXXX"
+                  />
+                </div>
+                {formErrors.phoneNumber && (
+                  <p className="mt-1 text-xs text-rose-600 font-medium">{formErrors.phoneNumber}</p>
+                )}
               </FormField>
               <FormField
-                label="Email Address (for Confirmation & Reminders)"
-                hint={`${50 - email.length} characters left (max 50)`}
+                label="Email Address *"
+                hint={`${50 - email.length} characters left (for confirmation & reminders)`}
               >
                 <input
                   type="email"
                   value={email}
                   maxLength={50}
-                  onChange={(e) => setEmail(e.target.value.slice(0, 50))}
+                  onChange={(e) => {
+                    setEmail(e.target.value.slice(0, 50));
+                    if (e.target.value.trim()) {
+                      setFormErrors((prev) => {
+                        const copy = { ...prev };
+                        delete copy.email;
+                        return copy;
+                      });
+                    }
+                  }}
                   placeholder="name@example.com"
-                  className={inputClasses}
+                  className={`${inputClasses} ${formErrors.email ? "border-rose-500 focus:border-rose-600 focus:ring-rose-200" : ""}`}
                 />
+                {formErrors.email && (
+                  <p className="mt-1 text-xs text-rose-600 font-medium">{formErrors.email}</p>
+                )}
               </FormField>
             </div>
 
             <FormField
-              label="Purpose of Appointment (Pakay o Sadya)"
+              label="Purpose of Appointment *"
               hint={`${255 - purpose.length} characters left (max 255)`}
             >
               <textarea
                 value={purpose}
                 maxLength={255}
-                onChange={(e) => setPurpose(e.target.value.slice(0, 255))}
-                placeholder="Ilarawan ang inyong pakay sa pakikipag-appointment…"
+                onChange={(e) => {
+                  setPurpose(e.target.value.slice(0, 255));
+                  if (e.target.value.trim()) {
+                    setFormErrors((prev) => {
+                      const copy = { ...prev };
+                      delete copy.purpose;
+                      return copy;
+                    });
+                  }
+                }}
+                placeholder="State the purpose of your appointment…"
                 rows={4}
-                className={inputClasses}
+                className={`${inputClasses} ${formErrors.purpose ? "border-rose-500 focus:border-rose-600 focus:ring-rose-200" : ""}`}
               />
+              {formErrors.purpose && (
+                <p className="mt-1 text-xs text-rose-600 font-medium">{formErrors.purpose}</p>
+              )}
             </FormField>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-gray/40">
@@ -438,7 +522,7 @@ export default function ResidentAppointments() {
         >
           <div className="space-y-4 text-sm">
             <p className="text-xs text-gray-600">
-              Nais mo bang kanselahin ang inyong appointment sa petsang{" "}
+              Are you sure you want to cancel your appointment scheduled for{" "}
               <strong>
                 {new Date(cancelling.appointment_date).toLocaleDateString("en-PH", {
                   month: "long",
@@ -450,13 +534,13 @@ export default function ResidentAppointments() {
             </p>
 
             <FormField
-              label="Dahilan ng Pag-kansela (Cancellation Reason)"
-              hint="Maikling paliwanag kung bakit ikakansela ang appointment"
+              label="Reason for Cancellation *"
+              hint="Please state why you are cancelling your appointment"
             >
               <textarea
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
-                placeholder="Halimbawa: May emergency, kailangang i-reschedule sa ibang araw..."
+                placeholder="e.g., Personal emergency, need to reschedule to a later date..."
                 rows={3}
                 className={inputClasses}
               />
@@ -469,7 +553,7 @@ export default function ResidentAppointments() {
                 disabled={cancellingLoading}
                 className="cursor-pointer rounded-full border border-gray px-5 py-2 text-xs font-semibold text-dark hover:bg-gray-100"
               >
-                Huwag Ituloy
+                Keep Appointment
               </button>
               <button
                 type="button"
@@ -477,7 +561,7 @@ export default function ResidentAppointments() {
                 disabled={cancellingLoading}
                 className="cursor-pointer rounded-full bg-rose-600 px-6 py-2 text-xs font-semibold text-white shadow hover:bg-rose-700 disabled:opacity-50"
               >
-                {cancellingLoading ? "Cancelling…" : "Kumpirmahin ang Pag-kansela"}
+                {cancellingLoading ? "Cancelling…" : "Confirm Cancellation"}
               </button>
             </div>
           </div>

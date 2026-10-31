@@ -61,7 +61,7 @@ class OfflineSyncController extends BaseController
             'first_name', 'middle_name', 'last_name', 'suffix',
             'birthdate', 'birthdate_is_estimated', 'birth_place', 'nationality',
             'civil_status', 'zone_purok', 'address',
-            'length_of_residence_years', 'contact_number',
+            'length_of_residence_years', 'contact_number', 'email',
             'updated_at',
         ]);
 

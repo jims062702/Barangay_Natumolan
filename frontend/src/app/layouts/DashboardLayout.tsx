@@ -117,26 +117,34 @@ export default function DashboardLayout() {
         />
       </aside>
 
-      {/* Mobile drawer — always the full sidebar */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <div
-            className="absolute inset-0 bg-dark/50"
-            onClick={() => setSidebarOpen(false)}
-            aria-hidden="true"
+      {/* Mobile drawer — with smooth delayed sliding animation and fading backdrop */}
+      <div
+        className={`fixed inset-0 z-40 lg:hidden transition-all duration-500 ease-in-out ${
+          sidebarOpen ? "pointer-events-auto visible" : "pointer-events-none invisible"
+        }`}
+      >
+        <div
+          className={`absolute inset-0 bg-dark/60 backdrop-blur-[2px] transition-opacity duration-500 ease-in-out ${
+            sidebarOpen ? "opacity-100 delay-0" : "opacity-0 delay-100"
+          }`}
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+        <aside
+          className={`absolute inset-y-0 left-0 w-72 shadow-2xl transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] transform ${
+            sidebarOpen ? "translate-x-0 delay-100" : "-translate-x-full delay-0"
+          }`}
+        >
+          <Sidebar
+            compact={false}
+            user={user}
+            sections={sections}
+            setSidebarOpen={setSidebarOpen}
+            badges={badges}
+            activePath={activePath}
           />
-          <aside className="absolute inset-y-0 left-0 w-72">
-            <Sidebar
-              compact={false}
-              user={user}
-              sections={sections}
-              setSidebarOpen={setSidebarOpen}
-              badges={badges}
-              activePath={activePath}
-            />
-          </aside>
-        </div>
-      )}
+        </aside>
+      </div>
 
       {/*
         The room kept for the sidebar goes on paper too. The sidebar itself is
@@ -175,9 +183,15 @@ export default function DashboardLayout() {
               type="button"
               aria-label={sidebarOpen ? "Close menu" : "Open menu"}
               onClick={() => setSidebarOpen((o) => !o)}
-              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-dark hover:bg-primary/10 lg:hidden"
+              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-dark transition-all duration-300 ease-in-out active:scale-90 hover:bg-primary/10 lg:hidden"
             >
-              {sidebarOpen ? <FiX className="h-5 w-5" /> : <FiMenu className="h-5 w-5" />}
+              <span
+                className={`inline-flex transform transition-all duration-300 ease-in-out ${
+                  sidebarOpen ? "rotate-90 scale-105 text-primary" : "rotate-0 scale-100"
+                }`}
+              >
+                {sidebarOpen ? <FiX className="h-5 w-5" /> : <FiMenu className="h-5 w-5" />}
+              </span>
             </button>
 
             {/* Collapse/expand the sidebar — desktop only, and in the same spot

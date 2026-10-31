@@ -53,6 +53,8 @@ const TIME_SLOTS = [
   "04:00 PM",
 ];
 
+const normalizeTime = (t?: string | null) => (t ?? "").trim().toUpperCase().replace(/\s+/g, " ");
+
 export default function AppointmentsList() {
   const { user } = useAuth();
   const isSecretary = user?.role === "Secretary" || user?.role === "Admin";
@@ -82,6 +84,7 @@ export default function AppointmentsList() {
   const [appointmentTime, setAppointmentTime] = useState("");
   const [purpose, setPurpose] = useState("");
   const [savingWalkIn, setSavingWalkIn] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const savingWalkInRef = useRef(false);
 
   // Slot availability for Walk-in
@@ -167,8 +170,10 @@ export default function AppointmentsList() {
     appointmentApi
       .bookedSlots(appointmentDate)
       .then((res) => {
-        setWalkInBookedSlots(res.data.data.booked_slots ?? []);
-        setWalkInPendingCounts(res.data.data.pending_slot_counts ?? {});
+        const slots = res.data.data.booked_slots ?? res.data.data.booked_times ?? [];
+        const pending = res.data.data.pending_slot_counts ?? res.data.data.pending_counts ?? {};
+        setWalkInBookedSlots(slots);
+        setWalkInPendingCounts(pending);
       })
       .catch(() => {
         setWalkInBookedSlots([]);
@@ -186,8 +191,10 @@ export default function AppointmentsList() {
     appointmentApi
       .bookedSlots(approveDate, approving.id)
       .then((res) => {
-        setApproveBookedSlots(res.data.data.booked_slots ?? []);
-        setApprovePendingCounts(res.data.data.pending_slot_counts ?? {});
+        const slots = res.data.data.booked_slots ?? res.data.data.booked_times ?? [];
+        const pending = res.data.data.pending_slot_counts ?? res.data.data.pending_counts ?? {};
+        setApproveBookedSlots(slots);
+        setApprovePendingCounts(pending);
       })
       .catch(() => {
         setApproveBookedSlots([]);
@@ -205,6 +212,7 @@ export default function AppointmentsList() {
     setAppointmentDate("");
     setAppointmentTime("");
     setPurpose("");
+    setFormErrors({});
     setWalkInBookedSlots([]);
     setWalkInPendingCounts({});
     setCreateModalOpen(true);
@@ -222,58 +230,72 @@ export default function AppointmentsList() {
         res.address ? `${res.address}, ${res.zone_purok ?? ""}` : res.zone_purok ?? "Barangay Natumolan"
       );
       setPhoneNumber(res.contact_number ?? "");
-      setEmail((res.email ?? "").slice(0, 50));
+      const resEmail = res.email || res.account?.email || "";
+      setEmail(resEmail.slice(0, 50));
+      setFormErrors((prev) => {
+        const copy = { ...prev };
+        delete copy.resident;
+        delete copy.fullName;
+        delete copy.address;
+        if (res.contact_number) delete copy.phoneNumber;
+        if (resEmail) delete copy.email;
+        return copy;
+      });
+    } else {
+      setFullName("");
+      setAddress("");
+      setPhoneNumber("");
+      setEmail("");
     }
   };
 
   const handleSaveWalkIn = async () => {
     if (savingWalkInRef.current) return;
 
+    const errors: Record<string, string> = {};
+
     if (applicantType === "Resident" && !selectedResident) {
-      toast("Please select a registered resident.", "error");
-      return;
+      errors.resident = "Please select a registered resident.";
     }
     if (!fullName.trim()) {
-      toast("Please enter the applicant's full name.", "error");
-      return;
+      errors.fullName = "Full name is required.";
     }
     if (!address.trim()) {
-      toast("Please enter the address.", "error");
-      return;
+      errors.address = "Complete address is required.";
     }
     const phoneDigits = localMobile(phoneNumber);
     if (!phoneDigits) {
-      toast("Please enter a phone number.", "error");
-      return;
+      errors.phoneNumber = "Contact phone number is required.";
+    } else if (phoneDigits.length !== 10) {
+      errors.phoneNumber = "Phone number must be exactly 10 digits after +63.";
     }
-    if (phoneDigits.length !== 10) {
-      toast("Phone number must be exactly 10 digits after +63.", "error");
-      return;
+    if (!email.trim()) {
+      errors.email = "Email address is required for confirmation and notifications.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      errors.email = "Please enter a valid email address (e.g. resident@example.com).";
+    } else if (email.trim().length > 50) {
+      errors.email = "Email address must not exceed 50 characters.";
     }
     if (!appointmentDate) {
-      toast("Please select an appointment date.", "error");
-      return;
+      errors.appointmentDate = "Appointment date is required.";
     }
     if (!appointmentTime.trim()) {
-      toast("Please specify the appointment time.", "error");
-      return;
-    }
-    if (walkInBookedSlots.includes(appointmentTime.trim())) {
-      toast("This time slot is already booked and approved. Please pick another time.", "error");
-      return;
+      errors.appointmentTime = "Appointment time slot is required.";
+    } else if (walkInBookedSlots.some((s) => normalizeTime(s) === normalizeTime(appointmentTime))) {
+      errors.appointmentTime = "This time slot is already booked and unavailable. Please choose another time.";
     }
     if (!purpose.trim()) {
-      toast("Please state the purpose of the appointment.", "error");
+      errors.purpose = "Purpose of appointment is required.";
+    } else if (purpose.trim().length > 255) {
+      errors.purpose = "Purpose must not exceed 255 characters.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      toast("Please complete all required fields marked in red.", "error");
       return;
     }
-    if (purpose.trim().length > 255) {
-      toast("Purpose must not exceed 255 characters.", "error");
-      return;
-    }
-    if (email.trim().length > 50) {
-      toast("Email address must not exceed 50 characters.", "error");
-      return;
-    }
+    setFormErrors({});
 
     savingWalkInRef.current = true;
     setSavingWalkIn(true);
@@ -284,7 +306,7 @@ export default function AppointmentsList() {
         full_name: fullName.trim(),
         address: address.trim(),
         phone_number: e164Mobile(phoneNumber),
-        email: email.trim().slice(0, 50) || null,
+        email: email.trim().slice(0, 50),
         appointment_date: appointmentDate,
         appointment_time: appointmentTime.trim(),
         purpose: purpose.trim().slice(0, 255),
@@ -799,8 +821,25 @@ export default function AppointmentsList() {
           title="Record Walk-in Appointment"
         >
           <div className="space-y-4 text-sm">
+            {/* Validation errors summary banner */}
+            {Object.keys(formErrors).length > 0 && (
+              <div className="rounded-xl border border-rose-300 bg-rose-50 p-3 text-xs text-rose-800">
+                <div className="flex items-center gap-1.5 font-bold mb-1">
+                  <FiAlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
+                  <span>Please fill in all required fields marked in red:</span>
+                </div>
+                <ul className="list-disc list-inside space-y-0.5 text-[11px] text-rose-700">
+                  {Object.values(formErrors).map((msg, i) => (
+                    <li key={i}>{msg}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <div className="flex items-center gap-4 border-b border-gray/40 pb-3">
-              <span className="text-xs font-bold text-dark">Applicant Type:</span>
+              <span className="text-xs font-bold text-dark">
+                Applicant Type <span className="text-rose-500">*</span>:
+              </span>
               <label className="flex items-center gap-1.5 text-xs font-medium cursor-pointer">
                 <input
                   type="radio"
@@ -811,6 +850,10 @@ export default function AppointmentsList() {
                     setApplicantType("Resident");
                     setSelectedResident(null);
                     setFullName("");
+                    setAddress("");
+                    setPhoneNumber("");
+                    setEmail("");
+                    setFormErrors({});
                   }}
                 />
                 Resident
@@ -828,6 +871,7 @@ export default function AppointmentsList() {
                     setAddress("");
                     setPhoneNumber("");
                     setEmail("");
+                    setFormErrors({});
                   }}
                 />
                 Non-resident
@@ -835,37 +879,71 @@ export default function AppointmentsList() {
             </div>
 
             {applicantType === "Resident" && (
-              <FormField label="Search & Select Resident" hint="Pumili mula sa rehistradong residente">
-                <ResidentPicker
-                  value={selectedResident}
-                  onChange={handleResidentSelect}
-                  placeholder="Type name to find resident…"
-                />
+              <FormField
+                label="Search & Select Resident *"
+                hint="Select a registered resident to auto-fill details"
+              >
+                <div className={formErrors.resident ? "rounded-xl ring-2 ring-rose-500 p-0.5" : ""}>
+                  <ResidentPicker
+                    value={selectedResident}
+                    onChange={handleResidentSelect}
+                    placeholder="Type name to find resident…"
+                  />
+                </div>
+                {formErrors.resident && (
+                  <p className="mt-1 text-xs text-rose-600 font-medium">{formErrors.resident}</p>
+                )}
               </FormField>
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FormField label="Full Name">
+              <FormField label="Full Name *">
                 <input
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  onChange={(e) => {
+                    setFullName(e.target.value);
+                    if (e.target.value.trim()) {
+                      setFormErrors((prev) => {
+                        const copy = { ...prev };
+                        delete copy.fullName;
+                        return copy;
+                      });
+                    }
+                  }}
                   placeholder="Juan Dela Cruz"
-                  className={inputClasses}
+                  className={`${inputClasses} ${formErrors.fullName ? "border-rose-500 focus:border-rose-600 focus:ring-rose-200" : ""}`}
                   disabled={applicantType === "Resident" && !!selectedResident}
                 />
+                {formErrors.fullName && (
+                  <p className="mt-1 text-xs text-rose-600 font-medium">{formErrors.fullName}</p>
+                )}
               </FormField>
-              <FormField label="Contact Phone Number">
-                <PhoneInput
-                  value={phoneNumber}
-                  onChange={setPhoneNumber}
-                  placeholder="9XX XXX XXXX"
-                />
+              <FormField label="Contact Phone Number *">
+                <div className={formErrors.phoneNumber ? "rounded-xl ring-2 ring-rose-500 p-0.5" : ""}>
+                  <PhoneInput
+                    value={phoneNumber}
+                    onChange={(val) => {
+                      setPhoneNumber(val);
+                      if (val.trim()) {
+                        setFormErrors((prev) => {
+                          const copy = { ...prev };
+                          delete copy.phoneNumber;
+                          return copy;
+                        });
+                      }
+                    }}
+                    placeholder="9XX XXX XXXX"
+                  />
+                </div>
+                {formErrors.phoneNumber && (
+                  <p className="mt-1 text-xs text-rose-600 font-medium">{formErrors.phoneNumber}</p>
+                )}
               </FormField>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <FormField
-                label="Email Address"
+                label="Email Address *"
                 hint={
                   applicantType === "Non-resident"
                     ? `${50 - email.length} chars left (receives approval email)`
@@ -876,23 +954,47 @@ export default function AppointmentsList() {
                   type="email"
                   value={email}
                   maxLength={50}
-                  onChange={(e) => setEmail(e.target.value.slice(0, 50))}
-                  placeholder="email@example.com"
-                  className={inputClasses}
+                  onChange={(e) => {
+                    setEmail(e.target.value.slice(0, 50));
+                    if (e.target.value.trim()) {
+                      setFormErrors((prev) => {
+                        const copy = { ...prev };
+                        delete copy.email;
+                        return copy;
+                      });
+                    }
+                  }}
+                  placeholder="resident@example.com"
+                  className={`${inputClasses} ${formErrors.email ? "border-rose-500 focus:border-rose-600 focus:ring-rose-200" : ""}`}
                 />
+                {formErrors.email && (
+                  <p className="mt-1 text-xs text-rose-600 font-medium">{formErrors.email}</p>
+                )}
               </FormField>
-              <FormField label="Address">
+              <FormField label="Address *">
                 <input
                   value={address}
-                  onChange={(e) => setAddress(e.target.value)}
+                  onChange={(e) => {
+                    setAddress(e.target.value);
+                    if (e.target.value.trim()) {
+                      setFormErrors((prev) => {
+                        const copy = { ...prev };
+                        delete copy.address;
+                        return copy;
+                      });
+                    }
+                  }}
                   placeholder="Zone / Street / Municipality"
-                  className={inputClasses}
+                  className={`${inputClasses} ${formErrors.address ? "border-rose-500 focus:border-rose-600 focus:ring-rose-200" : ""}`}
                 />
+                {formErrors.address && (
+                  <p className="mt-1 text-xs text-rose-600 font-medium">{formErrors.address}</p>
+                )}
               </FormField>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FormField label="Appointment Date">
+              <FormField label="Appointment Date *">
                 <input
                   type="date"
                   value={appointmentDate}
@@ -900,62 +1002,98 @@ export default function AppointmentsList() {
                   onChange={(e) => {
                     setAppointmentDate(e.target.value);
                     setAppointmentTime("");
+                    if (e.target.value) {
+                      setFormErrors((prev) => {
+                        const copy = { ...prev };
+                        delete copy.appointmentDate;
+                        return copy;
+                      });
+                    }
                   }}
-                  className={inputClasses}
+                  className={`${inputClasses} ${formErrors.appointmentDate ? "border-rose-500 focus:border-rose-600 focus:ring-rose-200" : ""}`}
                 />
+                {formErrors.appointmentDate && (
+                  <p className="mt-1 text-xs text-rose-600 font-medium">{formErrors.appointmentDate}</p>
+                )}
               </FormField>
               <FormField
-                label="Appointment Time"
+                label="Appointment Time *"
                 hint={
                   !appointmentDate
-                    ? "Pumili muna ng petsa upang makita ang available na oras"
+                    ? "Please choose an appointment date first to see available time slots"
                     : undefined
                 }
               >
                 <select
                   value={appointmentTime}
                   disabled={!appointmentDate}
-                  onChange={(e) => setAppointmentTime(e.target.value)}
-                  className={inputClasses}
+                  onChange={(e) => {
+                    setAppointmentTime(e.target.value);
+                    if (e.target.value) {
+                      setFormErrors((prev) => {
+                        const copy = { ...prev };
+                        delete copy.appointmentTime;
+                        return copy;
+                      });
+                    }
+                  }}
+                  className={`${inputClasses} ${formErrors.appointmentTime ? "border-rose-500 focus:border-rose-600 focus:ring-rose-200" : ""}`}
                 >
                   <option value="">-- Select Time Slot --</option>
                   {TIME_SLOTS.map((slot) => {
-                    const isBooked = walkInBookedSlots.includes(slot);
+                    const isBooked = walkInBookedSlots.some(
+                      (s) => normalizeTime(s) === normalizeTime(slot)
+                    );
                     const pendingCnt = walkInPendingCounts[slot] ?? 0;
                     return (
                       <option key={slot} value={slot} disabled={isBooked}>
                         {slot}{" "}
                         {isBooked
-                          ? "(Not Available - Booked)"
+                          ? "— (Unavailable - Booked)"
                           : pendingCnt > 0
-                          ? `(${pendingCnt} pending)`
+                          ? `— (${pendingCnt} pending)`
                           : ""}
                       </option>
                     );
                   })}
                 </select>
+                {formErrors.appointmentTime && (
+                  <p className="mt-1 text-xs text-rose-600 font-medium">{formErrors.appointmentTime}</p>
+                )}
               </FormField>
             </div>
 
             <FormField
-              label="Purpose of Appointment"
+              label="Purpose of Appointment *"
               hint={`${255 - purpose.length} characters left (max 255)`}
             >
               <textarea
                 value={purpose}
                 maxLength={255}
-                onChange={(e) => setPurpose(e.target.value.slice(0, 255))}
+                onChange={(e) => {
+                  setPurpose(e.target.value.slice(0, 255));
+                  if (e.target.value.trim()) {
+                    setFormErrors((prev) => {
+                      const copy = { ...prev };
+                      delete copy.purpose;
+                      return copy;
+                    });
+                  }
+                }}
                 placeholder="State the purpose of this appointment or meeting…"
                 rows={3}
-                className={inputClasses}
+                className={`${inputClasses} ${formErrors.purpose ? "border-rose-500 focus:border-rose-600 focus:ring-rose-200" : ""}`}
               />
+              {formErrors.purpose && (
+                <p className="mt-1 text-xs text-rose-600 font-medium">{formErrors.purpose}</p>
+              )}
             </FormField>
 
             <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3 text-xs text-blue-800">
               <p>
-                <strong>Paalala:</strong> Ang walk-in appointment ay magiging <strong>Pending</strong>{" "}
-                ang status. Maaari itong i-approve ni Punong Barangay o Secretary. Ang meeting minutes
-                naman ay maitala kapag na-approve na ang appointment.
+                <strong>Notice:</strong> Walk-in appointments are initially recorded with{" "}
+                <strong>Pending</strong> status and can be reviewed and approved by the Punong Barangay
+                or Secretary. Meeting minutes may be recorded once the appointment is approved.
               </p>
             </div>
 
@@ -995,7 +1133,7 @@ export default function AppointmentsList() {
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FormField label="Confirmed Date">
+              <FormField label="Confirmed Date *">
                 <input
                   type="date"
                   value={approveDate}
@@ -1004,7 +1142,7 @@ export default function AppointmentsList() {
                   className={inputClasses}
                 />
               </FormField>
-              <FormField label="Confirmed Time">
+              <FormField label="Confirmed Time *">
                 <select
                   value={approveTime}
                   onChange={(e) => setApproveTime(e.target.value)}
@@ -1012,15 +1150,17 @@ export default function AppointmentsList() {
                 >
                   <option value="">-- Select Time Slot --</option>
                   {TIME_SLOTS.map((slot) => {
-                    const isBooked = approveBookedSlots.includes(slot);
+                    const isBooked = approveBookedSlots.some(
+                      (s) => normalizeTime(s) === normalizeTime(slot)
+                    );
                     const pendingCnt = approvePendingCounts[slot] ?? 0;
                     return (
                       <option key={slot} value={slot} disabled={isBooked}>
                         {slot}{" "}
                         {isBooked
-                          ? "(Not Available - Booked)"
+                          ? "— (Unavailable - Booked)"
                           : pendingCnt > 0
-                          ? `(${pendingCnt} pending)`
+                          ? `— (${pendingCnt} pending)`
                           : ""}
                       </option>
                     );
@@ -1034,15 +1174,14 @@ export default function AppointmentsList() {
                 <FiAlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
                 <div>
                   <span className="font-bold block">Conflict Detected:</span>
-                  Ang napiling oras ({approveTime}) sa petsang ito ay may naka-book at na-aprubahan nang
-                  ibang appointment. Paki-pili ang ibang oras o petsa upang maiwasan ang double booking.
+                  The selected time slot ({approveTime}) on this date is already booked and approved for another appointment. Please choose a different time or date to prevent double booking.
                 </div>
               </div>
             )}
 
             {!isApproveConflict && approvePendingCounts[approveTime] && approvePendingCounts[approveTime] > 0 && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-                May <strong>{approvePendingCounts[approveTime]}</strong> pang ibang pending request sa parehong oras na ito.
+                There are <strong>{approvePendingCounts[approveTime]}</strong> other pending requests for this time slot.
               </div>
             )}
 
@@ -1076,7 +1215,7 @@ export default function AppointmentsList() {
           title={`Reject Appointment ${rejecting.appointment_number}`}
         >
           <div className="space-y-4 text-sm">
-            <FormField label="Reason for Rejection">
+            <FormField label="Reason for Rejection *">
               <textarea
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
@@ -1117,15 +1256,14 @@ export default function AppointmentsList() {
         >
           <div className="space-y-4 text-sm">
             <p className="text-xs text-gray-600">
-              Ikakansela ang appointment ni <strong>{cancelling.full_name}</strong>. Mababakante ang
-              petsa at oras nito para sa ibang appointment.
+              This will cancel the appointment for <strong>{cancelling.full_name}</strong>. The time slot will be reopened for other appointments.
             </p>
 
-            <FormField label="Dahilan ng Pag-kansela (Cancellation Reason)">
+            <FormField label="Reason for Cancellation *">
               <textarea
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
-                placeholder="e.g. Nag-walk-in o tumawag ang aplikante para magpa-cancel; conflict sa official barangay schedule..."
+                placeholder="e.g., The applicant requested cancellation, or conflict with official barangay schedule..."
                 rows={3}
                 className={inputClasses}
               />

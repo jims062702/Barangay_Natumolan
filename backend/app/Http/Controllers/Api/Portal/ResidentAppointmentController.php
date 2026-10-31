@@ -38,12 +38,14 @@ class ResidentAppointmentController extends BaseController
         $booked = Appointment::whereDate('appointment_date', $request->date)
             ->whereIn('status', ['Approved', 'Completed'])
             ->pluck('appointment_time')
+            ->map(fn ($t) => trim((string) $t))
             ->filter()
             ->unique()
             ->values();
 
         return $this->success([
             'date' => $request->date,
+            'booked_slots' => $booked,
             'booked_times' => $booked,
         ], 'Booked slots retrieved');
     }
@@ -64,8 +66,8 @@ class ResidentAppointmentController extends BaseController
             'appointment_date' => 'required|date|after_or_equal:today',
             'appointment_time' => 'required|string|max:20',
             'purpose' => 'required|string|max:255',
-            'phone_number' => 'nullable|string|max:25',
-            'email' => 'nullable|email|max:50',
+            'phone_number' => 'required|string|max:25',
+            'email' => 'required|email|max:50',
             'id_card_code' => 'nullable|string|max:32',
         ]);
 
@@ -117,7 +119,7 @@ class ResidentAppointmentController extends BaseController
             $user->resident_id,
             'appointment_requested',
             "Appointment Requested: {$appointment->appointment_number}",
-            "Naisumite ang inyong kahilingan para sa appointment sa petsang " . \Carbon\Carbon::parse($appointment->appointment_date)->format('M d, Y') . ". Hintayin ang kumpirmasyon mula sa Barangay Secretary.",
+            "Your appointment request for " . \Carbon\Carbon::parse($appointment->appointment_date)->format('M d, Y') . " ({$appointment->appointment_time}) has been submitted. Please wait for confirmation from the Barangay.",
             'appointment',
             $appointment->id,
             '/resident/appointments'

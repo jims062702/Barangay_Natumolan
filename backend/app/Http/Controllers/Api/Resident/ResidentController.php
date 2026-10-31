@@ -468,8 +468,17 @@ class ResidentController extends BaseController
             // address; a phone number sits inside the same staff-only gate.
             //
             // `gender` travels so a picker asked for mothers can show it.
-            ->with('household:id,household_number,household_head_id')
-            ->get(['id', 'resident_number', 'household_id', 'record_type', 'life_status', 'gender', 'first_name', 'middle_name', 'last_name', 'suffix', 'birthdate', 'zone_purok', 'contact_number']);
+            // `email` and `address` travel so forms like Walk-in Appointments
+            // can automatically populate the resident's contact details.
+            ->with(['household:id,household_number,household_head_id', 'account:id,resident_id,email'])
+            ->get(['id', 'resident_number', 'household_id', 'record_type', 'life_status', 'gender', 'first_name', 'middle_name', 'last_name', 'suffix', 'birthdate', 'zone_purok', 'contact_number', 'email', 'address']);
+
+        // If email is not directly on resident, fall back to linked portal user account email
+        $residents->each(function ($r) {
+            if (empty($r->email) && !empty($r->account?->email)) {
+                $r->email = $r->account->email;
+            }
+        });
 
         return $this->success($residents, 'Search results');
     }
