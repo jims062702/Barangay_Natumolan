@@ -41,6 +41,31 @@ const TIME_SLOTS = [
 
 const normalizeTime = (t?: string | null) => (t ?? "").trim().toUpperCase().replace(/\s+/g, " ");
 
+const parseSlotToMinutes = (slot: string): number | null => {
+  const match = slot.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  let hour = parseInt(match[1], 10);
+  const min = parseInt(match[2], 10);
+  const meridiem = match[3].toUpperCase();
+  if (meridiem === "PM" && hour < 12) hour += 12;
+  if (meridiem === "AM" && hour === 12) hour = 0;
+  return hour * 60 + min;
+};
+
+const isSlotInPastOrWithin30Mins = (slot: string, dateStr: string): boolean => {
+  if (!dateStr || !slot) return false;
+  const now = new Date();
+  const todayYMD = now.toLocaleDateString("en-CA");
+  if (dateStr < todayYMD) return true;
+  if (dateStr > todayYMD) return false;
+
+  const slotMinutes = parseSlotToMinutes(slot);
+  if (slotMinutes === null) return false;
+
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  return slotMinutes < currentMinutes + 30;
+};
+
 export default function ResidentAppointments() {
   const { user } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -142,6 +167,8 @@ export default function ResidentAppointments() {
       errors.appointmentTime = "Preferred time slot is required.";
     } else if (bookedSlots.some((s) => normalizeTime(s) === normalizeTime(appointmentTime))) {
       errors.appointmentTime = "This time slot is already booked and unavailable. Please select another time.";
+    } else if (isSlotInPastOrWithin30Mins(appointmentTime, appointmentDate)) {
+      errors.appointmentTime = "Appointments scheduled for today must be booked at least 30 minutes in advance. The chosen slot is no longer available.";
     }
     const phoneDigits = localMobile(phoneNumber);
     if (!phoneDigits) {
@@ -199,6 +226,10 @@ export default function ResidentAppointments() {
     if (!cancelling || cancellingRef.current) return;
     if (!cancelReason.trim()) {
       toast("Please specify the reason for cancelling your appointment.", "error");
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to cancel appointment ${cancelling.appointment_number}?`)) {
       return;
     }
 
@@ -290,12 +321,14 @@ export default function ResidentAppointments() {
             {
               header: "Minutes",
               render: (a: Appointment) =>
-                a.minutes ? (
+                a.status === "Rejected" || a.status === "Cancelled" ? (
+                  <span className="text-xs text-gray-400 italic">Not applicable</span>
+                ) : a.minutes ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 border border-emerald-200">
                     <FiCheckCircle className="h-3 w-3" /> Recorded
                   </span>
                 ) : (
-                  <span className="text-xs text-gray-400">None</span>
+                  <span className="text-xs text-gray-400">None yet</span>
                 ),
             },
             {
@@ -404,9 +437,15 @@ export default function ResidentAppointments() {
                     const isBooked = bookedSlots.some(
                       (s) => normalizeTime(s) === normalizeTime(slot)
                     );
+                    const isPastOrSoon = isSlotInPastOrWithin30Mins(slot, appointmentDate);
                     return (
-                      <option key={slot} value={slot} disabled={isBooked}>
-                        {slot} {isBooked ? "— (Unavailable - Booked)" : ""}
+                      <option key={slot} value={slot} disabled={isBooked || isPastOrSoon}>
+                        {slot}{" "}
+                        {isBooked
+                          ? "— (Unavailable - Booked)"
+                          : isPastOrSoon
+                          ? "— (Unavailable - Past / Cutoff)"
+                          : ""}
                       </option>
                     );
                   })}
@@ -607,7 +646,12 @@ export default function ResidentAppointments() {
               <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">{viewing.purpose}</p>
             </div>
 
-            {viewing.minutes && (
+            {viewing.status === "Rejected" || viewing.status === "Cancelled" ? (
+              <div className="rounded-xl border border-gray/50 bg-gray-50/70 p-3">
+                <span className="font-bold text-xs text-dark block mb-1">Meeting Minutes:</span>
+                <p className="text-xs text-gray-400 italic">Not applicable</p>
+              </div>
+            ) : viewing.minutes ? (
               <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3">
                 <div className="flex items-center gap-1.5 font-bold text-xs text-indigo-900 mb-1">
                   <FiCheckCircle className="h-3.5 w-3.5 text-indigo-700" />
@@ -615,7 +659,7 @@ export default function ResidentAppointments() {
                 </div>
                 <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed">{viewing.minutes}</p>
               </div>
-            )}
+            ) : null}
 
             {viewing.rejection_reason && (
               <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-3 text-xs text-rose-800">

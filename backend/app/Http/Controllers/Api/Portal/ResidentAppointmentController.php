@@ -84,6 +84,11 @@ class ResidentAppointmentController extends BaseController
             return $this->error("The time slot {$appTime} on {$appDate} is already booked and approved. Please choose an available time slot.", 422);
         }
 
+        // Check if slot is in the past or within 30 minutes for today's date
+        if (\App\Http\Controllers\Api\Council\AppointmentController::isTimeSlotTooSoonOrPast($appDate, $appTime)) {
+            return $this->error("Appointments scheduled for today must be booked at least 30 minutes in advance. The slot {$appTime} is no longer available.", 422);
+        }
+
         // Prevent rapid duplicate clicks within 10 seconds
         $recent = Appointment::where('resident_id', $user->resident_id)
             ->whereDate('appointment_date', $appDate)

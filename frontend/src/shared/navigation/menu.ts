@@ -252,7 +252,7 @@ export function menuFor(user: User): MenuSection[] {
        * Public Content (SK landing content) is assigned only to Secretary and Clerk (not PB).
        */
       const secretariatItems: MenuItem[] = [];
-      if (user.role === "Secretary") {
+      if (user.role === "Secretary" || user.role === "Punong Barangay") {
         secretariatItems.push({
           label: "Appointments",
           to: "/appointments",
@@ -261,12 +261,6 @@ export function menuFor(user: User): MenuSection[] {
             { label: "All Appointments", to: "/appointments", icon: FiCalendar },
             { label: "Appointments Calendar", to: "/appointments/calendar", icon: FiClock },
           ],
-        });
-      } else if (user.role === "Punong Barangay") {
-        secretariatItems.push({
-          label: "Appointments Calendar",
-          to: "/appointments/calendar",
-          icon: FiCalendar,
         });
       }
 

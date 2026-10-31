@@ -71,7 +71,7 @@ export default function AdminDashboard() {
           <div className="grid gap-3 sm:grid-cols-2">
             {[
               { to: "/admin/users", label: "User Accounts", icon: FiSettings },
-              { to: "/population/accounts/not-activated", label: "Portal Accounts", icon: FiUserPlus },
+
               { to: "/manage/announcements", label: "Announcements", icon: FiBell },
             ].map((item) => (
               <Link

@@ -55,6 +55,31 @@ const TIME_SLOTS = [
 
 const normalizeTime = (t?: string | null) => (t ?? "").trim().toUpperCase().replace(/\s+/g, " ");
 
+export const parseSlotToMinutes = (slot: string): number | null => {
+  const match = slot.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  let hour = parseInt(match[1], 10);
+  const min = parseInt(match[2], 10);
+  const meridiem = match[3].toUpperCase();
+  if (meridiem === "PM" && hour < 12) hour += 12;
+  if (meridiem === "AM" && hour === 12) hour = 0;
+  return hour * 60 + min;
+};
+
+export const isSlotInPastOrWithin30Mins = (slot: string, dateStr: string): boolean => {
+  if (!dateStr || !slot) return false;
+  const now = new Date();
+  const todayYMD = now.toLocaleDateString("en-CA");
+  if (dateStr < todayYMD) return true;
+  if (dateStr > todayYMD) return false;
+
+  const slotMinutes = parseSlotToMinutes(slot);
+  if (slotMinutes === null) return false;
+
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  return slotMinutes < currentMinutes + 30;
+};
+
 export default function AppointmentsList() {
   const { user } = useAuth();
   const isSecretary = user?.role === "Secretary" || user?.role === "Admin";
@@ -112,10 +137,9 @@ export default function AppointmentsList() {
   const [cancellingLoading, setCancellingLoading] = useState(false);
   const cancellingRef = useRef(false);
 
-  // Minutes modal (Secretary or PB)
+  // Minutes modal (Secretary only)
   const [editingMinutes, setEditingMinutes] = useState<Appointment | null>(null);
   const [minutesText, setMinutesText] = useState("");
-  const [minutesStatus, setMinutesStatus] = useState<"Approved" | "Completed">("Completed");
   const [minutesLoading, setMinutesLoading] = useState(false);
   const minutesRef = useRef(false);
 
@@ -283,6 +307,8 @@ export default function AppointmentsList() {
       errors.appointmentTime = "Appointment time slot is required.";
     } else if (walkInBookedSlots.some((s) => normalizeTime(s) === normalizeTime(appointmentTime))) {
       errors.appointmentTime = "This time slot is already booked and unavailable. Please choose another time.";
+    } else if (isSlotInPastOrWithin30Mins(appointmentTime, appointmentDate)) {
+      errors.appointmentTime = "Appointments scheduled for today must be filed at least 30 minutes in advance. The chosen slot is no longer available.";
     }
     if (!purpose.trim()) {
       errors.purpose = "Purpose of appointment is required.";
@@ -342,6 +368,14 @@ export default function AppointmentsList() {
       toast("This time slot is already booked for another approved appointment. Please choose a different time or date.", "error");
       return;
     }
+    if (isSlotInPastOrWithin30Mins(approveTime, approveDate)) {
+      toast("Appointments scheduled for today must be confirmed at least 30 minutes in advance. The chosen slot is no longer available.", "error");
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to approve this appointment for ${approving.full_name} on ${approveDate} at ${approveTime}?`)) {
+      return;
+    }
 
     approvingRef.current = true;
     setApprovingLoading(true);
@@ -367,6 +401,11 @@ export default function AppointmentsList() {
       toast("Please state the reason for rejecting.", "error");
       return;
     }
+
+    if (!window.confirm(`Are you sure you want to reject appointment ${rejecting.appointment_number}? A notification email will be sent to the applicant.`)) {
+      return;
+    }
+
     rejectingRef.current = true;
     setRejectingLoading(true);
     try {
@@ -395,10 +434,16 @@ export default function AppointmentsList() {
       toast("Please provide the reason for cancellation.", "error");
       return;
     }
+
+    if (!window.confirm(`Are you sure you want to cancel appointment ${cancelling.appointment_number}? This action will reopen the booked slot.`)) {
+      return;
+    }
+
     cancellingRef.current = true;
     setCancellingLoading(true);
     try {
       const res = await appointmentApi.cancel(cancelling.id, {
+        cancel_reason: cancelReason.trim(),
         reason: cancelReason.trim(),
       });
       toast(res.data?.message || "Appointment cancelled.");
@@ -415,7 +460,6 @@ export default function AppointmentsList() {
   const handleOpenMinutes = (apt: Appointment) => {
     setEditingMinutes(apt);
     setMinutesText(apt.minutes || "");
-    setMinutesStatus(apt.status === "Completed" ? "Completed" : "Approved");
   };
 
   const handleSaveMinutes = async () => {
@@ -424,14 +468,18 @@ export default function AppointmentsList() {
       toast("Please enter the minutes of the appointment.", "error");
       return;
     }
+    const todayYMD = new Date().toLocaleDateString("en-CA");
+    if (editingMinutes.appointment_date > todayYMD) {
+      toast("Minutes can only be recorded on or after the scheduled appointment date.", "error");
+      return;
+    }
     minutesRef.current = true;
     setMinutesLoading(true);
     try {
       const res = await appointmentApi.updateMinutes(editingMinutes.id, {
         minutes: minutesText.trim(),
-        status: minutesStatus,
       });
-      toast(res.data?.message || "Appointment minutes saved.");
+      toast(res.data?.message || "Appointment minutes saved and marked as completed.");
       setEditingMinutes(null);
       load();
     } catch (err) {
@@ -532,9 +580,13 @@ export default function AppointmentsList() {
               render: (a: Appointment) => (
                 <div>
                   <span className="font-mono font-semibold text-dark">{a.appointment_number}</span>
-                  {a.is_walk_in && (
-                    <span className="ml-1.5 rounded-md bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700">
+                  {a.is_walk_in ? (
+                    <span className="ml-1.5 rounded-md bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700 border border-indigo-200">
                       Walk-in
+                    </span>
+                  ) : (
+                    <span className="ml-1.5 rounded-md bg-purple-50 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700 border border-purple-200">
+                      Online
                     </span>
                   )}
                 </div>
@@ -593,7 +645,9 @@ export default function AppointmentsList() {
             {
               header: "Minutes",
               render: (a: Appointment) =>
-                a.minutes ? (
+                a.status === "Rejected" || a.status === "Cancelled" ? (
+                  <span className="text-xs text-gray-400 italic">Not applicable</span>
+                ) : a.minutes ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 border border-emerald-200">
                     <FiCheckCircle className="h-3 w-3" /> Recorded
                   </span>
@@ -655,14 +709,23 @@ export default function AppointmentsList() {
                     </button>
                   )}
 
-                  {/* Minutes can ONLY be added/edited if Approved or Completed */}
-                  {(a.status === "Approved" || a.status === "Completed") && (
+                  {/* Minutes can ONLY be added/edited by Secretary if Approved or Completed, and on/after scheduled date */}
+                  {isSecretary && (a.status === "Approved" || a.status === "Completed") && (
                     <button
                       type="button"
+                      disabled={a.appointment_date > new Date().toLocaleDateString("en-CA")}
                       onClick={() => handleOpenMinutes(a)}
-                      title="Record or update meeting minutes"
+                      title={
+                        a.appointment_date > new Date().toLocaleDateString("en-CA")
+                          ? "Minutes can only be recorded on or after the scheduled appointment date"
+                          : "Record or update meeting minutes"
+                      }
                       aria-label="Record minutes"
-                      className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-indigo-200 bg-indigo-50 text-indigo-700 transition hover:bg-indigo-600 hover:text-white"
+                      className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition ${
+                        a.appointment_date > new Date().toLocaleDateString("en-CA")
+                          ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
+                          : "cursor-pointer border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white"
+                      }`}
                     >
                       <FiEdit3 className="h-4 w-4" />
                     </button>
@@ -768,7 +831,12 @@ export default function AppointmentsList() {
               </p>
             </div>
 
-            {viewing.minutes && (
+            {viewing.status === "Rejected" || viewing.status === "Cancelled" ? (
+              <div className="rounded-xl border border-gray/50 bg-gray-50/70 p-3">
+                <span className="font-bold text-xs text-dark block mb-1">Meeting Minutes:</span>
+                <p className="text-xs text-gray-400 italic">Not applicable</p>
+              </div>
+            ) : viewing.minutes ? (
               <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3">
                 <div className="flex items-center gap-1.5 font-bold text-xs text-indigo-900 mb-1">
                   <FiCheckCircle className="h-3.5 w-3.5 text-indigo-700" />
@@ -778,7 +846,7 @@ export default function AppointmentsList() {
                   {viewing.minutes}
                 </p>
               </div>
-            )}
+            ) : null}
 
             {viewing.rejection_reason && (
               <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-3 text-xs text-rose-800">
@@ -1045,12 +1113,15 @@ export default function AppointmentsList() {
                     const isBooked = walkInBookedSlots.some(
                       (s) => normalizeTime(s) === normalizeTime(slot)
                     );
+                    const isPastOrSoon = isSlotInPastOrWithin30Mins(slot, appointmentDate);
                     const pendingCnt = walkInPendingCounts[slot] ?? 0;
                     return (
-                      <option key={slot} value={slot} disabled={isBooked}>
+                      <option key={slot} value={slot} disabled={isBooked || isPastOrSoon}>
                         {slot}{" "}
                         {isBooked
                           ? "— (Unavailable - Booked)"
+                          : isPastOrSoon
+                          ? "— (Unavailable - Past / Cutoff)"
                           : pendingCnt > 0
                           ? `— (${pendingCnt} pending)`
                           : ""}
@@ -1152,12 +1223,15 @@ export default function AppointmentsList() {
                     const isBooked = approveBookedSlots.some(
                       (s) => normalizeTime(s) === normalizeTime(slot)
                     );
+                    const isPastOrSoon = isSlotInPastOrWithin30Mins(slot, approveDate);
                     const pendingCnt = approvePendingCounts[slot] ?? 0;
                     return (
-                      <option key={slot} value={slot} disabled={isBooked}>
+                      <option key={slot} value={slot} disabled={isBooked || isPastOrSoon}>
                         {slot}{" "}
                         {isBooked
                           ? "— (Unavailable - Booked)"
+                          : isPastOrSoon
+                          ? "— (Unavailable - Past / Cutoff)"
                           : pendingCnt > 0
                           ? `— (${pendingCnt} pending)`
                           : ""}
@@ -1314,16 +1388,9 @@ export default function AppointmentsList() {
               />
             </FormField>
 
-            <FormField label="Mark Status as">
-              <select
-                value={minutesStatus}
-                onChange={(e) => setMinutesStatus(e.target.value as "Approved" | "Completed")}
-                className={inputClasses}
-              >
-                <option value="Approved">Approved (Retain Schedule)</option>
-                <option value="Completed">Completed (Meeting Finished)</option>
-              </select>
-            </FormField>
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs text-emerald-800">
+              Saving minutes will automatically mark this appointment as <strong>Completed</strong>.
+            </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-gray/40">
               <button

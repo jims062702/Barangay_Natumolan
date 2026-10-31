@@ -31,7 +31,7 @@ import type { Appointment } from "../appointmentTypes";
 export default function AppointmentsCalendar() {
   const { user } = useAuth();
   const isPb = user?.role === "Punong Barangay";
-  const isSecretary = user?.role === "Secretary";
+  const isSecretary = user?.role === "Secretary" || user?.role === "Admin";
 
   const [month, setMonth] = useState(() =>
     new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }).slice(0, 7)
@@ -146,15 +146,20 @@ export default function AppointmentsCalendar() {
       toast("Please enter the minutes of the appointment.", "error");
       return;
     }
+    const todayYMD = new Date().toLocaleDateString("en-CA");
+    if (editingMinutes.appointment_date > todayYMD) {
+      toast("Minutes can only be recorded on or after the scheduled appointment date.", "error");
+      return;
+    }
     setMinutesLoading(true);
     try {
       const res = await appointmentApi.updateMinutes(editingMinutes.id, {
         minutes: minutesText.trim(),
       });
-      toast(res.data?.message || "Appointment minutes saved.");
+      toast(res.data?.message || "Appointment minutes saved and marked as completed.");
       setEditingMinutes(null);
       if (selectedAppointment?.id === editingMinutes.id) {
-        setSelectedAppointment({ ...selectedAppointment, minutes: minutesText.trim() });
+        setSelectedAppointment({ ...selectedAppointment, minutes: minutesText.trim(), status: "Completed" });
       }
       load();
     } catch (err) {
@@ -396,32 +401,49 @@ export default function AppointmentsCalendar() {
               </p>
             </div>
 
-            <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-1.5 font-bold text-xs text-indigo-900">
-                  <FiCheckCircle className="h-3.5 w-3.5 text-indigo-700" />
-                  <span>Meeting Minutes & Actions Taken:</span>
+            {selectedAppointment.status === "Rejected" || selectedAppointment.status === "Cancelled" ? (
+              <div className="rounded-xl border border-gray/50 bg-gray-50/70 p-3">
+                <span className="font-bold text-xs text-dark block mb-1">Meeting Minutes:</span>
+                <p className="text-xs text-gray-400 italic">Not applicable</p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-1.5 font-bold text-xs text-indigo-900">
+                    <FiCheckCircle className="h-3.5 w-3.5 text-indigo-700" />
+                    <span>Meeting Minutes & Actions Taken:</span>
+                  </div>
+                  {isSecretary && (
+                    <button
+                      type="button"
+                      disabled={selectedAppointment.appointment_date > todayStr}
+                      onClick={() => handleOpenMinutes(selectedAppointment)}
+                      title={
+                        selectedAppointment.appointment_date > todayStr
+                          ? "Minutes can only be recorded on or after the scheduled appointment date"
+                          : "Record or update meeting minutes"
+                      }
+                      className={`inline-flex items-center gap-1 text-[11px] font-semibold ${
+                        selectedAppointment.appointment_date > todayStr
+                          ? "cursor-not-allowed text-gray-400"
+                          : "cursor-pointer text-primary hover:underline"
+                      }`}
+                    >
+                      <FiEdit3 className="h-3 w-3" /> {selectedAppointment.minutes ? "Edit Minutes" : "Add Minutes"}
+                    </button>
+                  )}
                 </div>
-                {!isPb && (
-                  <button
-                    type="button"
-                    onClick={() => handleOpenMinutes(selectedAppointment)}
-                    className="inline-flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
-                  >
-                    <FiEdit3 className="h-3 w-3" /> {selectedAppointment.minutes ? "Edit Minutes" : "Add Minutes"}
-                  </button>
+                {selectedAppointment.minutes ? (
+                  <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed">
+                    {selectedAppointment.minutes}
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-500 italic">
+                    No minutes recorded yet. {isSecretary && "Secretary may record minutes on or after the scheduled appointment date."}
+                  </p>
                 )}
               </div>
-              {selectedAppointment.minutes ? (
-                <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed">
-                  {selectedAppointment.minutes}
-                </p>
-              ) : (
-                <p className="text-xs text-gray-500 italic">
-                  No minutes recorded yet. {isSecretary && "Secretary may record minutes once the meeting concludes."}
-                </p>
-              )}
-            </div>
+            )}
 
             <div className="flex justify-end gap-2 pt-2 border-t border-gray/40">
               <button

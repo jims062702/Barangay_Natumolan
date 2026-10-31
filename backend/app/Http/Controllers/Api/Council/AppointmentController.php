@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Council;
 
 use App\Http\Controllers\Api\BaseController;
 use App\Mail\AppointmentApprovedMail;
+use App\Mail\AppointmentRejectedMail;
 use App\Models\Account\Notification;
 use App\Models\Council\Appointment;
 use App\Models\Resident\Resident;
@@ -151,6 +152,32 @@ class AppointmentController extends BaseController
     }
 
     /**
+     * Check if an appointment time slot is in the past or within 30 minutes for today's date.
+     */
+    public static function isTimeSlotTooSoonOrPast(string $date, string $time): bool
+    {
+        $aptDate = \Carbon\Carbon::parse($date)->startOfDay();
+        $today = now()->startOfDay();
+        if ($aptDate->isPast() && !$aptDate->isToday()) {
+            return true;
+        }
+        if ($aptDate->isToday()) {
+            try {
+                $slotTime = \Carbon\Carbon::createFromFormat('Y-m-d g:i A', $date . ' ' . trim($time));
+                if ($slotTime->lessThan(now()->addMinutes(30))) {
+                    return true;
+                }
+            } catch (\Throwable) {
+                $ts = strtotime($date . ' ' . trim($time));
+                if ($ts && $ts < (time() + 1800)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
      * Walk-in appointment creation by Secretary.
      * Can be Resident or Non-resident.
      * Always defaults to 'Pending' status.
@@ -192,6 +219,10 @@ class AppointmentController extends BaseController
 
         if ($isTaken) {
             return $this->error("The time slot {$validated['appointment_time']} on {$validated['appointment_date']} is already booked and approved. Please select an available time.", 422);
+        }
+
+        if (self::isTimeSlotTooSoonOrPast($validated['appointment_date'], $validated['appointment_time'])) {
+            return $this->error("Appointments scheduled for today must be filed at least 30 minutes in advance. The slot {$validated['appointment_time']} is no longer available.", 422);
         }
 
         $appointment = Appointment::create([
@@ -243,6 +274,11 @@ class AppointmentController extends BaseController
 
         $newDate = $validated['appointment_date'];
         $newTime = trim($validated['appointment_time']);
+
+        // Check if time slot is in the past or within 30 minutes for today's date
+        if (self::isTimeSlotTooSoonOrPast($newDate, $newTime)) {
+            return $this->error("Appointments scheduled for today must be confirmed at least 30 minutes in advance. The slot {$newTime} is no longer available.", 422);
+        }
 
         // Check if another approved/completed appointment occupies this slot
         $conflict = Appointment::whereDate('appointment_date', $newDate)
@@ -319,6 +355,15 @@ class AppointmentController extends BaseController
             );
         }
 
+        // Send email notification to applicant if email exists (Resident or Non-resident)
+        if (!empty($appointment->email)) {
+            try {
+                Mail::to($appointment->email)->send(new AppointmentRejectedMail($appointment));
+            } catch (\Throwable $e) {
+                // Log and continue
+            }
+        }
+
         return $this->success($appointment, "Appointment {$appointment->appointment_number} rejected.");
     }
 
@@ -332,11 +377,11 @@ class AppointmentController extends BaseController
             return $this->forbidden('Only the Punong Barangay or Barangay Secretary can cancel appointments.');
         }
 
-        $validated = $request->validate([
-            'cancel_reason' => 'required|string|max:500',
-        ]);
+        $reason = trim((string) ($request->input('cancel_reason') ?? $request->input('reason') ?? ''));
+        if (empty($reason)) {
+            return $this->error('The cancellation reason is required.', 422);
+        }
 
-        $reason = trim($validated['cancel_reason']);
         $appointment->status = 'Cancelled';
         $appointment->cancel_reason = $reason;
         $appointment->cancelled_by = $user->id;
@@ -359,13 +404,14 @@ class AppointmentController extends BaseController
     }
 
     /**
-     * Update minutes of meeting by Secretary (PB is read-only).
-     * Minutes can ONLY be added if appointment is Approved or Completed.
+     * Update minutes of meeting by Secretary (PB is strictly read-only).
+     * Minutes can ONLY be added if appointment is on or after the scheduled date,
+     * and automatically sets the appointment status to Completed.
      */
     public function updateMinutes(Request $request, Appointment $appointment)
     {
         $user = auth()->user();
-        if ($user->role === 'Punong Barangay') {
+        if (!in_array($user->role, ['Secretary', 'Admin'], true)) {
             return $this->forbidden('Only the Barangay Secretary is authorized to record or update appointment minutes.');
         }
 
@@ -373,18 +419,21 @@ class AppointmentController extends BaseController
             return $this->error('Minutes can only be recorded for approved or completed appointments.', 422);
         }
 
+        $aptDate = \Carbon\Carbon::parse($appointment->appointment_date)->startOfDay();
+        $today = now()->startOfDay();
+        if ($aptDate->isFuture()) {
+            return $this->error('Minutes can only be recorded on or after the scheduled appointment date (' . $aptDate->format('M d, Y') . ').', 422);
+        }
+
         $validated = $request->validate([
             'minutes' => 'required|string',
-            'status' => 'nullable|in:Approved,Completed',
         ]);
 
         $appointment->minutes = trim($validated['minutes']);
-        if (!empty($validated['status'])) {
-            $appointment->status = $validated['status'];
-        }
+        $appointment->status = 'Completed';
         $appointment->save();
 
-        return $this->success($appointment, "Minutes recorded for appointment {$appointment->appointment_number}.");
+        return $this->success($appointment, "Minutes recorded and appointment {$appointment->appointment_number} marked as completed.");
     }
 
     /**
