@@ -591,15 +591,16 @@ export default function AppointmentsList() {
           columns={[
             {
               header: "Reference",
+              className: "whitespace-nowrap min-w-[170px]",
               render: (a: Appointment) => (
-                <div>
+                <div className="flex items-center gap-1.5 whitespace-nowrap">
                   <span className="font-mono font-semibold text-dark">{a.appointment_number}</span>
                   {a.is_walk_in ? (
-                    <span className="ml-1.5 rounded-md bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700 border border-indigo-200">
+                    <span className="shrink-0 rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 border border-indigo-200">
                       Walk-in
                     </span>
                   ) : (
-                    <span className="ml-1.5 rounded-md bg-purple-50 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700 border border-purple-200">
+                    <span className="shrink-0 rounded-md bg-purple-50 px-2 py-0.5 text-[10px] font-semibold text-purple-700 border border-purple-200">
                       Online
                     </span>
                   )}
@@ -608,10 +609,11 @@ export default function AppointmentsList() {
             },
             {
               header: "Applicant",
+              className: "min-w-[180px]",
               render: (a: Appointment) => (
-                <div>
-                  <div className="font-semibold text-dark">{a.full_name}</div>
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                <div className="min-w-[160px]">
+                  <div className="font-semibold text-dark leading-tight">{a.full_name}</div>
+                  <div className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500 whitespace-nowrap">
                     <span
                       className={
                         a.applicant_type === "Resident"
@@ -622,42 +624,46 @@ export default function AppointmentsList() {
                       {a.applicant_type}
                     </span>
                     <span>·</span>
-                    <span>{a.phone_number}</span>
+                    <span className="font-mono text-[11px]">{a.phone_number}</span>
                   </div>
                 </div>
               ),
             },
             {
               header: "Schedule",
+              className: "whitespace-nowrap min-w-[140px]",
               render: (a: Appointment) => (
-                <div>
-                  <div className="font-medium text-dark">
+                <div className="whitespace-nowrap">
+                  <div className="font-medium text-dark leading-tight">
                     {new Date(a.appointment_date).toLocaleDateString("en-PH", {
                       month: "short",
                       day: "numeric",
                       year: "numeric",
                     })}
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-primary font-semibold">
-                    <FiClock className="h-3 w-3" /> {a.appointment_time || "Pending time"}
+                  <div className="mt-0.5 flex items-center gap-1 text-xs text-primary font-semibold">
+                    <FiClock className="h-3 w-3 shrink-0" /> {a.appointment_time || "Pending time"}
                   </div>
                 </div>
               ),
             },
             {
               header: "Purpose",
+              className: "max-w-[200px] min-w-[150px]",
               render: (a: Appointment) => (
-                <div className="max-w-xs truncate text-xs text-gray-700" title={a.purpose}>
+                <div className="max-w-[200px] truncate text-xs text-gray-700" title={a.purpose}>
                   {a.purpose}
                 </div>
               ),
             },
             {
               header: "Status",
+              className: "whitespace-nowrap min-w-[100px]",
               render: (a: Appointment) => <StatusBadge status={a.status} />,
             },
             {
               header: "Minutes",
+              className: "whitespace-nowrap min-w-[110px]",
               render: (a: Appointment) =>
                 a.status === "Rejected" || a.status === "Cancelled" ? (
                   <span className="text-xs text-gray-400 italic">Not applicable</span>
@@ -671,8 +677,9 @@ export default function AppointmentsList() {
             },
             {
               header: "Actions",
+              className: "whitespace-nowrap min-w-[140px] text-right",
               render: (a: Appointment) => (
-                <div className="flex items-center justify-end gap-1.5">
+                <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
                   <button
                     type="button"
                     onClick={() => setViewing(a)}
@@ -838,41 +845,41 @@ export default function AppointmentsList() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-gray/50 bg-gray-50/70 p-3">
+            <div className="rounded-xl border border-gray/50 bg-gray-50/70 p-3 min-w-0 max-w-full overflow-hidden">
               <span className="font-bold text-xs text-dark block mb-1">Purpose / Details:</span>
-              <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">
+              <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed break-words break-all [overflow-wrap:anywhere]">
                 {viewing.purpose}
               </p>
             </div>
 
             {viewing.status === "Rejected" || viewing.status === "Cancelled" ? (
-              <div className="rounded-xl border border-gray/50 bg-gray-50/70 p-3">
+              <div className="rounded-xl border border-gray/50 bg-gray-50/70 p-3 min-w-0 max-w-full overflow-hidden">
                 <span className="font-bold text-xs text-dark block mb-1">Meeting Minutes:</span>
                 <p className="text-xs text-gray-400 italic">Not applicable</p>
               </div>
             ) : viewing.minutes ? (
-              <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3">
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 min-w-0 max-w-full overflow-hidden">
                 <div className="flex items-center gap-1.5 font-bold text-xs text-indigo-900 mb-1">
-                  <FiCheckCircle className="h-3.5 w-3.5 text-indigo-700" />
+                  <FiCheckCircle className="h-3.5 w-3.5 text-indigo-700 shrink-0" />
                   <span>Minutes of Appointment / Discussion:</span>
                 </div>
-                <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed">
+                <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed break-words break-all [overflow-wrap:anywhere]">
                   {viewing.minutes}
                 </p>
               </div>
             ) : null}
 
             {viewing.rejection_reason && (
-              <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-3 text-xs text-rose-800">
+              <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-3 text-xs text-rose-800 min-w-0 max-w-full overflow-hidden">
                 <span className="font-bold block mb-1">Rejection Reason:</span>
-                <p>{viewing.rejection_reason}</p>
+                <p className="break-words break-all [overflow-wrap:anywhere]">{viewing.rejection_reason}</p>
               </div>
             )}
 
             {viewing.cancel_reason && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-xs text-amber-900">
+              <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-xs text-amber-900 min-w-0 max-w-full overflow-hidden">
                 <span className="font-bold block mb-1">Cancellation Reason:</span>
-                <p>{viewing.cancel_reason}</p>
+                <p className="break-words break-all [overflow-wrap:anywhere]">{viewing.cancel_reason}</p>
                 {viewing.cancelled_at && (
                   <p className="mt-1 text-[11px] text-gray-500">
                     Cancelled on {new Date(viewing.cancelled_at).toLocaleString("en-PH")}

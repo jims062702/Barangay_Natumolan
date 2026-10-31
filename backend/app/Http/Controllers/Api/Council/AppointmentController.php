@@ -59,7 +59,7 @@ class AppointmentController extends BaseController
             $baseQuery->where('status', $request->status);
         }
 
-        $appointments = $baseQuery->orderByDesc('appointment_date')->orderByDesc('id')->paginate(15);
+        $appointments = $baseQuery->orderByDesc('id')->paginate(15);
 
         return $this->success([
             'appointments' => $appointments,

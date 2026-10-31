@@ -21,7 +21,6 @@ class ResidentAppointmentController extends BaseController
 
         $appointments = Appointment::where('resident_id', $user->resident_id)
             ->with(['approver:id,name', 'canceller:id,name'])
-            ->orderByDesc('appointment_date')
             ->orderByDesc('id')
             ->get();
 

@@ -291,29 +291,32 @@ export default function ResidentAppointments() {
           columns={[
             {
               header: "Reference",
+              className: "whitespace-nowrap min-w-[150px]",
               render: (a: Appointment) => (
                 <span className="font-mono font-semibold text-dark">{a.appointment_number}</span>
               ),
             },
             {
               header: "Schedule",
+              className: "whitespace-nowrap min-w-[140px]",
               render: (a: Appointment) => (
-                <div>
-                  <div className="font-medium text-dark">
+                <div className="whitespace-nowrap">
+                  <div className="font-medium text-dark leading-tight">
                     {new Date(a.appointment_date).toLocaleDateString("en-PH", {
                       month: "short",
                       day: "numeric",
                       year: "numeric",
                     })}
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-primary font-semibold">
-                    <FiClock className="h-3 w-3" /> {a.appointment_time || "Pending Time"}
+                  <div className="mt-0.5 flex items-center gap-1 text-xs text-primary font-semibold">
+                    <FiClock className="h-3 w-3 shrink-0" /> {a.appointment_time || "Pending Time"}
                   </div>
                 </div>
               ),
             },
             {
               header: "Purpose",
+              className: "max-w-md min-w-[160px]",
               render: (a: Appointment) => (
                 <div className="max-w-md truncate text-xs text-gray-700" title={a.purpose}>
                   {a.purpose}
@@ -322,10 +325,12 @@ export default function ResidentAppointments() {
             },
             {
               header: "Status",
+              className: "whitespace-nowrap min-w-[100px]",
               render: (a: Appointment) => <StatusBadge status={a.status} />,
             },
             {
               header: "Minutes",
+              className: "whitespace-nowrap min-w-[110px]",
               render: (a: Appointment) =>
                 a.status === "Rejected" || a.status === "Cancelled" ? (
                   <span className="text-xs text-gray-400 italic">Not applicable</span>
@@ -339,8 +344,9 @@ export default function ResidentAppointments() {
             },
             {
               header: "Actions",
+              className: "whitespace-nowrap min-w-[130px]",
               render: (a: Appointment) => (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 whitespace-nowrap">
                   <button
                     type="button"
                     onClick={() => setViewing(a)}
@@ -647,40 +653,40 @@ export default function ResidentAppointments() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-gray/50 bg-gray-50/70 p-3">
+            <div className="rounded-xl border border-gray/50 bg-gray-50/70 p-3 min-w-0 max-w-full overflow-hidden">
               <span className="font-bold text-xs text-dark block mb-1">Purpose / Details:</span>
-              <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">{viewing.purpose}</p>
+              <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed break-words break-all [overflow-wrap:anywhere]">{viewing.purpose}</p>
             </div>
 
             {viewing.status === "Rejected" || viewing.status === "Cancelled" ? (
-              <div className="rounded-xl border border-gray/50 bg-gray-50/70 p-3">
+              <div className="rounded-xl border border-gray/50 bg-gray-50/70 p-3 min-w-0 max-w-full overflow-hidden">
                 <span className="font-bold text-xs text-dark block mb-1">Meeting Minutes:</span>
                 <p className="text-xs text-gray-400 italic">Not applicable</p>
               </div>
             ) : viewing.minutes ? (
-              <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3">
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 min-w-0 max-w-full overflow-hidden">
                 <div className="flex items-center gap-1.5 font-bold text-xs text-indigo-900 mb-1">
-                  <FiCheckCircle className="h-3.5 w-3.5 text-indigo-700" />
+                  <FiCheckCircle className="h-3.5 w-3.5 text-indigo-700 shrink-0" />
                   <span>Minutes of Meeting & Resolutions:</span>
                 </div>
-                <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed">{viewing.minutes}</p>
+                <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed break-words break-all [overflow-wrap:anywhere]">{viewing.minutes}</p>
               </div>
             ) : null}
 
             {viewing.rejection_reason && (
-              <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-3 text-xs text-rose-800">
+              <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-3 text-xs text-rose-800 min-w-0 max-w-full overflow-hidden">
                 <div className="flex items-center gap-1.5 font-bold mb-1">
-                  <FiAlertCircle className="h-3.5 w-3.5 text-rose-600" />
+                  <FiAlertCircle className="h-3.5 w-3.5 text-rose-600 shrink-0" />
                   <span>Rejection Notice:</span>
                 </div>
-                <p>{viewing.rejection_reason}</p>
+                <p className="break-words break-all [overflow-wrap:anywhere]">{viewing.rejection_reason}</p>
               </div>
             )}
 
             {viewing.cancel_reason && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-xs text-amber-900">
+              <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-xs text-amber-900 min-w-0 max-w-full overflow-hidden">
                 <span className="font-bold block mb-1">Cancellation Notice:</span>
-                <p>{viewing.cancel_reason}</p>
+                <p className="break-words break-all [overflow-wrap:anywhere]">{viewing.cancel_reason}</p>
                 {viewing.cancelled_at && (
                   <p className="mt-1 text-[11px] text-gray-500">
                     Cancelled on {new Date(viewing.cancelled_at).toLocaleString("en-PH")}

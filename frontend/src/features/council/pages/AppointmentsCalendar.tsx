@@ -394,23 +394,23 @@ export default function AppointmentsCalendar() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-gray/50 bg-gray-50/70 p-3">
+            <div className="rounded-xl border border-gray/50 bg-gray-50/70 p-3 min-w-0 max-w-full overflow-hidden">
               <span className="font-bold text-xs text-dark block mb-1">Purpose of Appointment:</span>
-              <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">
+              <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed break-words break-all [overflow-wrap:anywhere]">
                 {selectedAppointment.purpose}
               </p>
             </div>
 
             {selectedAppointment.status === "Rejected" || selectedAppointment.status === "Cancelled" ? (
-              <div className="rounded-xl border border-gray/50 bg-gray-50/70 p-3">
+              <div className="rounded-xl border border-gray/50 bg-gray-50/70 p-3 min-w-0 max-w-full overflow-hidden">
                 <span className="font-bold text-xs text-dark block mb-1">Meeting Minutes:</span>
                 <p className="text-xs text-gray-400 italic">Not applicable</p>
               </div>
             ) : (
-              <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3">
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 min-w-0 max-w-full overflow-hidden">
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-1.5 font-bold text-xs text-indigo-900">
-                    <FiCheckCircle className="h-3.5 w-3.5 text-indigo-700" />
+                    <FiCheckCircle className="h-3.5 w-3.5 text-indigo-700 shrink-0" />
                     <span>Meeting Minutes & Actions Taken:</span>
                   </div>
                   {isSecretary && (
@@ -434,7 +434,7 @@ export default function AppointmentsCalendar() {
                   )}
                 </div>
                 {selectedAppointment.minutes ? (
-                  <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed">
+                  <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed break-words break-all [overflow-wrap:anywhere]">
                     {selectedAppointment.minutes}
                   </p>
                 ) : (

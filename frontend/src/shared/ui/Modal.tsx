@@ -69,7 +69,7 @@ export default function Modal({
             <FiX className="h-5 w-5" />
           </button>
         </div>
-        <div className="overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">{children}</div>
+        <div className="overflow-y-auto overflow-x-hidden min-w-0 px-4 py-4 sm:px-6 sm:py-5">{children}</div>
       </div>
     </div>,
     document.body
