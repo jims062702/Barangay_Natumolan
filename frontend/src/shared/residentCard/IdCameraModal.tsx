@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { FiCamera, FiRefreshCw, FiX, FiAlertTriangle, FiSmartphone } from "react-icons/fi";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { FiCamera, FiRefreshCw, FiX, FiAlertTriangle } from "react-icons/fi";
 
 interface IdCameraModalProps {
   open: boolean;
@@ -12,21 +12,30 @@ type CameraState = "starting" | "live" | "denied" | "unsupported" | "error";
 export default function IdCameraModal({ open, onClose, onCapture }: IdCameraModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const nativeInputRef = useRef<HTMLInputElement>(null);
 
   const [state, setState] = useState<CameraState>("starting");
   const [errorMessage, setErrorMessage] = useState("");
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const [capturing, setCapturing] = useState(false);
 
-  const stopStream = () => {
+  const stopStream = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
-  };
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
 
-  const startCamera = async (facing: "environment" | "user") => {
+  const attachStreamToVideo = useCallback((stream: MediaStream) => {
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play().catch(() => {});
+    }
+  }, []);
+
+  const startCamera = useCallback(async (facing: "environment" | "user") => {
     stopStream();
     setState("starting");
     setErrorMessage("");
@@ -37,43 +46,57 @@ export default function IdCameraModal({ open, onClose, onCapture }: IdCameraModa
     }
 
     try {
+      // 1. Try with ideal facingMode and good resolution
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: facing },
-          width: { ideal: 1920, min: 640 },
-          height: { ideal: 1080, min: 480 },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
         },
         audio: false,
       });
 
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
+      attachStreamToVideo(stream);
       setState("live");
     } catch (err: unknown) {
       const error = err as { name?: string; message?: string };
       if (error.name === "NotAllowedError" || error.name === "SecurityError") {
         setState("denied");
-      } else {
-        // Try fallback to any available video device
+        return;
+      }
+
+      // 2. Fallback to basic facingMode constraint
+      try {
+        const stream2 = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: facing },
+          audio: false,
+        });
+        streamRef.current = stream2;
+        attachStreamToVideo(stream2);
+        setState("live");
+      } catch {
+        // 3. Fallback to any available video device
         try {
-          const fallbackStream = await navigator.mediaDevices.getUserMedia({
+          const stream3 = await navigator.mediaDevices.getUserMedia({
             video: true,
             audio: false,
           });
-          streamRef.current = fallbackStream;
-          if (videoRef.current) {
-            videoRef.current.srcObject = fallbackStream;
-          }
+          streamRef.current = stream3;
+          attachStreamToVideo(stream3);
           setState("live");
-        } catch {
-          setState("error");
-          setErrorMessage(error.message || "Could not start camera on this device.");
+        } catch (finalErr: unknown) {
+          const fError = finalErr as { name?: string; message?: string };
+          if (fError.name === "NotAllowedError" || fError.name === "SecurityError") {
+            setState("denied");
+          } else {
+            setState("error");
+            setErrorMessage(fError.message || "Could not start camera on this device.");
+          }
         }
       }
     }
-  };
+  }, [stopStream, attachStreamToVideo]);
 
   useEffect(() => {
     if (!open) {
@@ -86,8 +109,15 @@ export default function IdCameraModal({ open, onClose, onCapture }: IdCameraModa
     return () => {
       stopStream();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, facingMode]);
+  }, [open, facingMode, startCamera, stopStream]);
+
+  // Keep video.srcObject bound even across re-renders
+  useEffect(() => {
+    if (open && streamRef.current && videoRef.current && videoRef.current.srcObject !== streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      videoRef.current.play().catch(() => {});
+    }
+  });
 
   const toggleFacingMode = () => {
     setFacingMode((prev) => (prev === "environment" ? "user" : "environment"));
@@ -101,7 +131,6 @@ export default function IdCameraModal({ open, onClose, onCapture }: IdCameraModa
 
     try {
       const canvas = document.createElement("canvas");
-      // Use crisp resolution so QR code is easily readable by jsQR
       const width = video.videoWidth;
       const height = video.videoHeight;
       canvas.width = width;
@@ -136,15 +165,6 @@ export default function IdCameraModal({ open, onClose, onCapture }: IdCameraModa
     }
   };
 
-  const handleNativeFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      stopStream();
-      onCapture(file);
-      onClose();
-    }
-  };
-
   if (!open) return null;
 
   return (
@@ -154,16 +174,6 @@ export default function IdCameraModal({ open, onClose, onCapture }: IdCameraModa
       aria-modal="true"
       aria-label="Capture Resident ID with Camera"
     >
-      {/* Hidden native camera capture input for instant fallback */}
-      <input
-        ref={nativeInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={handleNativeFileChange}
-      />
-
       <div className="relative flex w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-dark text-white shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 sm:px-6">
@@ -178,7 +188,7 @@ export default function IdCameraModal({ open, onClose, onCapture }: IdCameraModa
               onClose();
             }}
             aria-label="Close camera"
-            className="rounded-full p-1.5 text-gray-400 hover:bg-white/10 hover:text-white"
+            className="cursor-pointer rounded-full p-1.5 text-gray-400 hover:bg-white/10 hover:text-white"
           >
             <FiX className="h-5 w-5" />
           </button>
@@ -186,16 +196,22 @@ export default function IdCameraModal({ open, onClose, onCapture }: IdCameraModa
 
         {/* Video Viewfinder Area */}
         <div className="relative aspect-[4/3] w-full overflow-hidden bg-black sm:aspect-[16/10]">
+          {/* Video is ALWAYS mounted so videoRef.current is ready from the first millisecond */}
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            onLoadedMetadata={() => {
+              videoRef.current?.play().catch(() => {});
+            }}
+            className={`h-full w-full object-cover transition-opacity duration-300 ${
+              state === "live" ? "opacity-100" : "opacity-0"
+            }`}
+          />
+
           {state === "live" && (
             <>
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="h-full w-full object-cover"
-              />
-
               {/* Resident ID Card Alignment Overlay */}
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-4">
                 <div className="relative aspect-[1.586/1] w-full max-w-[340px] rounded-xl border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.55)]">
@@ -207,7 +223,7 @@ export default function IdCameraModal({ open, onClose, onCapture }: IdCameraModa
 
                   <div className="absolute inset-x-0 bottom-2 text-center">
                     <span className="rounded-full bg-black/75 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur-xs">
-                      I-align ang ID at QR code dito
+                      Align ID and QR code within frame
                     </span>
                   </div>
                 </div>
@@ -217,8 +233,8 @@ export default function IdCameraModal({ open, onClose, onCapture }: IdCameraModa
               <button
                 type="button"
                 onClick={toggleFacingMode}
-                className="absolute top-3 right-3 flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-md transition hover:bg-black/80"
-                title="Switch Camera (Front / Back)"
+                className="cursor-pointer absolute top-3 right-3 flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-md transition hover:bg-black/80"
+                title="Switch Camera"
               >
                 <FiRefreshCw className="h-3.5 w-3.5" />
                 <span>Flip</span>
@@ -227,37 +243,37 @@ export default function IdCameraModal({ open, onClose, onCapture }: IdCameraModa
           )}
 
           {state === "starting" && (
-            <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-6 text-center text-gray-300">
+            <div className="absolute inset-0 flex h-full w-full flex-col items-center justify-center gap-2 p-6 text-center text-gray-300">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              <p className="text-sm font-medium">Binubuksan ang camera...</p>
+              <p className="text-sm font-medium">Starting camera...</p>
             </div>
           )}
 
           {(state === "denied" || state === "unsupported" || state === "error") && (
-            <div className="flex h-full w-full flex-col items-center justify-center gap-3 p-6 text-center">
+            <div className="absolute inset-0 flex h-full w-full flex-col items-center justify-center gap-3 p-6 text-center">
               <FiAlertTriangle className="h-10 w-10 text-amber-400" />
               <div>
                 <p className="font-semibold text-white">
                   {state === "denied"
                     ? "Camera Access Denied"
                     : state === "unsupported"
-                    ? "Browser Does Not Support Live Camera"
-                    : "Hindi Mabuksan ang Camera"}
+                    ? "Browser Does Not Support Camera"
+                    : "Unable to Start Camera"}
                 </p>
-                <p className="mt-1 text-xs text-gray-400">
+                <p className="mt-1 text-xs text-gray-400 max-w-xs mx-auto">
                   {state === "denied"
-                    ? "Pahintulutan ang camera sa browser settings, o gamitin ang native phone camera sa ibaba."
-                    : errorMessage || "Maaari mong gamitin ang camera app ng iyong cellphone direkta."}
+                    ? "Please allow camera access in your browser site permissions and try again."
+                    : errorMessage || "Unable to access camera on this device."}
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={() => nativeInputRef.current?.click()}
-                className="mt-2 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-xs font-semibold text-white transition hover:bg-primary-dark"
+                onClick={() => startCamera(facingMode)}
+                className="cursor-pointer mt-2 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-xs font-semibold text-white transition hover:bg-primary-dark"
               >
-                <FiSmartphone className="h-4 w-4" />
-                Buksan ang Device Camera App
+                <FiRefreshCw className="h-3.5 w-3.5" />
+                Try Again
               </button>
             </div>
           )}
@@ -266,14 +282,7 @@ export default function IdCameraModal({ open, onClose, onCapture }: IdCameraModa
         {/* Footer Controls */}
         <div className="flex flex-col gap-3 border-t border-white/10 p-4 sm:p-5">
           <div className="flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => nativeInputRef.current?.click()}
-              className="inline-flex items-center gap-1.5 text-xs text-gray-400 transition hover:text-white"
-            >
-              <FiSmartphone className="h-3.5 w-3.5" />
-              <span>Gamitin ang Phone Camera App</span>
-            </button>
+            <span className="text-xs text-gray-400">Position ID card inside the frame</span>
 
             <button
               type="button"
@@ -281,7 +290,7 @@ export default function IdCameraModal({ open, onClose, onCapture }: IdCameraModa
                 stopStream();
                 onClose();
               }}
-              className="text-xs text-gray-400 hover:text-white"
+              className="cursor-pointer text-xs text-gray-400 hover:text-white"
             >
               Cancel
             </button>
@@ -296,7 +305,7 @@ export default function IdCameraModal({ open, onClose, onCapture }: IdCameraModa
                 className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-bold text-white shadow-lg transition-transform hover:scale-105 hover:bg-primary-dark active:scale-95 disabled:opacity-50"
               >
                 <FiCamera className="h-5 w-5" />
-                <span>{capturing ? "Kinukunan..." : "Kunan ng Litrato (Capture)"}</span>
+                <span>{capturing ? "Capturing..." : "Capture Photo"}</span>
               </button>
             </div>
           )}
@@ -305,4 +314,3 @@ export default function IdCameraModal({ open, onClose, onCapture }: IdCameraModa
     </div>
   );
 }
-

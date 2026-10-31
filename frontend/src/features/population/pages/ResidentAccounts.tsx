@@ -79,9 +79,24 @@ export default function ResidentAccounts({ activation = "all" }: { activation?: 
         crumbs={[
           { label: "Population Office" },
           { label: "Portal Accounts" },
+          ...(activation !== "all"
+            ? [{ label: activation === "pending" ? "Not-activated" : "Activated" }]
+            : []),
         ]}
-        title="Resident Portal Accounts"
-        subtitle="Manage resident portal accounts and email verification status." 
+        title={
+          activation === "pending"
+            ? "Not-activated Portal Accounts"
+            : activation === "done"
+            ? "Activated Portal Accounts"
+            : "Resident Portal Accounts"
+        }
+        subtitle={
+          activation === "pending"
+            ? "Resident portal accounts awaiting email activation."
+            : activation === "done"
+            ? "Active and verified resident portal accounts."
+            : "Manage resident portal accounts and email verification status."
+        }
       />
 
       <Card>

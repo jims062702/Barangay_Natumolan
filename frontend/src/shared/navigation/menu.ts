@@ -363,7 +363,15 @@ export function menuFor(user: User): MenuSection[] {
            * their resident, which is the office's work, and the ones already
            * in use. The count sits on the first.
            */
-          { label: "Portal Accounts", to: "/population/accounts", icon: FiUserCheck },
+          {
+            label: "Portal Accounts",
+            to: "/population/accounts",
+            icon: FiUserPlus,
+            children: [
+              { label: "Not-activated", to: "/population/accounts/not-activated", icon: FiUserX },
+              { label: "Activated", to: "/population/accounts/activated", icon: FiUserCheck },
+            ],
+          },
           { label: "Reports", to: "/population/reports", icon: FiBarChart2 },
         ],
       });

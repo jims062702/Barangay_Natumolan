@@ -246,7 +246,7 @@ class CertificateRequestController extends BaseController
                 . ($filled ? ' They supplied: ' . implode(', ', $filled) . ' — check it when they claim it.' : ''),
             $certificate ? 'certificate' : 'service_request',
             $certificate?->id ?? $serviceRequest->id,
-            '/services'
+            '/certificates'
         );
 
         return $this->success([

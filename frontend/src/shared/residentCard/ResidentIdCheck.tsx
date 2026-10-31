@@ -92,7 +92,6 @@ export function ResidentIdCheck({
   const [cameraOpen, setCameraOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
-  const nativeCameraInputRef = useRef<HTMLInputElement>(null);
   /* Only the latest pick counts: a slow read of an earlier picture must not
      overwrite the answer for the one chosen after it. */
   const attempt = useRef(0);
@@ -211,20 +210,6 @@ export function ResidentIdCheck({
           data-testid="resident-id-file-input"
         />
 
-        {/* Hidden input for direct phone camera capture */}
-        <input
-          ref={nativeCameraInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          disabled={disabled}
-          onChange={(e) => {
-            const f = e.target.files?.[0] ?? null;
-            if (f) pick(f);
-          }}
-          className="hidden"
-        />
-
         {!value.file ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <button
@@ -238,7 +223,7 @@ export function ResidentIdCheck({
               </div>
               <div className="text-left">
                 <p className="text-xs font-bold text-dark sm:text-sm">Choose from Gallery / Files</p>
-                <p className="text-[11px] text-gray-500">I-upload ang litrato mula sa iyong device</p>
+                <p className="text-[11px] text-gray-500">Upload photo from your device</p>
               </div>
             </button>
 
@@ -253,7 +238,7 @@ export function ResidentIdCheck({
               </div>
               <div className="text-left">
                 <p className="text-xs font-bold text-primary sm:text-sm">Take Photo with Camera</p>
-                <p className="text-[11px] text-gray-500">Kunan ng litrato gamit ang camera</p>
+                <p className="text-[11px] text-gray-500">Take a live photo using camera</p>
               </div>
             </button>
           </div>
@@ -310,7 +295,6 @@ export function ResidentIdCheck({
                   onClick={() => {
                     onChange(BLANK_RESIDENT_ID);
                     if (galleryInputRef.current) galleryInputRef.current.value = "";
-                    if (nativeCameraInputRef.current) nativeCameraInputRef.current.value = "";
                   }}
                   disabled={disabled}
                   aria-label="Remove photo"

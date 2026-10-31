@@ -39,8 +39,8 @@ function resolveNotificationUrl(n: AppNotification, role?: string): string {
       return rawLink;
     }
     // For staff (clerk, secretary, PB, admin, etc.)
-    if (rawLink.startsWith("/resident/requests")) {
-      return "/services";
+    if (rawLink.startsWith("/resident/requests") || rawLink.startsWith("/services") || rawLink.startsWith("/certificates")) {
+      return "/certificates";
     }
     if (rawLink.startsWith("/resident/appointments")) {
       return "/appointments";
@@ -61,7 +61,7 @@ function resolveNotificationUrl(n: AppNotification, role?: string): string {
     combined.includes("claim") ||
     combined.includes("document")
   ) {
-    return isResident ? "/resident/requests" : "/services";
+    return isResident ? "/resident/requests" : "/certificates";
   }
 
   if (

@@ -60,7 +60,6 @@ const ResidentList = lazyRoute(() => import("../features/resident/pages/Resident
 const ResidentCreate = lazyRoute(() => import("../features/resident/pages/ResidentCreate"));
 const ResidentDetail = lazyRoute(() => import("../features/resident/pages/ResidentDetail"));
 const ResidentEdit = lazyRoute(() => import("../features/resident/pages/ResidentEdit"));
-const ServiceRequestList = lazyRoute(() => import("../features/service/pages/ServiceRequestList"));
 const CertificateList = lazyRoute(() => import("../features/service/pages/CertificateList"));
 const CertificateReport = lazyRoute(() => import("../features/service/pages/CertificateReport"));
 const LiveChat = lazyRoute(() => import("../features/chat/pages/LiveChat"));
@@ -324,9 +323,8 @@ export default function App() {
               The guard used to let them in and the server then refused, so
               the page opened, asked, and showed a 403 it could not explain —
               and with no line, an error with nothing behind it at all. */}
-          <Route element={<Guarded staffOnly allowedOffices={["Main Office"]} allowedRoles={["Punong Barangay"]} deniedRoles={["Secretary"]} />}>
-            <Route path="/services" element={<ServiceRequestList />} />
-          </Route>
+          <Route path="/services" element={<Navigate to="/certificates" replace />} />
+          <Route path="/services/*" element={<Navigate to="/certificates" replace />} />
 
           {/* Appointments sit behind the front desk but not with the Clerk,
               whose remit is requests & certificates (mirrors deny_role:Clerk). */}
@@ -455,8 +453,8 @@ export default function App() {
             {/* The two lists the sidebar opens into; the bare address — on the
                 dashboard and in older links — lands on the one to work. */}
             <Route path="/population/accounts" element={<ResidentAccounts key="all" activation="all" />} />
-            <Route path="/population/accounts/not-activated" element={<Navigate to="/population/accounts" replace />} />
-            <Route path="/population/accounts/activated" element={<Navigate to="/population/accounts" replace />} />
+            <Route path="/population/accounts/not-activated" element={<ResidentAccounts key="pending" activation="pending" />} />
+            <Route path="/population/accounts/activated" element={<ResidentAccounts key="done" activation="done" />} />
           </Route>
 
           {/* Health Station — isolated */}

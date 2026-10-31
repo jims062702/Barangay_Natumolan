@@ -141,7 +141,7 @@ class RequestController extends PortalController
                     . ' request (' . $serviceRequest->request_number . '). Purpose: ' . $serviceRequest->purpose,
             $certificate ? 'certificate' : 'service_request',
             $certificate?->id ?? $serviceRequest->id,
-            '/services'
+            '/certificates'
         );
 
         foreach ($requests as $r) {
