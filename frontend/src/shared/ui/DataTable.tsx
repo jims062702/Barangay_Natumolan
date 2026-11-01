@@ -125,6 +125,7 @@ interface DataTableProps<T> {
   searchValue?: string;
   /** Optional dropdown filters shown next to the search box. */
   filters?: FilterDef<T>[];
+  tableClassName?: string;
 }
 
 export default function DataTable<T>({
@@ -145,6 +146,7 @@ export default function DataTable<T>({
   onSearch,
   searchValue,
   filters,
+  tableClassName,
 }: DataTableProps<T>) {
   const [localQuery, setLocalQuery] = useState("");
   /* One box, two owners: the server when `onSearch` is given, this table
@@ -217,8 +219,10 @@ export default function DataTable<T>({
    * columns carry buttons rather than a value, so they are pulled out of the
    * label/value list and given their own strip at the foot of the card.
    */
-  const isActionColumn = (column: Column<T>) =>
-    column.header.trim() === "" || column.header.trim().toLowerCase() === "actions";
+  const isActionColumn = (column: Column<T>) => {
+    const h = column.header.trim().toLowerCase();
+    return h === "" || h === "actions" || h === "action" || h === "next step";
+  };
   const dataColumns = columns.filter((c) => !isActionColumn(c));
   const actionColumns = columns.filter(isActionColumn);
 
@@ -330,7 +334,8 @@ export default function DataTable<T>({
                     headerLower.includes("detail") ||
                     headerLower.includes("remark") ||
                     headerLower.includes("description") ||
-                    headerLower.includes("address");
+                    headerLower.includes("address") ||
+                    headerLower.includes("next hearing");
 
                   if (isPrimary) {
                     return (
@@ -393,7 +398,7 @@ export default function DataTable<T>({
       </div>
 
       <div className="hidden overflow-x-auto rounded-xl border border-gray sm:block print:block print:overflow-visible">
-        <table className="min-w-full divide-y divide-gray bg-white text-left text-sm">
+        <table className={`min-w-full divide-y divide-gray bg-white text-left text-sm ${tableClassName ?? ""}`}>
           <thead className="bg-secondary">
             <tr>
               {showNumbers && (

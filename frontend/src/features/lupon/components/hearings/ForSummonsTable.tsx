@@ -37,6 +37,7 @@ export function ForSummonsTable({ ctx }: { ctx: HearingCalendarState }) {
         columns={[
           {
             header: "Case Number",
+            className: "whitespace-nowrap min-w-[130px]",
             /* Opens the case, not the docket — the Secretary is refused
                there, and this is the desk that has to read it. */
             render: (c: LuponCase) => (
@@ -52,15 +53,30 @@ export function ForSummonsTable({ ctx }: { ctx: HearingCalendarState }) {
           {
             /* The case is named by its nature — the same column the docket shows. */
             header: "Nature of the Case",
-            render: (c: LuponCase) => c.case_classification ?? "—",
+            className: "whitespace-nowrap min-w-[130px]",
+            render: (c: LuponCase) => (
+              <span className="text-xs font-medium text-dark whitespace-nowrap">
+                {c.case_classification ?? "—"}
+              </span>
+            ),
           },
           {
             header: "Complainant",
-            render: (c: LuponCase) => <span className="text-xs text-dark">{c.complainant_display_name ?? "—"}</span>,
+            className: "whitespace-nowrap min-w-[140px]",
+            render: (c: LuponCase) => (
+              <span className="text-xs font-medium text-dark whitespace-nowrap">
+                {c.complainant_display_name ?? "—"}
+              </span>
+            ),
           },
           {
             header: "Respondent",
-            render: (c: LuponCase) => <span className="text-xs text-dark">{c.respondent_display_names || "—"}</span>,
+            className: "whitespace-nowrap min-w-[140px]",
+            render: (c: LuponCase) => (
+              <span className="text-xs font-medium text-dark whitespace-nowrap">
+                {c.respondent_display_names || "—"}
+              </span>
+            ),
           },
           /*
            * NO "FILED" COLUMN either. A Lupon case number IS its filing
@@ -79,8 +95,9 @@ export function ForSummonsTable({ ctx }: { ctx: HearingCalendarState }) {
              * and what happens when they press the button.
              */
             header: "Whose desk",
+            className: "whitespace-nowrap min-w-[110px]",
             render: (c: LuponCase) => (
-              <span className="whitespace-nowrap text-xs text-dark">
+              <span className="whitespace-nowrap text-xs text-dark font-medium">
                 {deskForStage(c.current_stage) === "Lupon" ? "The Lupon" : "The Secretary"}
               </span>
             ),
@@ -95,10 +112,11 @@ export function ForSummonsTable({ ctx }: { ctx: HearingCalendarState }) {
              * interrupted mid-press, or to a second clerk arriving after.
              */
             header: "Notice & summons",
+            className: "whitespace-nowrap min-w-[140px]",
             render: (c: LuponCase) =>
               printed(c) ? (
                 <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs font-medium text-success">
-                  <FiCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                  <FiCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                   Printed {asDate(c.papers_printed_at)}
                 </span>
               ) : (
@@ -115,9 +133,10 @@ export function ForSummonsTable({ ctx }: { ctx: HearingCalendarState }) {
            */
           {
             header: "Actions",
+            className: "whitespace-nowrap text-right min-w-[120px]",
             render: (c: LuponCase) => {
               if (!mayIssue(c)) {
-                return <span className="text-xs text-gray-400">With the other desk</span>;
+                return <span className="text-xs text-gray-400 whitespace-nowrap">With the other desk</span>;
               }
 
               const isGenerating = generatingSummonId === c.id;
@@ -146,6 +165,7 @@ export function ForSummonsTable({ ctx }: { ctx: HearingCalendarState }) {
         rowKey={(c) => c.id}
         total={total}
         searchable
+        tableClassName="min-w-[55rem]"
         searchPlaceholder="Search by Case Number, Nature of the Case, Complainant or Respondent…"
         getSearchText={(c) =>
           `${c.case_number} ${c.case_title ?? ""} ${c.case_classification ?? ""} ${c.complainant_display_name ?? ""} ${c.respondent_display_names ?? ""}`

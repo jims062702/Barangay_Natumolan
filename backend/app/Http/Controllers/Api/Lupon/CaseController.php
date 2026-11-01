@@ -75,7 +75,7 @@ class CaseController extends BaseController
 
                 if (is_numeric($cleanTerm)) {
                     $docketNum = (int) $cleanTerm;
-                    $q->orWhereRaw('(SELECT COUNT(*) FROM lupon_cases all_c WHERE all_c.date_filed > lupon_cases.date_filed OR (all_c.date_filed = lupon_cases.date_filed AND all_c.id >= lupon_cases.id)) = ?', [$docketNum]);
+                    $q->orWhereRaw('(SELECT COUNT(*) FROM lupon_cases all_c WHERE all_c.date_filed > lupon_cases.date_filed OR (all_c.date_filed = lupon_cases.date_filed AND ((all_c.case_number IS NOT NULL AND lupon_cases.case_number IS NOT NULL AND all_c.case_number >= lupon_cases.case_number) OR (all_c.case_number IS NOT NULL AND lupon_cases.case_number IS NULL) OR (all_c.case_number IS NULL AND lupon_cases.case_number IS NULL AND all_c.id >= lupon_cases.id)))) = ?', [$docketNum]);
                 }
             });
         }
@@ -105,10 +105,14 @@ class CaseController extends BaseController
         $window?->applyTo($query, 'date_filed', dateOnly: true);
 
         $query->select('lupon_cases.*')
-            ->selectRaw('(SELECT COUNT(*) FROM lupon_cases all_c WHERE all_c.date_filed > lupon_cases.date_filed OR (all_c.date_filed = lupon_cases.date_filed AND all_c.id >= lupon_cases.id)) AS docket_number');
+            ->selectRaw('(SELECT COUNT(*) FROM lupon_cases all_c WHERE all_c.date_filed > lupon_cases.date_filed OR (all_c.date_filed = lupon_cases.date_filed AND ((all_c.case_number IS NOT NULL AND lupon_cases.case_number IS NOT NULL AND all_c.case_number >= lupon_cases.case_number) OR (all_c.case_number IS NOT NULL AND lupon_cases.case_number IS NULL) OR (all_c.case_number IS NULL AND lupon_cases.case_number IS NULL AND all_c.id >= lupon_cases.id)))) AS docket_number');
 
         // Case Docket numbering displayed in REVERSE chronological order (newest/latest case = #1)
-        $cases = $query->orderBy('date_filed', 'desc')->orderBy('id', 'desc')->paginate(20);
+        $cases = $query->orderBy('date_filed', 'desc')
+            ->orderByRaw("CASE WHEN case_number IS NOT NULL THEN 0 ELSE 1 END ASC")
+            ->orderBy('case_number', 'desc')
+            ->orderBy('id', 'desc')
+            ->paginate(20);
 
         $payload = $cases->toArray();
         $payload['window'] = $window?->toArray();

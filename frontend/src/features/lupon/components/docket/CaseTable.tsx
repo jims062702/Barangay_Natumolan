@@ -20,6 +20,7 @@ export function CaseTable({ ctx }: { ctx: LuponDocketState }) {
         columns={[
           {
             header: "Case Docket",
+            className: "whitespace-nowrap font-semibold text-primary",
             render: (c: LuponCase) => (
               <span className="font-semibold text-primary" title={`Case Docket #${c.docket_number ?? "—"}`}>
                 #{c.docket_number ?? "—"}
@@ -28,6 +29,7 @@ export function CaseTable({ ctx }: { ctx: LuponDocketState }) {
           },
           {
             header: "Case Number",
+            className: "whitespace-nowrap font-medium min-w-[130px]",
             render: (c: LuponCase) => {
               if (!c.case_number) {
                 return (
@@ -42,37 +44,30 @@ export function CaseTable({ ctx }: { ctx: LuponDocketState }) {
                 );
               }
               return c.id < 0 ? (
-                <span className="font-medium text-gray-500" title="Waiting to be sent to the office record">
+                <span className="font-medium text-gray-500 whitespace-nowrap" title="Waiting to be sent to the office record">
                   {c.case_number}
                 </span>
               ) : (
-                <Link to={`/lupon/cases/${c.id}`} className="font-medium text-primary hover:underline">
+                <Link to={`/lupon/cases/${c.id}`} className="font-medium text-primary hover:underline whitespace-nowrap">
                   {c.case_number}
                 </Link>
               );
             },
           },
           /* One column: the case is named by its nature (the title follows it). */
-          { header: "Nature of the Case", render: (c: LuponCase) => c.case_classification },
-          /*
-            TWO COLUMNS, not one cell with two labelled lines.
-
-            They are the two sides of a dispute, and a clerk scanning the
-            docket is looking down ONE of them — "is my respondent already on
-            here?". Stacked under a single heading, each name needed its own
-            label to say which side it was, both lines truncated at half the
-            width they deserved, and neither column could be read down.
-          */
+          {
+            header: "Nature of the Case",
+            className: "whitespace-nowrap font-medium text-dark text-xs min-w-[130px]",
+            render: (c: LuponCase) => c.case_classification,
+          },
           {
             header: "Complainant",
+            className: "whitespace-nowrap min-w-[140px]",
             render: (c: LuponCase) => (
-              <span className="text-xs">
+              <span className="text-xs font-medium text-dark inline-flex items-center gap-1.5 whitespace-nowrap">
                 {c.complainant_display_name ?? "—"}
-                {/* Only ever on this side: it describes who FILED. A
-                    respondent from outside the barangay cannot exist —
-                    that is what gives the Lupon jurisdiction. */}
                 {c.complainant_is_resident === false && (
-                  <span className="ml-1 rounded-full bg-gray px-1.5 py-0.5 text-[10px] font-semibold text-gray-500">
+                  <span className="rounded-full bg-gray px-1.5 py-0.5 text-[10px] font-semibold text-gray-500 whitespace-nowrap">
                     non-resident
                   </span>
                 )}
@@ -81,41 +76,32 @@ export function CaseTable({ ctx }: { ctx: LuponDocketState }) {
           },
           {
             header: "Respondent",
+            className: "whitespace-nowrap min-w-[140px]",
             render: (c: LuponCase) => (
-              <span className="text-xs">{c.respondent_display_names || "—"}</span>
+              <span className="text-xs font-medium text-dark whitespace-nowrap">{c.respondent_display_names || "—"}</span>
             ),
           },
           {
             header: "Filed",
+            className: "whitespace-nowrap text-xs text-gray-600 min-w-[90px]",
             render: (c: LuponCase) => new Date(c.date_filed).toLocaleDateString("en-PH"),
           },
-          /*
-            THE FEE, ON THE DOCKET.
-
-            The summons cannot go out until the Lupon has seen the receipt, and
-            that fact lived only inside the case — so finding which cases were
-            ready meant opening them one at a time. Here it is one look down
-            a column.
-
-            Two states: Paid once the Lupon has seen the receipt, Unpaid
-            until then — the Lupon's own job, with nobody else to wait on.
-          */
           {
             header: "Filing fee",
+            className: "whitespace-nowrap min-w-[95px]",
             render: (c: LuponCase) => {
               const paid = (c.payments ?? []).some((p) => p.kind === "Filing" && p.status === "Paid");
-              /* The three days, when the fee is still owed: the day it is due, and how long is left. */
               const standing = feeStanding(c) ?? (paid
                 ? { tone: "success" as const, label: "Paid", detail: "" }
                 : { tone: "warning" as const, label: "Unpaid", detail: "" });
 
               return (
-                <span className="inline-flex flex-col items-start gap-0.5" data-testid="fee-standing">
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${TONE_CLASSES[standing.tone]}`}>
+                <span className="inline-flex flex-col items-start gap-0.5 whitespace-nowrap" data-testid="fee-standing">
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${TONE_CLASSES[standing.tone]}`}>
                     {standing.label}
                   </span>
                   {standing.label !== "Paid" && standing.detail && (
-                    <span className="max-w-[13rem] text-[11px] leading-snug text-gray-500">{standing.detail}</span>
+                    <span className="max-w-[13rem] text-[11px] leading-snug text-gray-500 whitespace-nowrap">{standing.detail}</span>
                   )}
                 </span>
               );
@@ -123,6 +109,7 @@ export function CaseTable({ ctx }: { ctx: LuponDocketState }) {
           },
           {
             header: "Stage",
+            className: "whitespace-nowrap min-w-[150px]",
             render: (c: LuponCase) => {
               const stageLabel = c.current_stage_label || (
                 ["For Lupon Summons", "Conciliation"].includes(c.current_stage)
@@ -132,7 +119,7 @@ export function CaseTable({ ctx }: { ctx: LuponDocketState }) {
                     : c.current_stage
               );
               return (
-                <div className="flex flex-col gap-1 items-start">
+                <div className="flex flex-col gap-1 items-start whitespace-nowrap">
                   <span className="font-semibold text-xs text-dark">{stageLabel}</span>
                   <StatusBadge status={c.hearing_stage || c.current_stage} />
                 </div>
@@ -141,13 +128,14 @@ export function CaseTable({ ctx }: { ctx: LuponDocketState }) {
           },
           {
             header: "Next Hearing",
+            className: "whitespace-nowrap min-w-[170px]",
             render: (c: LuponCase) => {
               if (c.current_stage === "CFA") {
                 const dateText = c.date_resolved
                   ? `Already Filed CFA · ${new Date(c.date_resolved).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}`
                   : (c.next_hearing_info?.day_time || "Already Filed CFA");
                 return (
-                  <div className="flex flex-col gap-0.5">
+                  <div className="flex flex-col gap-0.5 whitespace-nowrap">
                     <span className="font-semibold text-xs text-rose-600">
                       {c.next_hearing_info?.title || "CFA Issued"}
                     </span>
@@ -162,7 +150,7 @@ export function CaseTable({ ctx }: { ctx: LuponDocketState }) {
                 return <span className="text-xs text-gray-400">—</span>;
               }
               return (
-                <div className="flex flex-col gap-0.5">
+                <div className="flex flex-col gap-0.5 whitespace-nowrap">
                   <span className="font-semibold text-xs text-primary">{c.next_hearing_info.title}</span>
                   <span className="text-[11px] text-gray-600 font-mono">{c.next_hearing_info.day_time}</span>
                 </div>
@@ -171,15 +159,16 @@ export function CaseTable({ ctx }: { ctx: LuponDocketState }) {
           },
           {
             header: "Next step",
+            className: "whitespace-nowrap text-right min-w-[140px]",
             render: (c: LuponCase) => {
               const step = nextStep(c);
               return (
                 <Link
                   to={step.to}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 px-3 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 px-3 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-white whitespace-nowrap"
                 >
                   {step.label}
-                  <FiArrowRight className="h-3 w-3" aria-hidden="true" />
+                  <FiArrowRight className="h-3 w-3 shrink-0" aria-hidden="true" />
                 </Link>
               );
             },
@@ -189,6 +178,7 @@ export function CaseTable({ ctx }: { ctx: LuponDocketState }) {
         rowKey={(c) => c.id}
         total={total}
         searchable
+        tableClassName="min-w-[70rem]"
         /* Asked of the server, so a case on another page is still found —
            a complainant's slip says KP-2026-0003, and that has to be enough. */
         onSearch={(text) => {

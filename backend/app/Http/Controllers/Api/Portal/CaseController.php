@@ -55,6 +55,8 @@ class CaseController extends PortalController
                 'complainant:id,first_name,middle_name,last_name,suffix',
             ])
             ->orderByDesc('date_filed')
+            ->orderByDesc('case_number')
+            ->orderByDesc('id')
             ->get()
             ->map(function ($case) use ($residentId) {
                 $mine = $case->complainant_id === $residentId ? 'Complainant' : 'Respondent';

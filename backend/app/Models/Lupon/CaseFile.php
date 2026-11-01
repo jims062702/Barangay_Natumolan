@@ -227,7 +227,18 @@ class CaseFile extends Model
                 $q->where('date_filed', '>', $this->date_filed)
                     ->orWhere(function ($q2) {
                         $q2->where('date_filed', $this->date_filed)
-                            ->where('id', '>=', $this->id);
+                            ->where(function ($q3) {
+                                if ($this->case_number) {
+                                    $q3->whereNotNull('case_number')
+                                        ->where('case_number', '>=', $this->case_number);
+                                } else {
+                                    $q3->whereNotNull('case_number')
+                                        ->orWhere(function ($q4) {
+                                            $q4->whereNull('case_number')
+                                                ->where('id', '>=', $this->id);
+                                        });
+                                }
+                            });
                     });
             })
             ->count();
