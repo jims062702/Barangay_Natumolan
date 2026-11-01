@@ -99,7 +99,7 @@ class HearingController extends BaseController
             'recorder:id,name',
             'luponCase.hearings' => fn ($q) => $q->orderBy('scheduled_at', 'asc'),
         ]))->whereHas('luponCase', function ($q) {
-            $q->whereNotIn('current_stage', ['Filed', 'For Summons', 'Withdrawn', 'Cancelled']);
+            $q->whereNotIn('current_stage', ['Filed', 'For Summons', 'Withdrawn', 'Cancelled', 'Settled', 'Closed - Unpaid', 'Closed Unpaid']);
         })->where('lupon_hearings.status', '!=', 'Cancelled');
 
         if ($request->filled('status')) {
@@ -210,7 +210,7 @@ class HearingController extends BaseController
 
         if ($isSecretary) {
             $casesQuery->whereDoesntHave('hearings', fn ($q) => $q->where('hearing_type', 'Conciliation'));
-        } elseif ($isLupon) {
+        } elseif ($isLupon && $validated['state'] === 'cfa') {
             $casesQuery->where(function ($q) {
                 $q->whereHas('hearings', fn ($h) => $h->where('hearing_type', 'Conciliation'))
                   ->orWhereNotNull('assigned_lupon_secretary');
@@ -256,7 +256,7 @@ class HearingController extends BaseController
         $sittings = Hearing::with(CaseFile::WITH_PARTIES)
             ->where('hearing_type', $type)
             ->whereHas('luponCase', function ($q) {
-                $q->whereNotIn('current_stage', ['Filed', 'For Summons']);
+                $q->whereNotIn('current_stage', ['Filed', 'For Summons', 'Withdrawn', 'Cancelled', 'Settled', 'Closed - Unpaid', 'Closed Unpaid']);
             })
             ->whereRaw("DATE_FORMAT(scheduled_at, '%Y-%m') = ?", [$month])
             ->orderBy('scheduled_at')

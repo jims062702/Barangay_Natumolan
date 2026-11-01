@@ -246,14 +246,14 @@ class BadgeController extends BaseController
                 ->whereIn('lupon_hearings.hearing_type', $hearingTypes)
                 ->where('lupon_hearings.status', 'Scheduled')
                 ->whereDate('lupon_hearings.scheduled_at', $today)
-                ->whereNotIn('lupon_cases.current_stage', ['Filed', 'For Summons', 'Withdrawn', 'Cancelled'])
+                ->whereNotIn('lupon_cases.current_stage', ['Filed', 'For Summons', 'Withdrawn', 'Cancelled', 'Settled', 'Closed - Unpaid', 'Closed Unpaid'])
                 ->count();
 
             // Upcoming Hearing: cases with upcoming scheduled hearings (cancelled cases and hearings excluded)
             $badges['/lupon/hearings/upcoming'] = DB::table('lupon_hearings')
                 ->join('lupon_cases', 'lupon_hearings.lupon_case_id', '=', 'lupon_cases.id')
                 ->whereIn('lupon_hearings.hearing_type', $hearingTypes)
-                ->whereNotIn('lupon_cases.current_stage', ['Filed', 'For Summons', 'Withdrawn', 'Cancelled'])
+                ->whereNotIn('lupon_cases.current_stage', ['Filed', 'For Summons', 'Withdrawn', 'Cancelled', 'Settled', 'Closed - Unpaid', 'Closed Unpaid'])
                 ->where('lupon_hearings.status', '!=', 'Cancelled')
                 ->whereDate('lupon_hearings.scheduled_at', '>', $today)
                 ->whereRaw('lupon_hearings.id = (
@@ -270,7 +270,7 @@ class BadgeController extends BaseController
             $badges['/lupon/hearings/past'] = DB::table('lupon_hearings')
                 ->join('lupon_cases', 'lupon_hearings.lupon_case_id', '=', 'lupon_cases.id')
                 ->whereIn('lupon_hearings.hearing_type', $hearingTypes)
-                ->whereNotIn('lupon_cases.current_stage', ['Filed', 'For Summons', 'Withdrawn', 'Cancelled'])
+                ->whereNotIn('lupon_cases.current_stage', ['Filed', 'For Summons', 'Withdrawn', 'Cancelled', 'Settled', 'Closed - Unpaid', 'Closed Unpaid'])
                 ->where('lupon_hearings.status', '!=', 'Cancelled')
                 ->where(function ($q) use ($today) {
                     $q->whereDate('lupon_hearings.scheduled_at', '<', $today)
@@ -283,11 +283,6 @@ class BadgeController extends BaseController
             if (! $isAdmin) {
                 if ($isSecretary) {
                     $cancelledQuery->whereDoesntHave('hearings', fn ($q) => $q->where('hearing_type', 'Conciliation'));
-                } elseif ($isLupon) {
-                    $cancelledQuery->where(function ($q) {
-                        $q->whereHas('hearings', fn ($h) => $h->where('hearing_type', 'Conciliation'))
-                          ->orWhereNotNull('assigned_lupon_secretary');
-                    });
                 }
             }
             $badges['/lupon/hearings/cancelled'] = $cancelledQuery->count();

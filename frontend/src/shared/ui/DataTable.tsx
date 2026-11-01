@@ -398,29 +398,32 @@ export default function DataTable<T>({
       </div>
 
       <div className="hidden overflow-x-auto rounded-xl border border-gray sm:block print:block print:overflow-visible">
-        <table className={`min-w-full divide-y divide-gray bg-white text-left text-sm ${tableClassName ?? ""}`}>
+        <table className={`w-full divide-y divide-gray bg-white text-left text-sm ${tableClassName ?? ""}`}>
           <thead className="bg-secondary">
             <tr>
               {showNumbers && (
                 <th
                   scope="col"
-                  className="w-12 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500"
+                  className="w-12 px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500"
                 >
                   #
                 </th>
               )}
-              {columns.map((column, index) => (
-                <th
-                  key={index}
-                  scope="col"
-                  className={`px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500 ${
-                    /* Buttons, not data: nothing to read on paper. */
-                    isActionColumn(column) ? "print-hide" : ""
-                  } ${column.className ?? ""}`}
-                >
-                  {column.header}
-                </th>
-              ))}
+              {columns.map((column, index) => {
+                const pad = column.className && /\bpx-\S+/.test(column.className) ? "" : "px-3";
+                return (
+                  <th
+                    key={index}
+                    scope="col"
+                    className={`${pad} py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 ${
+                      /* Buttons, not data: nothing to read on paper. */
+                      isActionColumn(column) ? "print-hide" : ""
+                    } ${column.className ?? ""}`}
+                  >
+                    {column.header}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray/70">
@@ -478,18 +481,21 @@ export default function DataTable<T>({
             {visibleRows.map((row, rowIndex) => (
               <tr key={rowKey(row)} className="transition-colors hover:bg-primary/[0.03]">
                 {showNumbers && (
-                  <td className="px-4 py-3 align-middle text-xs tabular-nums text-gray-400">
+                  <td className="px-3 py-2.5 align-middle text-xs tabular-nums text-gray-400">
                     {firstRowNumber + rowIndex}
                   </td>
                 )}
-                {columns.map((column, index) => (
-                  <td
-                    key={index}
-                    className={`px-4 py-3 align-middle ${isActionColumn(column) ? "print-hide" : ""} ${column.className ?? ""}`}
-                  >
-                    {column.render(row)}
-                  </td>
-                ))}
+                {columns.map((column, index) => {
+                  const pad = column.className && /\bpx-\S+/.test(column.className) ? "" : "px-3";
+                  return (
+                    <td
+                      key={index}
+                      className={`${pad} py-2.5 align-middle ${isActionColumn(column) ? "print-hide" : ""} ${column.className ?? ""}`}
+                    >
+                      {column.render(row)}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
