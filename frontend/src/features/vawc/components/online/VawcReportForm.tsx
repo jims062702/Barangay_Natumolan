@@ -283,7 +283,7 @@ export function VawcReportForm({
 
               <FormField
                 label="Evidence or supporting documents"
-                hint="Optional. Photos, screenshots, medical certificates, or documents (JPG, PNG, WEBP, PDF — up to 5 files, 5 MB each)."
+                hint="Optional. Photos, screenshots, medical certificates, or documents (JPG, PNG, WEBP, PDF — up to 5 files, 10 MB each)."
               >
                 <input
                   type="file"

@@ -127,10 +127,10 @@ class FileOnlineComplaintRequest extends FormRequest
             /* An image or a PDF, and small enough that a phone on barangay
                data can actually send it. A resident's is their card, read for
                its QR, so theirs must be a picture. */
-            'valid_id' => 'required|file|mimes:' . ($resident ? self::CARD_MIMES : 'jpg,jpeg,png,webp,pdf') . '|max:5120',
+            'valid_id' => 'required|file|mimes:' . ($resident ? self::CARD_MIMES : 'jpg,jpeg,png,webp,pdf') . '|max:10240',
 
             'evidence' => 'nullable|array|max:5',
-            'evidence.*' => 'file|mimes:jpg,jpeg,png,webp,pdf|max:5120',
+            'evidence.*' => 'file|mimes:jpg,jpeg,png,webp,pdf|max:10240',
         ];
     }
 
@@ -145,12 +145,15 @@ class FileOnlineComplaintRequest extends FormRequest
                 : 'The ID must be a photograph (JPG, PNG or WEBP) or a PDF.',
             'resident_card_code.required' => 'Upload your Barangay Resident ID so the barangay can verify you.',
             'resident_card_code.prohibited' => 'A Barangay Resident ID is only for residents. Choose "Yes, I am a resident here" if you live in Barangay Natumolan.',
-            'valid_id.max' => 'The ID file is too large. Keep it under 5 MB.',
+            'valid_id.uploaded' => 'The ID file could not be uploaded. Please make sure the file is valid and under 10 MB.',
+            'valid_id.max' => 'The ID file is too large. Keep it under 10 MB.',
             'narrative.required' => 'Describe what happened.',
             'narrative.min' => 'Describe what happened in a little more detail — the office reads this before you arrive.',
             'respondent_name.required' => 'Name the person the complaint is against.',
             'date_of_occurrence.before_or_equal' => 'The date cannot be in the future.',
             'evidence.max' => 'Attach up to five files.',
+            'evidence.*.uploaded' => 'One of the evidence files could not be uploaded. Please ensure each file is under 10 MB.',
+            'evidence.*.max' => 'Evidence files must not exceed 10 MB each.',
         ];
     }
 }

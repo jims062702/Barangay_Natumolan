@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { toISODateString } from "../../../shared/lib/birthdate";
 import { FiAlertCircle, FiHeart } from "react-icons/fi";
 import { errorMessage } from "../../../shared/lib/api";
 import { toast } from "../../../shared/lib/toast";
@@ -176,7 +177,7 @@ export default function LifeStatusEditor({ resident, onChanged }: Props) {
               value={dateOfDeath}
               onChange={(e) => setDateOfDeath(e.target.value)}
               max={new Date().toISOString().slice(0, 10)}
-              min={resident.birthdate ? resident.birthdate.slice(0, 10) : undefined}
+              min={resident.birthdate ? toISODateString(resident.birthdate) : undefined}
               className={inputClasses}
             />
           </FormField>

@@ -127,7 +127,7 @@ export function IdentityProof({
         label="Photograph of that ID"
         required
         plain
-        hint="JPG, PNG, WEBP or PDF, up to 5 MB. Bring the same card with you — the office checks it against you at the counter."
+        hint="JPG, PNG, WEBP or PDF, up to 10 MB. Bring the same card with you — the office checks it against you at the counter."
       >
         <FileField
           file={value.idFile}

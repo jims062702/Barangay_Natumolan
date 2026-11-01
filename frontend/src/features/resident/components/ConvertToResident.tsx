@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { toISODateString } from "../../../shared/lib/birthdate";
 import { FiHome } from "react-icons/fi";
 import { errorMessage, fieldErrors } from "../../../shared/lib/api";
 import { showServerFieldErrors } from "../../../shared/lib/formErrors";
@@ -51,7 +52,7 @@ const carriedOver = (resident: Resident): ResidentForm => ({
   contact_number: resident.contact_number ?? "",
   email: resident.email ?? "",
   gender: resident.gender ?? "",
-  birthdate: resident.birthdate ? resident.birthdate.slice(0, 10) : "",
+  birthdate: resident.birthdate ? toISODateString(resident.birthdate) : "",
   civil_status: resident.civil_status ?? "",
 });
 

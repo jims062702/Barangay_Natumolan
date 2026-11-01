@@ -134,6 +134,15 @@ export function ResidentIdCheck({
       onChange(BLANK_RESIDENT_ID);
       return;
     }
+    if (file.size > 10 * 1024 * 1024) {
+      onChange({
+        ...BLANK_RESIDENT_ID,
+        file: null,
+        status: "failed",
+        message: `The ID file is too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Keep it under 10 MB.`,
+      });
+      return;
+    }
     if (!RESIDENT_ID_ACCEPT.split(",").includes(file.type)) {
       onChange({ ...BLANK_RESIDENT_ID, file, status: "failed", message: "Upload a picture of your ID — JPG, PNG or WEBP — so its QR code can be read." });
       return;
@@ -194,7 +203,7 @@ export function ResidentIdCheck({
         label="Your Barangay Resident ID"
         required
         plain
-        hint="JPG, PNG or WEBP, up to 5 MB. The whole card in view, the QR code sharp."
+        hint="JPG, PNG or WEBP, up to 10 MB. The whole card in view, the QR code sharp."
       >
         {/* Hidden file input for choosing from gallery/files */}
         <input

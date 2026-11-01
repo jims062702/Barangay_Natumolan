@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { FiEdit2 } from "react-icons/fi";
 import { errorMessage } from "../../../shared/lib/api";
+import { toISODateString } from "../../../shared/lib/birthdate";
 import { announceWrite } from "../../../shared/lib/announceWrite";
 import { confirmAction } from "../../../shared/lib/confirm";
 import { toast } from "../../../shared/lib/toast";
@@ -219,7 +220,8 @@ export default function ImmunizationCardModal({
   const deliveryTypes = card?.delivery_types ?? [...DELIVERY_TYPES];
 
   const today = new Date().toLocaleDateString("en-CA");
-  const born = card?.resident.birthdate?.slice(0, 10) || person?.birthdate?.slice(0, 10) || undefined;
+  const born = (card?.resident.birthdate ? toISODateString(card.resident.birthdate) : undefined)
+    || (person?.birthdate ? toISODateString(person.birthdate) : undefined);
 
   const setDose = (vaccine: string, date: string) =>
     setDoses((was) => ({ ...was, [vaccine]: date }));

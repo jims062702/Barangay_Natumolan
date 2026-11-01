@@ -3,6 +3,7 @@ import { toast } from "../../../shared/lib/toast";
 import { errorMessage } from "../../../shared/lib/api";
 import { rbimApi } from "../api";
 import { ageFrom } from "../lib/rules";
+import { toISODateString, parseDateParts } from "../../../shared/lib/birthdate";
 import { BLANK_MEMBER } from "../lib/constants";
 import type { CensusAnswersState } from "./useCensusAnswers";
 import type { CensusSubmitState } from "./useCensusSubmit";
@@ -141,9 +142,9 @@ export function useHouseholdMatch(ctx: CensusAnswersState & CensusSubmitState) {
          * day of the month), which is carried as just that, not as a day
          * nobody said.
          */
-        q5_birthdate: r.birthdate && !r.birthdate_is_estimated ? r.birthdate.slice(0, 10) : null,
-        q5_birth_month: r.birthdate ? Number(r.birthdate.slice(5, 7)) : null,
-        q5_birth_year: r.birthdate ? Number(r.birthdate.slice(0, 4)) : null,
+        q5_birthdate: r.birthdate && !r.birthdate_is_estimated ? toISODateString(r.birthdate) : null,
+        q5_birth_month: parseDateParts(r.birthdate)?.[1] ?? null,
+        q5_birth_year: parseDateParts(r.birthdate)?.[0] ?? null,
       }));
 
     /*

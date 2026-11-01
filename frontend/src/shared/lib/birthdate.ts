@@ -37,36 +37,59 @@ const LONG: Intl.DateTimeFormatOptions = { dateStyle: "long" };
 const MONTH_YEAR: Intl.DateTimeFormatOptions = { month: "long", year: "numeric" };
 
 /**
- * @param value      the stored date, `YYYY-MM-DD`
+ * Safely extract year, month (1-12), and day from any date representation
+ * (whether "YYYY-MM-DD" or an ISO string with time "YYYY-MM-DDTHH:mm:ss.sssZ").
+ */
+export function parseDateParts(value: string | null | undefined): [number, number, number] | null {
+  if (!value) return null;
+  const str = String(value).trim();
+  if (!str) return null;
+
+  // If it contains "T" (ISO timestamp with time, e.g. from UTC conversion),
+  // parse with Date so the client converts it into their local day (UTC+8 in Philippines).
+  if (str.includes("T")) {
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) {
+      return [d.getFullYear(), d.getMonth() + 1, d.getDate()];
+    }
+  }
+
+  // Bare YYYY-MM-DD
+  const match = /^(\d{4})-(\d{2})(?:-(\d{2}))?/.exec(str);
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = match[3] ? Number(match[3]) : 1;
+    if (year && month) {
+      return [year, month, day];
+    }
+  }
+
+  const [year, month, day] = str.slice(0, 10).split("-").map(Number);
+  if (!year || !month) return null;
+  return [year, month, day || 1];
+}
+
+/** Formats as standard YYYY-MM-DD (e.g. for HTML input type="date") */
+export function toISODateString(value: string | null | undefined): string {
+  const parts = parseDateParts(value);
+  if (!parts) return "";
+  const [year, month, day] = parts;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/**
+ * @param value      the stored date, `YYYY-MM-DD` or ISO string
  * @param estimated  true when only a month and a year were ever given
  */
 export function formatBirthdate(
   value: string | null | undefined,
   estimated?: boolean | null,
 ): string {
-  if (!value) {
-    return "";
-  }
+  const parts = parseDateParts(value);
+  if (!parts) return "";
 
-  /*
-   * Split, not `new Date(value)`.
-   *
-   * A bare `YYYY-MM-DD` is parsed as a UTC INSTANT and then rendered in the
-   * viewer's zone, which is a category error: a date of birth has no time
-   * and no zone, it is three numbers on a certificate.
-   *
-   * It happens not to bite here — the Philippines is ahead of UTC, and
-   * being ahead cannot move a date backwards, so every value tested came
-   * out on its own day. That is exactly why it is worth not relying on:
-   * the failure is invisible from this barangay and lands on anyone
-   * reading from a zone behind UTC.
-   */
-  const [year, month, day] = value.slice(0, 10).split("-").map(Number);
-
-  if (!year || !month) {
-    return "";
-  }
-
+  const [year, month, day] = parts;
   const local = new Date(year, month - 1, day || 1);
 
   return local.toLocaleDateString("en-PH", estimated ? MONTH_YEAR : LONG);
@@ -98,15 +121,12 @@ export function birthdateNote(estimated?: boolean | null): string {
  * compared against a local clock, which is two calendars pretending to be one.
  */
 export function ageFrom(value: string | null | undefined): number | null {
-  if (!value) {
+  const parts = parseDateParts(value);
+  if (!parts) {
     return null;
   }
 
-  const [year, month, day] = value.slice(0, 10).split("-").map(Number);
-
-  if (!year || !month) {
-    return null;
-  }
+  const [year, month, day] = parts;
 
   const now = new Date();
   let age = now.getFullYear() - year;

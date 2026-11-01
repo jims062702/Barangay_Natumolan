@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { formatBirthdate } from "../../../shared/lib/birthdate";
+import { formatBirthdate, toISODateString } from "../../../shared/lib/birthdate";
 import { FiArrowLeft } from "react-icons/fi";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { errorMessage, fieldErrors } from "../../../shared/lib/api";
@@ -75,7 +75,7 @@ export default function ResidentEdit() {
   /* The age from the date typed — or, while the box is still empty on a
      record holding only a month and a year, from what is on record. */
   const editAge = form
-    ? ageFromBirthdate(form.birthdate || (resident?.birthdate_is_estimated ? String(resident.birthdate ?? "").slice(0, 10) : ""))
+    ? ageFromBirthdate(form.birthdate || (resident?.birthdate_is_estimated ? toISODateString(resident.birthdate) : ""))
     : null;
 
   useEffect(() => {
@@ -97,7 +97,7 @@ export default function ResidentEdit() {
            * correction saved over it stayed marked "month and year only".
            * The box starts empty, and a date typed into it is the whole one.
            */
-          birthdate: res.birthdate && !res.birthdate_is_estimated ? res.birthdate.slice(0, 10) : "",
+          birthdate: res.birthdate && !res.birthdate_is_estimated ? toISODateString(res.birthdate) : "",
           nationality: res.nationality ?? "",
           civil_status: res.civil_status ?? "Single",
           occupation: res.occupation ?? "",

@@ -49,7 +49,7 @@ class OnlineComplaint extends Model
     protected function casts(): array
     {
         return [
-            'date_of_occurrence' => 'date',
+            'date_of_occurrence' => 'date:Y-m-d',
             'handled_at' => 'datetime',
         ];
     }

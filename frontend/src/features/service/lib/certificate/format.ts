@@ -50,17 +50,25 @@ export function fullName(certificate: PrintableCertificate): string {
 export function longDate(value?: string | null): string {
   if (!value) return "";
 
+  const str = String(value).trim();
+  if (str.includes("T")) {
+    const date = new Date(str);
+    if (!Number.isNaN(date.getTime())) {
+      return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+    }
+  }
+
   /* A bare date is three numbers, not an instant — split, never parsed as
      UTC, or a zone behind it would print the day before. */
-  const bare = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value).slice(0, 10));
+  const bare = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str.slice(0, 10));
 
   if (bare) {
     return `${MONTHS[Number(bare[2]) - 1]} ${Number(bare[3])}, ${bare[1]}`;
   }
 
-  const date = new Date(value);
+  const date = new Date(str);
 
-  if (Number.isNaN(date.getTime())) return String(value);
+  if (Number.isNaN(date.getTime())) return str;
 
   return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
 }
@@ -76,6 +84,12 @@ export function birthdateLine(r: PrintableCertificate["resident"]): string {
   if (!r?.birthdate) return "";
 
   if (r.birthdate_is_estimated) {
+    if (String(r.birthdate).includes("T")) {
+      const d = new Date(r.birthdate);
+      if (!Number.isNaN(d.getTime())) {
+        return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+      }
+    }
     const [year, month] = String(r.birthdate).slice(0, 10).split("-").map(Number);
 
     return year && month ? `${MONTHS[month - 1]} ${year}` : "";

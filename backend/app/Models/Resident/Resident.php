@@ -81,9 +81,9 @@ class Resident extends Model
     ];
 
     protected $casts = [
-        'birthdate' => 'date',
+        'birthdate' => 'date:Y-m-d',
         'birthdate_is_estimated' => 'boolean',
-        'date_of_death' => 'date',
+        'date_of_death' => 'date:Y-m-d',
         'is_active' => 'boolean',
     ];
 

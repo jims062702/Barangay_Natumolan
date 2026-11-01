@@ -1,4 +1,5 @@
 import { FiCheck, FiDownload } from "react-icons/fi";
+import { formatBirthdate } from "../../../../shared/lib/birthdate";
 import SearchInput from "../../../../shared/ui/SearchInput";
 import { inputClasses } from "../../../../shared/ui/FormField";
 import { SECTORS } from "./options";
@@ -126,7 +127,7 @@ export function ExportSection({ ctx }: { ctx: RegisterTransferState }) {
                 )}
                 {person.birthdate && (
                   <span className="ml-auto text-xs text-gray-400">
-                    born {person.birthdate.slice(0, 10)}
+                    born {formatBirthdate(person.birthdate, person.birthdate_is_estimated)}
                   </span>
                 )}
               </li>
