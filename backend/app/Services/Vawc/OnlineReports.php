@@ -85,7 +85,7 @@ final class OnlineReports
             $evidencePaths = [];
             foreach ($evidence as $file) {
                 if ($file instanceof UploadedFile) {
-                    $evidencePaths[] = app(\App\Services\Cloudinary\CloudinaryService::class)->upload($file, 'vawc-evidence') ?? $file->store(self::EVIDENCE_DIR, 'local');
+                    $evidencePaths[] = $file->store(self::EVIDENCE_DIR, 'local');
                 }
             }
 
@@ -106,7 +106,7 @@ final class OnlineReports
                 'in_danger_now' => $danger,
                 'safe_contact' => $data['safe_contact'] ?? null,
                 'safe_time' => $data['safe_time'] ?? null,
-                'id_path' => app(\App\Services\Cloudinary\CloudinaryService::class)->upload($id, 'vawc-ids') ?? $id->store(self::ID_DIR, 'local'),
+                'id_path' => $id->store(self::ID_DIR, 'local'),
                 'evidence_paths' => $evidencePaths,
                 'status' => OnlineReport::FOR_VERIFICATION,
                 /* No threat: she confirms it in person first. A threat: optional. */
@@ -120,6 +120,49 @@ final class OnlineReports
             } catch (\Throwable $failure) {
                 report($failure);
             }
+
+            // Sync files to Cloudinary in the background after the response is sent to user
+            app()->terminating(function () use ($report) {
+                try {
+                    $idLocalPath = $report->id_path;
+                    if ($idLocalPath && !str_starts_with($idLocalPath, 'http')) {
+                        $fullPath = \Illuminate\Support\Facades\Storage::disk('local')->path($idLocalPath);
+                        if (file_exists($fullPath)) {
+                            $cloudUrl = app(\App\Services\Cloudinary\CloudinaryService::class)->upload($fullPath, 'vawc-ids');
+                            if ($cloudUrl) {
+                                $report->update(['id_path' => $cloudUrl]);
+                            }
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+
+                try {
+                    $paths = $report->evidence_paths ?? [];
+                    $updated = [];
+                    $hasChange = false;
+                    foreach ($paths as $path) {
+                        if ($path && !str_starts_with($path, 'http')) {
+                            $fullEvPath = \Illuminate\Support\Facades\Storage::disk('local')->path($path);
+                            if (file_exists($fullEvPath)) {
+                                $evCloudUrl = app(\App\Services\Cloudinary\CloudinaryService::class)->upload($fullEvPath, 'vawc-evidence');
+                                if ($evCloudUrl) {
+                                    $updated[] = $evCloudUrl;
+                                    $hasChange = true;
+                                    continue;
+                                }
+                            }
+                        }
+                        $updated[] = $path;
+                    }
+                    if ($hasChange) {
+                        $report->update(['evidence_paths' => $updated]);
+                    }
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            });
 
             return $report;
         });

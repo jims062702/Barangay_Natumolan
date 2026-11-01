@@ -78,13 +78,13 @@ final class OnlineFiling
                 'relationship_nature' => $data['relationship_nature'] ?? null,
                 'valid_id_type' => $data['valid_id_type'],
                 'valid_id_number' => $data['valid_id_number'] ?? null,
-                'valid_id_path' => app(\App\Services\Cloudinary\CloudinaryService::class)->upload($validId, 'complaint-ids') ?? $validId->store(self::ID_DIR, 'local'),
+                'valid_id_path' => $validId->store(self::ID_DIR, 'local'),
                 'status' => OnlineComplaint::FOR_VERIFICATION,
             ]);
 
             foreach ($evidence as $file) {
                 $complaint->files()->create([
-                    'path' => app(\App\Services\Cloudinary\CloudinaryService::class)->upload($file, 'complaint-evidence') ?? $file->store(self::EVIDENCE_DIR, 'local'),
+                    'path' => $file->store(self::EVIDENCE_DIR, 'local'),
                     'original_name' => $file->getClientOriginalName(),
                     'mime_type' => $file->getClientMimeType(),
                     'size_bytes' => $file->getSize(),
@@ -101,6 +101,40 @@ final class OnlineFiling
             } catch (\Throwable $failure) {
                 report($failure);
             }
+
+            // Sync to Cloudinary in the background after the response is sent to user
+            app()->terminating(function () use ($complaint) {
+                try {
+                    $idLocalPath = $complaint->valid_id_path;
+                    if ($idLocalPath && !str_starts_with($idLocalPath, 'http')) {
+                        $fullPath = \Illuminate\Support\Facades\Storage::disk('local')->path($idLocalPath);
+                        if (file_exists($fullPath)) {
+                            $cloudUrl = app(\App\Services\Cloudinary\CloudinaryService::class)->upload($fullPath, 'complaint-ids');
+                            if ($cloudUrl) {
+                                $complaint->update(['valid_id_path' => $cloudUrl]);
+                            }
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+
+                try {
+                    foreach ($complaint->files as $file) {
+                        if ($file->path && !str_starts_with($file->path, 'http')) {
+                            $fullEvPath = \Illuminate\Support\Facades\Storage::disk('local')->path($file->path);
+                            if (file_exists($fullEvPath)) {
+                                $evCloudUrl = app(\App\Services\Cloudinary\CloudinaryService::class)->upload($fullEvPath, 'complaint-evidence');
+                                if ($evCloudUrl) {
+                                    $file->update(['path' => $evCloudUrl]);
+                                }
+                            }
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            });
 
             return $complaint;
         });

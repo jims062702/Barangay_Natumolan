@@ -3,6 +3,7 @@ import axios from "axios";
 import { FiArrowLeft, FiInfo, FiSend } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { errorMessage } from "../../../shared/lib/api";
+import { compressImageFile } from "../../../shared/lib/imageData";
 import { toast } from "../../../shared/lib/toast";
 import FormField, { inputClasses } from "../../../shared/ui/FormField";
 import ChoiceGroup from "../../../shared/ui/ChoiceGroup";
@@ -135,7 +136,10 @@ export default function FileComplaint() {
     if (resident) {
       /* Who they are is the card's to say: its code, and the picture of it. */
       body.append("resident_card_code", residentId.code ?? "");
-      body.append("valid_id", residentId.file as File);
+      if (residentId.file) {
+        const compressedId = await compressImageFile(residentId.file as File);
+        body.append("valid_id", compressedId);
+      }
     } else {
       body.append("complainant_name", fullName.trim());
       body.append("complainant_address", address);
@@ -152,9 +156,15 @@ export default function FileComplaint() {
     if (!resident) {
       body.append("valid_id_type", identity.idType);
       if (identity.idNumber) body.append("valid_id_number", identity.idNumber);
-      body.append("valid_id", identity.idFile as File);
+      if (identity.idFile) {
+        const compressedId = await compressImageFile(identity.idFile as File);
+        body.append("valid_id", compressedId);
+      }
     }
-    identity.evidence.forEach((file) => body.append("evidence[]", file));
+    for (const file of identity.evidence) {
+      const compressed = await compressImageFile(file);
+      body.append("evidence[]", compressed);
+    }
 
     try {
       const response = await publicApi.fileComplaint(body, { ...upload.tracker });

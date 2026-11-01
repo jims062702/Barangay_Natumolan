@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import axios, { type AxiosRequestConfig } from "axios";
 import { FiAlertTriangle, FiLock, FiSend } from "react-icons/fi";
 import { errorMessage } from "../../../../shared/lib/api";
+import { compressImageFile } from "../../../../shared/lib/imageData";
 import { toast } from "../../../../shared/lib/toast";
 import FormField, { inputClasses } from "../../../../shared/ui/FormField";
 import ChoiceGroup from "../../../../shared/ui/ChoiceGroup";
@@ -111,7 +112,10 @@ export function VawcReportForm({
 
     const body = new FormData();
     body.append("resident_card_code", code);
-    body.append("valid_id", residentId.file as File);
+    if (residentId.file) {
+      const compressedId = await compressImageFile(residentId.file as File);
+      body.append("valid_id", compressedId);
+    }
     body.append("respondent_name", respondentName.trim());
     if (respondentAddress.trim()) body.append("respondent_address", respondentAddress.trim());
     kinds.forEach((k) => body.append("violence_types[]", k));
@@ -123,7 +127,10 @@ export function VawcReportForm({
     body.append("in_danger_now", danger === "yes" ? "1" : "0");
     if (safeContact.trim()) body.append("safe_contact", safeContact.trim());
     if (safeTime.trim()) body.append("safe_time", safeTime.trim());
-    evidenceFiles.forEach((file) => body.append("evidence[]", file));
+    for (const file of evidenceFiles) {
+      const compressed = await compressImageFile(file);
+      body.append("evidence[]", compressed);
+    }
 
     setSending(true);
     try {

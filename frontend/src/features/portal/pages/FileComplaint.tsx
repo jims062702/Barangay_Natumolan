@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import axios from "axios";
 import { FiInfo, FiSend, FiPlus } from "react-icons/fi";
 import { errorMessage } from "../../../shared/lib/api";
+import { compressImageFile } from "../../../shared/lib/imageData";
 import { toast } from "../../../shared/lib/toast";
 import { confirmAction } from "../../../shared/lib/confirm";
 import Card from "../../../shared/ui/Card";
@@ -158,9 +159,15 @@ export default function FileComplaint() {
     if (dispute.relationship) body.append("relationship_nature", dispute.relationship);
     if (dispute.nature) body.append("case_classification", dispute.nature);
     body.append("resident_card_code", residentId.code ?? "");
-    body.append("valid_id", residentId.file as File);
+    if (residentId.file) {
+      const compressedId = await compressImageFile(residentId.file as File);
+      body.append("valid_id", compressedId);
+    }
     if (contact) body.append("complainant_contact", contact);
-    identity.evidence.forEach((file) => body.append("evidence[]", file));
+    for (const file of identity.evidence) {
+      const compressed = await compressImageFile(file);
+      body.append("evidence[]", compressed);
+    }
 
     try {
       const response = await portalApi.fileComplaint(body, { ...upload.tracker });

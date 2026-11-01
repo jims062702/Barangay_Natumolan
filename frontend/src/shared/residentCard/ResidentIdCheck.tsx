@@ -11,6 +11,7 @@ import {
 } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { errorMessage } from "../lib/api";
+import { compressImageFile } from "../lib/imageData";
 import FormField, { inputClasses } from "../ui/FormField";
 import { cardCode, readQrFromImage } from "./readQr";
 import IdCameraModal from "./IdCameraModal";
@@ -162,7 +163,8 @@ export function ResidentIdCheck({
       });
       return;
     }
-    await check(file, code, turn);
+    const compressed = await compressImageFile(file);
+    await check(compressed, code, turn);
   };
 
   const checkTyped = async () => {
