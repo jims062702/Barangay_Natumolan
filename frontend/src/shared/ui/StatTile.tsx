@@ -48,16 +48,16 @@ export default function StatTile({
     <div
       ref={ref}
       style={reveal.style}
-      className={`flex items-center gap-4 rounded-2xl border border-gray bg-white p-5 shadow-sm ${reveal.className} ${className}`}
+      className={`flex items-center gap-2.5 sm:gap-4 rounded-2xl border border-gray bg-white p-3 sm:p-5 shadow-sm ${reveal.className} ${className}`}
     >
       {Icon && (
-        <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${TONES[tone]}`}>
-          <Icon className="h-6 w-6" aria-hidden="true" />
+        <span className={`flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl ${TONES[tone]}`}>
+          <Icon className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
         </span>
       )}
       <div className="min-w-0">
-        <p className="truncate text-xs font-medium uppercase tracking-wide text-gray-500">{label}</p>
-        <p className="text-2xl font-bold text-dark">
+        <p className="truncate text-[11px] sm:text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</p>
+        <p className="text-xl sm:text-2xl font-bold text-dark">
           {/*
             A number counts up; a string is just shown. "0.56" is a number to
             a person and a string to this component, so anything that arrives

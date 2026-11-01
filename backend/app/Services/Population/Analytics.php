@@ -37,6 +37,10 @@ final class Analytics
                 ->orderBy('zone_purok')
                 ->get(),
             'events_this_year' => Event::whereYear('event_date', date('Y'))
+                ->where(function ($q) {
+                    $q->where('event_type', '!=', 'Death')
+                      ->orWhereHas('resident', fn ($rq) => $rq->where('life_status', 'Deceased'));
+                })
                 ->groupBy('event_type')
                 ->selectRaw('event_type, count(*) as count')
                 ->get(),

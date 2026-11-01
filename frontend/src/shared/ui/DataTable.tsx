@@ -320,18 +320,58 @@ export default function DataTable<T>({
         )}
         {notice === null &&
           visibleRows.map((row) => (
-            <div key={rowKey(row)} className="rounded-xl border border-gray bg-white p-4">
-              <dl className="space-y-2">
-                {dataColumns.map((column, index) => (
-                  <div key={index} className="flex items-baseline justify-between gap-3">
-                    <dt className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-                      {column.header}
-                    </dt>
-                    <dd className="min-w-0 break-words text-right text-sm text-dark">
-                      {column.render(row)}
-                    </dd>
-                  </div>
-                ))}
+            <div key={rowKey(row)} className="rounded-2xl border border-gray/80 bg-white p-4 shadow-2xs">
+              <dl className="space-y-1">
+                {dataColumns.map((column, index) => {
+                  const headerLower = column.header.toLowerCase();
+                  const isPrimary = index === 0;
+                  const isBlockField =
+                    headerLower.includes("purpose") ||
+                    headerLower.includes("detail") ||
+                    headerLower.includes("remark") ||
+                    headerLower.includes("description") ||
+                    headerLower.includes("address");
+
+                  if (isPrimary) {
+                    return (
+                      <div key={index} className="border-b border-gray/50 pb-2.5 mb-2">
+                        <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                          {column.header}
+                        </dt>
+                        <dd className="mt-1 text-sm font-semibold text-dark break-words [overflow-wrap:anywhere]">
+                          {column.render(row)}
+                        </dd>
+                      </div>
+                    );
+                  }
+
+                  if (isBlockField) {
+                    return (
+                      <div key={index} className="pt-1.5 pb-1.5 border-b border-gray/20 last:border-b-0">
+                        <dt className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                          {column.header}
+                        </dt>
+                        <dd className="mt-0.5 text-xs text-gray-700 break-words [overflow-wrap:anywhere]">
+                          {column.render(row)}
+                        </dd>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={index}
+                      className="flex items-start justify-between gap-3 py-1.5 border-b border-gray/20 last:border-b-0 text-xs"
+                    >
+                      <dt className="text-[11px] font-medium uppercase tracking-wider text-gray-500 shrink-0 max-w-[45%]">
+                        {column.header}
+                      </dt>
+                      <dd className="min-w-0 text-right font-medium text-dark break-words [overflow-wrap:anywhere]">
+                        {column.render(row)}
+                      </dd>
+                    </div>
+                  );
+                })}
               </dl>
               {/*
                 Every action control in the strip is floored at 36px tall and
@@ -340,7 +380,7 @@ export default function DataTable<T>({
                 16px — which is a miss waiting to happen under a thumb.
               */}
               {actionColumns.length > 0 && (
-                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray/70 pt-3 [&_a]:inline-flex [&_a]:min-h-9 [&_a]:items-center [&_button]:inline-flex [&_button]:min-h-9 [&_button]:items-center">
+                <div className="mt-3.5 flex flex-wrap items-center gap-2 border-t border-gray/60 pt-3 [&_a]:inline-flex [&_a]:min-h-9 [&_a]:items-center [&_button]:inline-flex [&_button]:min-h-9 [&_button]:items-center">
                   {actionColumns.map((column, index) => (
                     <div key={index} className="flex flex-wrap items-center gap-2">
                       {column.render(row)}

@@ -193,7 +193,7 @@ export default function AppointmentsCalendar() {
       />
 
       {/* Quick Summary Stats */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-4">
         <StatTile
           label="This Month"
           value={appointments.length}
@@ -257,84 +257,87 @@ export default function AppointmentsCalendar() {
           </div>
         </div>
 
-        {/* Days of Week Header */}
-        <div className="grid grid-cols-7 gap-px border-b border-gray/60 pb-2 text-center text-xs font-bold text-gray-500">
-          <div>Sun</div>
-          <div>Mon</div>
-          <div>Tue</div>
-          <div>Wed</div>
-          <div>Thu</div>
-          <div>Fri</div>
-          <div>Sat</div>
-        </div>
+        {/* Days of Week Header & Calendar Grid (Horizontal scroll on mobile with full tile sizing) */}
+        <div className="overflow-x-auto">
+          <div className="min-w-[46rem]">
+            <div className="grid grid-cols-7 gap-1.5 border-b border-gray/60 pb-2 text-center text-xs font-bold text-gray-500">
+              <div>Sun</div>
+              <div>Mon</div>
+              <div>Tue</div>
+              <div>Wed</div>
+              <div>Thu</div>
+              <div>Fri</div>
+              <div>Sat</div>
+            </div>
 
-        {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-1 pt-1">
-          {weeks.map((week) =>
-            week.map(({ date, inMonth, key }) => {
-              const dayApts = byDate.get(key) ?? [];
-              const isToday = key === todayStr;
+            <div className="grid grid-cols-7 gap-1.5 pt-2">
+              {weeks.map((week) =>
+                week.map(({ date, inMonth, key }) => {
+                  const dayApts = byDate.get(key) ?? [];
+                  const isToday = key === todayStr;
 
-              return (
-                <div
-                  key={key}
-                  className={`min-h-[105px] rounded-xl border p-1.5 transition ${
-                    isToday
-                      ? "border-primary bg-primary/5 shadow-xs"
-                      : inMonth
-                      ? "border-gray/50 bg-white"
-                      : "border-gray/20 bg-gray-50/40 text-gray-300"
-                  }`}
-                >
-                  <div className="flex items-center justify-between pb-1">
-                    <span
-                      className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${
+                  return (
+                    <div
+                      key={key}
+                      className={`min-h-[110px] rounded-xl border p-2 transition ${
                         isToday
-                          ? "bg-primary text-white"
+                          ? "border-primary bg-primary/5 shadow-xs"
                           : inMonth
-                          ? "text-dark"
-                          : "text-gray-400"
+                          ? "border-gray/50 bg-white"
+                          : "border-gray/20 bg-gray-50/40 text-gray-300"
                       }`}
                     >
-                      {date.getDate()}
-                    </span>
-                    {dayApts.length > 0 && (
-                      <span className="rounded-full bg-primary/10 px-1.5 py-0.2 text-[10px] font-bold text-primary">
-                        {dayApts.length}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Appointments list in day cell */}
-                  <div className="space-y-1">
-                    {dayApts.slice(0, 3).map((apt) => (
-                      <button
-                        key={apt.id}
-                        type="button"
-                        onClick={() => setSelectedAppointment(apt)}
-                        className={`w-full text-left truncate rounded-md px-1.5 py-1 text-[11px] font-semibold transition cursor-pointer ${
-                          apt.applicant_type === "Resident"
-                            ? "bg-purple-50 text-purple-900 border border-purple-200 hover:bg-purple-100"
-                            : "bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100"
-                        }`}
-                        title={`${apt.appointment_time || "Time unconfirmed"} — ${apt.full_name}: ${apt.purpose}`}
-                      >
-                        <span className="font-bold text-[10px] block opacity-80">
-                          {apt.appointment_time || "Scheduled"}
+                      <div className="flex items-center justify-between pb-1.5">
+                        <span
+                          className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${
+                            isToday
+                              ? "bg-primary text-white"
+                              : inMonth
+                              ? "text-dark"
+                              : "text-gray-400"
+                          }`}
+                        >
+                          {date.getDate()}
                         </span>
-                        <span className="truncate block">{apt.full_name}</span>
-                      </button>
-                    ))}
-                    {dayApts.length > 3 && (
-                      <div className="text-center text-[10px] font-semibold text-gray-500">
-                        +{dayApts.length - 3} more
+                        {dayApts.length > 0 && (
+                          <span className="rounded-full bg-primary/10 px-1.5 py-0.2 text-[10px] font-bold text-primary">
+                            {dayApts.length}
+                          </span>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })
-          )}
+
+                      {/* Appointments list in day cell */}
+                      <div className="space-y-1">
+                        {dayApts.slice(0, 3).map((apt) => (
+                          <button
+                            key={apt.id}
+                            type="button"
+                            onClick={() => setSelectedAppointment(apt)}
+                            className={`w-full text-left truncate rounded-md px-1.5 py-1 text-[11px] font-semibold transition cursor-pointer ${
+                              apt.applicant_type === "Resident"
+                                ? "bg-purple-50 text-purple-900 border border-purple-200 hover:bg-purple-100"
+                                : "bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100"
+                            }`}
+                            title={`${apt.appointment_time || "Time unconfirmed"} — ${apt.full_name}: ${apt.purpose}`}
+                          >
+                            <span className="font-bold text-[10px] block opacity-80">
+                              {apt.appointment_time || "Scheduled"}
+                            </span>
+                            <span className="truncate block">{apt.full_name}</span>
+                          </button>
+                        ))}
+                        {dayApts.length > 3 && (
+                          <div className="text-center text-[10px] font-semibold text-gray-500">
+                            +{dayApts.length - 3} more
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
         </div>
       </Card>
 

@@ -143,10 +143,10 @@ class LifeStatusController extends BaseController
                 $notes[] = 'Their portal login (' . $account->email . ') was re-enabled.';
             }
 
-            // Remove any pending death event that was recorded when marked deceased
+            // Remove any death event for this resident recorded in error
             Event::where('resident_id', $resident->id)
                 ->where('event_type', 'Death')
-                ->where('verification_status', 'Pending')
+
                 ->delete();
 
             $notes[] = 'Their record is active again.';
