@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\Health;
 use App\Http\Controllers\Api\BaseController;
 use App\Http\Requests\Health\StoreMaternalHealthRequest;
 use App\Models\Health\MaternalRecord;
+use App\Models\Health\PrenatalVisit;
+use App\Models\Health\Visit;
 use App\Models\Resident\Resident;
 use App\Services\Health\PregnancyRegister;
 use App\Services\Health\RegisteredPerson;
@@ -91,7 +93,7 @@ class MaternalHealthController extends BaseController
             return $this->success($this->motherView($latest), 'Mother found');
         }
 
-        $latestHeight = \AppModels\Health\Visit::where('patient_id', $mother->id)
+        $latestHeight = Visit::where('patient_id', $mother->id)
             ->whereNotNull('height_cm')
             ->where('height_cm', '>', 0)
             ->orderByDesc('visit_date')
@@ -344,7 +346,7 @@ class MaternalHealthController extends BaseController
             ->orderByDesc('visit_date')->orderByDesc('id')->get();
         $visitNumbers = $this->register->visitNumbers([$selected->id]);
 
-        $latestHeight = \App\Models\Health\PrenatalVisit::whereIn('pregnancy_id', $all->pluck('id'))
+        $latestHeight = PrenatalVisit::whereIn('pregnancy_id', $all->pluck('id'))
             ->whereNotNull('height_cm')
             ->where('height_cm', '>', 0)
             ->orderByDesc('visit_date')
@@ -352,7 +354,7 @@ class MaternalHealthController extends BaseController
             ->value('height_cm');
 
         if (!$latestHeight) {
-            $latestHeight = \App\Models\Health\Visit::where('patient_id', $selected->mother_id)
+            $latestHeight = Visit::where('patient_id', $selected->mother_id)
                 ->whereNotNull('height_cm')
                 ->where('height_cm', '>', 0)
                 ->orderByDesc('visit_date')
